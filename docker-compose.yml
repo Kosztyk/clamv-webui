@@ -1,0 +1,26 @@
+
+services:
+  clamav-web-client:
+    build: .
+    container_name: clamav-web-client
+    ports:
+      - "8080:8080"
+    environment:
+      - CLAMAV_HOST=clamav-server
+      - CLAMAV_PORT=3310
+      # Optional: override DB to Postgres
+      # - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/clamavweb
+      # - SPRING_DATASOURCE_USERNAME=clamavweb
+      # - SPRING_DATASOURCE_PASSWORD=changeme
+    volumes:
+      - ./conf:/app/conf
+      - ./data:/app/data
+    depends_on:
+      - clamav-server
+
+  clamav-server:
+    image: clamav/clamav:latest
+    container_name: clamav
+    ports:
+      - "3310:3310"
+
