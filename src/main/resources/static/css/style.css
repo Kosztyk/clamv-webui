@@ -1,0 +1,738 @@
+/*
+  ClamAV Web UI Client - App Theme
+  - Dark/light theme toggle via <html data-theme="dark|light">
+  - "Glass" panels inspired by the attached Jailmaker UI screenshot.
+*/
+
+:root {
+  --bg0: #0b1220;
+  --bg1: #0e1a2f;
+  --bg2: #0a1324;
+
+  --text: #e8eefc;
+  --muted: #a8b3c7;
+
+  --card: rgba(18, 30, 55, 0.55);
+  --card2: rgba(12, 21, 38, 0.55);
+  --border: rgba(255, 255, 255, 0.10);
+  --shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
+
+  --accent: #2b67ff;
+  --accent2: #00c2ff;
+  --danger: #ff4d5a;
+  --warn: #ffb020;
+  --success: #23d18b;
+
+  --radius: 18px;
+  --radius-sm: 12px;
+}
+
+html[data-theme="light"] {
+  --bg0: #f3f6fb;
+  --bg1: #eef2f8;
+  --bg2: #ffffff;
+
+  --text: #0b1324;
+  --muted: #5a677d;
+
+  --card: rgba(255, 255, 255, 0.90);
+  --card2: rgba(255, 255, 255, 0.70);
+  --border: rgba(18, 30, 55, 0.12);
+  --shadow: 0 10px 30px rgba(14, 26, 47, 0.12);
+}
+
+/* Global */
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 800px at 15% 10%, rgba(43, 103, 255, 0.25), transparent 60%),
+    radial-gradient(900px 700px at 80% 15%, rgba(0, 194, 255, 0.18), transparent 60%),
+    linear-gradient(160deg, var(--bg0), var(--bg1) 40%, var(--bg2));
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+a { color: inherit; }
+
+.muted { color: var(--muted); }
+
+/* Bootstrap/HTML defaults that clash with our theme (e.g., <pre> uses dark text on light bg) */
+pre, code {
+  color: var(--text);
+}
+
+pre {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  overflow: auto;
+}
+
+/* Align Bootstrap helpers with our tokens */
+.text-muted { color: var(--muted) !important; }
+
+/* Headings (Bootstrap sets dark heading colors by default) */
+h1, h2, h3, h4, h5, h6,
+.card-title,
+.panel-title,
+.section-title {
+  color: var(--text);
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] .card-title,
+html[data-theme="dark"] .panel-title,
+html[data-theme="dark"] .section-title{
+  color: var(--text) !important;
+}
+
+/* Shell layout */
+.app-shell {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 18px;
+  padding: 18px;
+  min-height: 100vh;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+  .app-sidebar {
+    position: sticky;
+    top: 12px;
+    z-index: 5;
+  }
+}
+
+.app-sidebar {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.app-topbar {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-title__name {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.app-title__subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.app-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.topbar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.topbar-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.app-content {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  backdrop-filter: blur(10px);
+  min-height: 0;
+}
+
+.app-footer {
+  margin-top: 18px;
+  opacity: 0.85;
+}
+
+/* Sidebar */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 14px 6px;
+}
+
+.sidebar-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+
+.sidebar-appname {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.sidebar-caption {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.sidebar-section__title {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 4px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  text-decoration: none;
+  transition: transform 0.08s ease, background 0.12s ease, border 0.12s ease;
+}
+
+html[data-theme="light"] .nav-btn {
+  background: rgba(18, 30, 55, 0.04);
+  border: 1px solid rgba(18, 30, 55, 0.10);
+}
+
+.nav-btn i {
+  width: 18px;
+  text-align: center;
+  opacity: 0.95;
+}
+
+.nav-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(43, 103, 255, 0.12);
+  border-color: rgba(43, 103, 255, 0.35);
+}
+
+.nav-btn.active {
+  background: rgba(43, 103, 255, 0.22);
+  border-color: rgba(43, 103, 255, 0.45);
+}
+
+.sidebar-footer {
+  margin-top: 16px;
+  padding: 10px 6px 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Cards/panels (override bootstrap "card") */
+.card {
+  background: var(--card2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.card .card-body {
+  padding: 18px;
+}
+
+.card-title {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.panel {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.panel-body {
+  padding: 18px;
+}
+
+/* Forms */
+.form-control, .form-select {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+}
+
+html[data-theme="light"] .form-control,
+html[data-theme="light"] .form-select {
+  background: rgba(18, 30, 55, 0.03);
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: rgba(43, 103, 255, 0.55);
+  box-shadow: 0 0 0 0.2rem rgba(43, 103, 255, 0.20);
+}
+
+label.form-label {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+}
+
+.btn-outline-light {
+  border-color: rgba(255,255,255,0.25);
+  color: var(--text);
+}
+
+html[data-theme="light"] .btn-outline-light {
+  border-color: rgba(18, 30, 55, 0.22);
+  color: var(--text);
+}
+
+.btn {
+  border-radius: 12px;
+}
+
+/* Bootstrap dropdown theming */
+.dropdown-menu {
+  background-color: rgba(14, 25, 47, 0.96);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+  border-radius: 14px;
+}
+
+html[data-theme="light"] .dropdown-menu {
+  background-color: rgba(255,255,255,0.95);
+}
+
+.dropdown-item {
+  color: var(--text);
+}
+
+html[data-theme="light"] .dropdown-item {
+  color: #0b1220;
+}
+
+.dropdown-item:hover, .dropdown-item:focus {
+  background-color: rgba(43, 103, 255, 0.16);
+  color: var(--text);
+}
+
+/* Alerts */
+.alert {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+}
+
+.alert-danger {
+  border-color: rgba(255, 77, 90, 0.35);
+  background: rgba(255, 77, 90, 0.10);
+}
+
+.alert-success {
+  border-color: rgba(35, 209, 139, 0.35);
+  background: rgba(35, 209, 139, 0.10);
+}
+
+.alert-warning {
+  border-color: rgba(255, 176, 32, 0.35);
+  background: rgba(255, 176, 32, 0.10);
+}
+
+/* Tables */
+.table {
+  color: var(--text);
+}
+
+.table thead th {
+  color: var(--muted);
+  border-bottom-color: var(--border);
+}
+
+.table td, .table th {
+  border-top-color: var(--border);
+}
+
+/* Toggle switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input { display: none; }
+
+.switch .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid var(--border);
+  transition: .2s;
+  border-radius: 999px;
+}
+
+.switch .slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 2px;
+  background: var(--text);
+  transition: .2s;
+  border-radius: 999px;
+  opacity: 0.95;
+}
+
+.switch input:checked + .slider {
+  background: rgba(43, 103, 255, 0.30);
+  border-color: rgba(43, 103, 255, 0.55);
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* File input polish */
+.custom-file-button input[type=file] {
+  margin-left: -2px !important;
+}
+
+.custom-file-button input[type=file]::-webkit-file-upload-button { display: none; }
+.custom-file-button input[type=file]::file-selector-button { display: none; }
+
+.custom-file-button:hover label {
+  background-color: rgba(255,255,255,0.08);
+  cursor: pointer;
+}
+
+/* --- Tabs UI (added) --- */
+.no-sidebar .app-shell { grid-template-columns: 1fr; }
+.no-sidebar .app-sidebar { display: none; }
+
+.tabs-wrap {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 10px 12px;
+  backdrop-filter: blur(10px);
+}
+
+.tabs-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tab-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  background: transparent;
+}
+
+.tab-link:hover { border-color: var(--border); background: rgba(255,255,255,0.03); }
+.tab-link:focus { outline: none; box-shadow: none; }
+.tab-link.active { border-color: rgba(64,137,255,0.55); background: rgba(64,137,255,0.12); }
+.kpi { font-size: 36px; font-weight: 800; margin-top: 6px; }
+.kpi-sm { font-size: 18px; font-weight: 700; margin-top: 6px; }
+
+
+.tab-logout{display:inline-block;margin-left:auto;}
+.tab-logout-btn{background:none;border:none;padding:0.6rem 0.9rem;cursor:pointer;}
+
+/* PJAX tab transitions */
+main.app-main {
+  transition: opacity .12s ease-in-out;
+  opacity: 1;
+  contain: layout paint;
+  will-change: contents, opacity;
+}
+main.app-main.pjax-fadeout { opacity: .35; }
+main.app-main.is-loading { min-height: var(--main-min-height, 60vh); }
+
+
+/* --- PJAX tab switching: feedback without flicker --- */
+.pjax-progress{
+  position: relative;
+  height: 2px;
+  width: 100%;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateZ(0);
+  transition: opacity 120ms ease;
+}
+.pjax-progress.is-active{ opacity: 1; }
+.pjax-progress__bar{
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  width: 40%;
+  background: currentColor;
+  opacity: .55;
+  animation: pjax-indeterminate 900ms ease-in-out infinite;
+}
+@keyframes pjax-indeterminate{
+  0%{ transform: translateX(-60%); }
+  50%{ transform: translateX(140%); }
+  100%{ transform: translateX(340%); }
+}
+
+/* Loading hint on the tab itself */
+.tabs .tab-link.is-loading{
+  position: relative;
+  pointer-events: none;
+  opacity: .85;
+}
+.tabs .tab-link.is-loading::after{
+  content: "";
+  position: absolute;
+  right: .6rem;
+  top: 50%;
+  width: .55rem;
+  height: .55rem;
+  margin-top: -.275rem;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  opacity: .65;
+  animation: pjax-spin 700ms linear infinite;
+}
+@keyframes pjax-spin{ to { transform: rotate(360deg); } }
+
+/* Keep main stable during async swap */
+.app-main{ contain: layout paint; }
+
+/* ------------------------------
+   Dark theme: ensure readability
+   (Bootstrap utility classes + tables)
+   ------------------------------ */
+html[data-theme="dark"] .text-dark{
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] .muted{
+  color: var(--muted) !important;
+}
+
+/* Bootstrap tables default to light backgrounds; force dark-mode variables */
+html[data-theme="dark"] .table{
+  --bs-table-color: var(--text);
+  --bs-table-bg: transparent;
+  --bs-table-striped-color: var(--text);
+  --bs-table-striped-bg: rgba(255,255,255,0.035);
+  --bs-table-active-color: var(--text);
+  --bs-table-active-bg: rgba(255,255,255,0.06);
+  --bs-table-hover-color: var(--text);
+  --bs-table-hover-bg: rgba(255,255,255,0.05);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .table thead th{
+  color: var(--text);
+  border-color: rgba(255,255,255,0.10);
+}
+
+html[data-theme="dark"] .table tbody td,
+html[data-theme="dark"] .table tbody th{
+  color: var(--text);
+  border-color: rgba(255,255,255,0.08);
+}
+
+html[data-theme="dark"] .table a{
+  color: var(--accent-400);
+}
+
+html[data-theme="dark"] .table a:hover{
+  color: var(--accent-300);
+}
+
+/* Bootstrap 5 tables sometimes keep a white background via CSS vars;
+   force dark surfaces for readability. */
+html[data-theme="dark"] .table{
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: rgba(255,255,255,0.03);
+  --bs-table-hover-bg: rgba(255,255,255,0.05);
+  --bs-table-border-color: rgba(255,255,255,0.08);
+}
+
+html[data-theme="dark"] .table > :not(caption) > * > *{
+  background-color: transparent !important;
+  color: var(--text);
+  border-color: rgba(255,255,255,0.08);
+}
+
+html[data-theme="dark"] .table thead th{
+  color: var(--muted);
+  background: rgba(255,255,255,0.03) !important;
+}
+
+html[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > *{
+  background: rgba(255,255,255,0.03) !important;
+}
+
+html[data-theme="dark"] .table-hover > tbody > tr:hover > *{
+  background: rgba(255,255,255,0.05) !important;
+}
+
+/* --- Dark theme visibility hardening --- */
+html[data-theme="dark"] .kpi { color: var(--text) !important; }
+html[data-theme="dark"] .kpi-label { color: var(--muted) !important; }
+
+/* Quick-settings uses <ul class="small"> ... text becomes too dark in Bootstrap */
+html[data-theme="dark"] .small,
+html[data-theme="dark"] small,
+html[data-theme="dark"] .small *,
+html[data-theme="dark"] small * {
+  color: var(--muted) !important;
+}
+html[data-theme="dark"] .small strong,
+html[data-theme="dark"] small strong {
+  color: var(--text) !important;
+}
+
+/* Bootstrap helpers that can go too dark */
+html[data-theme="dark"] .text-secondary,
+html[data-theme="dark"] .text-body-secondary,
+html[data-theme="dark"] .text-black-50,
+html[data-theme="dark"] .text-muted {
+  color: var(--muted) !important;
+}
+
+/* Tables: keep them dark (Bootstrap defaults are light) */
+html[data-theme="dark"] .table {
+  color: var(--text) !important;
+}
+html[data-theme="dark"] .table > :not(caption) > * > * {
+  background-color: transparent !important;
+  color: inherit;
+}
+html[data-theme="dark"] .table thead th {
+  color: var(--muted) !important;
+}
+html[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: rgba(255,255,255,0.03) !important;
+}
+html[data-theme="dark"] .table-hover > tbody > tr:hover > * {
+  background-color: rgba(255,255,255,0.06) !important;
+}
+
+/* Inputs / placeholders (Watch tab + others) */
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select {
+  color: var(--text) !important;
+  background-color: rgba(0,0,0,0.18) !important;
+  border-color: var(--border) !important;
+}
+html[data-theme="dark"] .form-control::placeholder {
+  color: rgba(255,255,255,0.45) !important;
+}
+html[data-theme="dark"] .form-text,
+html[data-theme="dark"] .help-block {
+  color: var(--muted) !important;
+}
+
+/* Dark theme: force readable text inside KPI/cards (covers "Default endpoint: test") */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .card * {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .card .muted,
+html[data-theme="dark"] .card .text-muted,
+html[data-theme="dark"] .card .text-secondary,
+html[data-theme="dark"] .card .text-body-secondary,
+html[data-theme="dark"] .card small,
+html[data-theme="dark"] .card .small {
+  color: var(--muted) !important;
+}
+
+/* If the endpoint name is wrapped in something like <strong> or <span>, make sure it is bright */
+html[data-theme="dark"] .card strong,
+html[data-theme="dark"] .card b,
+html[data-theme="dark"] .card .value,
+html[data-theme="dark"] .card .kpi-value {
+  color: var(--text) !important;
+}
+
