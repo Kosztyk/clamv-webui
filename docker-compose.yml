@@ -8,6 +8,8 @@ services:
     environment:
       - CLAMAV_HOST=clamav-server
       - CLAMAV_PORT=3310
+      - CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"
+      - CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "true"
       # Optional: override DB to Postgres
       # - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/clamavweb
       # - SPRING_DATASOURCE_USERNAME=clamavweb
