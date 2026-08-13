@@ -1,6 +1,7 @@
 package info.trizub.clamav.webclient.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import info.trizub.clamav.webclient.model.ClamdEndpoint;
 import info.trizub.clamav.webclient.model.ScanJob;
 import info.trizub.clamav.webclient.model.ScanJobStatus;
 import info.trizub.clamav.webclient.model.ScanJobType;
@@ -14,19 +15,38 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.capybara.clamav.ClamavClient;
 import xyz.capybara.clamav.commands.scan.result.ScanResult;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.UnixDomainSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ScanExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(ScanExecutionService.class);
+    private static final int CLAMD_CONNECT_TIMEOUT_MS = 10_000;
+    private static final int CLAMD_READ_TIMEOUT_MS = (int) TimeUnit.HOURS.toMillis(24);
 
     private final SettingsService settings;
     private final ScanJobRepository jobRepo;
@@ -92,10 +112,36 @@ public class ScanExecutionService {
             ClamavClient client = clientProvider.clientFor(job.getEndpoint());
 
             if (job.getType() == ScanJobType.UPLOAD) {
-                Path stored = Paths.get(job.getStoredPath());
-                try (InputStream in = Files.newInputStream(stored)) {
-                    ScanResult result = client.scan(in);
-                    handleResult(jobId, job.getType(), result, stored);
+                Path stored = Paths.get(job.getStoredPath()).toAbsolutePath().normalize();
+
+                if (settings.uploadPathScanEnabled()) {
+                    try {
+                        runNativeUploadPathScan(job, stored);
+                    } catch (Exception pathScanError) {
+                        String message = "Path-based upload scan failed for " + stored + ". "
+                                + "Native clamdtop can show filenames only when clamd receives a SCAN/MULTISCAN path "
+                                + "and the clamd container can read that exact path. Mount the upload directory into the "
+                                + "clamd container at the same path, or enable app.upload.pathScan.fallbackToInstream=true "
+                                + "to keep old INSTREAM behavior. Details: " + pathScanError.getMessage();
+
+                        if (!settings.uploadPathScanFallbackToInstream()) {
+                            log.warn(message, pathScanError);
+                            finishError(jobId, message);
+                            notifyIfNeeded(jobId);
+                            return;
+                        }
+
+                        log.warn("{} Falling back to INSTREAM because fallback is enabled.", message, pathScanError);
+                        try (InputStream in = Files.newInputStream(stored)) {
+                            ScanResult result = client.scan(in);
+                            handleResult(jobId, job.getType(), result, stored);
+                        }
+                    }
+                } else {
+                    try (InputStream in = Files.newInputStream(stored)) {
+                        ScanResult result = client.scan(in);
+                        handleResult(jobId, job.getType(), result, stored);
+                    }
                 }
             } else if (job.getType() == ScanJobType.PATH || job.getType() == ScanJobType.WATCH) {
                 Path target = Paths.get(job.getTarget());
@@ -115,7 +161,7 @@ public class ScanExecutionService {
             log.error("Job {} failed", jobId, e);
             try {
                 finishError(jobId, e.getMessage());
-            log.debug("Job {} finished ERROR: {}", jobId, e.getMessage());
+                log.debug("Job {} finished ERROR: {}", jobId, e.getMessage());
             } catch (Exception inner) {
                 log.error("Job {} failed to persist ERROR state", jobId, inner);
             }
@@ -155,6 +201,136 @@ public class ScanExecutionService {
             log.debug("Job {} finished ERROR (unknown result)", jobId);
             notifyIfNeeded(jobId);
         }
+    }
+
+    /**
+     * Run uploaded files through clamd's native MULTISCAN command using the file path.
+     *
+     * This is what native clamdtop needs in order to display the filename. INSTREAM
+     * sends bytes over TCP and clamd only sees a stream connection, so clamdtop can
+     * only display instream(client-ip@port). MULTISCAN sends a real filesystem path,
+     * so clamdtop can display MULTISCANFILE /app/data/uploads/original-name.
+     */
+    private void runNativeUploadPathScan(ScanJob job, Path stored) throws IOException {
+        ClamdEndpoint endpoint = job.getEndpoint();
+        if (endpoint == null) {
+            throw new IOException("No clamd endpoint configured for job " + job.getId());
+        }
+        if (!Files.isRegularFile(stored)) {
+            throw new IOException("Upload file is missing in the web container: " + stored);
+        }
+
+        String response = sendClamdPathCommand(endpoint, "MULTISCAN", stored.toString());
+        NativePathScanResult parsed = parseNativePathScanResponse(response);
+
+        if (!parsed.errors().isEmpty()) {
+            throw new IOException("clamd rejected path scan: " + String.join(" | ", parsed.errors())
+                    + "; raw response: " + abbreviate(response, 2000));
+        }
+
+        if (!parsed.found().isEmpty()) {
+            Path q = quarantineService.quarantine(stored);
+            if (q != null) {
+                setQuarantinePath(job.getId(), q.toString());
+            }
+            finishFound(job.getId(), parsed.found());
+            log.debug("Job {} finished VIRUS_FOUND through direct native MULTISCAN path scan", job.getId());
+            notifyIfNeeded(job.getId());
+            return;
+        }
+
+        finishOk(job.getId());
+        log.debug("Job {} finished OK through direct native MULTISCAN path scan", job.getId());
+    }
+
+    private String sendClamdPathCommand(ClamdEndpoint endpoint, String command, String path) throws IOException {
+        String host = Optional.ofNullable(endpoint.getHost()).orElse("localhost").trim();
+        if (host.isBlank()) {
+            host = "localhost";
+        }
+
+        String wireCommand = "n" + command + " " + path + "\n";
+
+        if (host.startsWith("/")) {
+            try (SocketChannel channel = SocketChannel.open(UnixDomainSocketAddress.of(host))) {
+                channel.write(ByteBuffer.wrap(wireCommand.getBytes(StandardCharsets.UTF_8)));
+                channel.shutdownOutput();
+                try (InputStream input = Channels.newInputStream(channel)) {
+                    return readAll(input);
+                }
+            }
+        }
+
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(host, endpoint.getPort()), CLAMD_CONNECT_TIMEOUT_MS);
+            socket.setSoTimeout(CLAMD_READ_TIMEOUT_MS);
+            try (OutputStream output = socket.getOutputStream(); InputStream input = socket.getInputStream()) {
+                output.write(wireCommand.getBytes(StandardCharsets.UTF_8));
+                output.flush();
+                socket.shutdownOutput();
+                return readAll(input);
+            }
+        }
+    }
+
+    private String readAll(InputStream input) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        input.transferTo(output);
+        return output.toString(StandardCharsets.UTF_8).replace('\0', '\n');
+    }
+
+    private NativePathScanResult parseNativePathScanResponse(String output) {
+        Map<String, Collection<String>> found = new LinkedHashMap<>();
+        List<String> errors = new ArrayList<>();
+
+        if (output == null || output.isBlank()) {
+            errors.add("empty response from clamd");
+            return new NativePathScanResult(found, errors);
+        }
+
+        for (String rawLine : output.split("\\R")) {
+            String line = rawLine.trim();
+            if (line.isBlank()) {
+                continue;
+            }
+
+            if (line.endsWith(" FOUND")) {
+                int sep = line.lastIndexOf(": ");
+                if (sep <= 0) {
+                    errors.add(line);
+                    continue;
+                }
+                String file = line.substring(0, sep).trim();
+                String signature = line.substring(sep + 2, line.length() - " FOUND".length()).trim();
+                found.computeIfAbsent(file, k -> new ArrayList<>()).add(signature);
+                continue;
+            }
+
+            if (line.endsWith(" ERROR")) {
+                errors.add(line);
+                continue;
+            }
+
+            if (line.endsWith(" OK")) {
+                continue;
+            }
+
+            // Keep unexpected native clamd responses visible instead of silently falling back to INSTREAM.
+            errors.add(line);
+        }
+
+        return new NativePathScanResult(found, errors);
+    }
+
+    private String abbreviate(String value, int max) {
+        if (value == null) {
+            return "";
+        }
+        String compact = value.replace('\r', ' ').replace('\n', ' ').trim();
+        if (compact.length() <= max) {
+            return compact;
+        }
+        return compact.substring(0, max) + "...";
     }
 
     private void notifyIfNeeded(String jobId) {
@@ -211,4 +387,6 @@ public class ScanExecutionService {
         job.setQuarantinePath(quarantinePath);
         jobRepo.save(job);
     }
+
+    private record NativePathScanResult(Map<String, Collection<String>> found, List<String> errors) { }
 }
