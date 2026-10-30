@@ -1,0 +1,30 @@
+name: Phase 2 database portability
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'pom.xml'
+      - 'src/main/java/info/trizub/clamav/webclient/db/**'
+      - 'src/main/resources/db/migration/**'
+      - 'src/test/java/info/trizub/clamav/webclient/db/**'
+      - '.github/workflows/phase2-db-integration.yml'
+  pull_request:
+    paths:
+      - 'pom.xml'
+      - 'src/main/java/info/trizub/clamav/webclient/db/**'
+      - 'src/main/resources/db/migration/**'
+      - 'src/test/java/info/trizub/clamav/webclient/db/**'
+      - '.github/workflows/phase2-db-integration.yml'
+jobs:
+  database-migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify H2 and PostgreSQL/MySQL/MariaDB Testcontainers
+        run: mvn -B -Pdb-integration verify

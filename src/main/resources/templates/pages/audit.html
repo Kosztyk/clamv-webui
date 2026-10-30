@@ -1,0 +1,4 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section class="admin-page "><header class="admin-page-header"><div class="admin-page-icon"><i class="fas fa-clipboard-list" aria-hidden="true"></i></div><div><h1>Audit log</h1><p class="muted">Review administrative and security actions.</p></div></header><p class="muted">Latest administrative and security actions.</p>
+<div class="table-responsive"><table class="table app-table"><thead><tr><th>At</th><th>User</th><th>Action</th><th>Outcome</th><th>Details</th><th>Job</th></tr></thead>
+<tbody><tr th:each="event : ${auditEvents}"><td th:text="${event.at}"></td><td th:text="${event.username}"></td><td th:text="${event.action}"></td>
+<td th:text="${event.outcome}"></td><td th:text="${event.details}"></td><td th:text="${event.jobId}"></td></tr></tbody></table></div></section></html>

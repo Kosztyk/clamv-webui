@@ -1,330 +1,72 @@
-<img width="80" height="80" alt="e48047189483de2534eb929b89a09a7b" src="https://github.com/user-attachments/assets/8353cc36-5c0a-4ec1-a581-660ae9d4d03e" />
+# ClamAV Web UI
 
-# ClamAV Web UI (clamav-web-client)
+**Self-hosted ClamAV management, scanning, monitoring and integrations.** Manage ClamD from a browser: upload and server-path scans, asynchronous jobs, quarantine, watched directories, audit history, native interactive ClamdTop, a separate REST scanner bridge, local/LDAP/OIDC sign-in, scoped API tokens, Prometheus/Grafana, CLI and MCP.
 
-A lightweight web interface for running ClamAV scans through one or more **clamd** endpoints, tracking **scan jobs**, and managing **admin settings** such as allowed scan roots, watch directories, webhook notifications, and audit logging.
+**Application version:** 2.0.0. **Image used in examples:** [`kosztyk/clamav-web-client:v2`](https://hub.docker.com/r/kosztyk/clamav-web-client). **Source snapshot:** `v2.0.0-security.1`, based on Spring Boot 4.0.9 (see [security revision](docs/SECURITY_DEPENDENCY_UPDATE.md)). The image tag `v2` is mutable; **do not assume it already contains this particular source revision** without verifying its digest/build. To run the security.1 source itself, build a local image using the included `Dockerfile`.
 
-This repository contains the **web client** application (Spring Boot) that:
-- Accepts scan requests (upload / path scan)
-- Dispatches scans to a configured **clamd** endpoint
-- Stores job state/results in its internal database
-- Shows results, job details, and audit events in the UI
+> **Start here:** [**Complete User & Administrator Guide — all features, UI fields, configuration, Docker Compose, APIs, upgrades and troubleshooting**](docs/COMPLETE_USER_GUIDE.md). This is the canonical, single-document how-to, with a linked table of contents.
 
-> **Important:** This app tracks **jobs that are created through this web client (UI or its REST API)**.  
-> If another server talks to `clamd` directly (e.g., via `clamdscan`), those scans are **not visible** here unless they were initiated via this app.
+## What you can do
 
----
+| Area | Functions | Where |
+|---|---|---|
+| Scan | Upload multiple files, scan approved server paths, native path scanning/INSTREAM | **Scan** |
+| Track | Job history, status, detections, timestamps, quarantine evidence | **Jobs** |
+| Observe | Endpoint dashboard, PING/VERSION/STATS, interactive native `clamdtop` | **Dashboard**, **Main**, **ClamdTop** |
+| Automate | Watched folders, completion webhooks, scoped `/api/v1` tokens | **Admin → Watch Directories**, **Settings**, **API Tokens** |
+| Integrate | Optional external REST scanner jobs/reports (separate backend) | **API Scan**, **API Reports** |
+| Secure | Local users and roles, LDAP/AD, OIDC SSO, audit | **Admin → Users**, **Authentication**, **Audit Log** |
+| Operate | H2/PostgreSQL/MySQL/MariaDB, mounted `clamd.conf` observer, Prometheus/Grafana | **Configuration**, **Monitoring & clients** |
+| Clients | `clamctl` CLI, MCP stdio/loopback HTTP tools/resources | `cli/`, `docs/MCP.md` |
+| Interface | Dark/light appearance; English, Romanian, Ukrainian, French, Spanish, German | Header and login |
 
-## What it does (high level)
+## Quick start: new single-host installation
 
-### Scan types
-- **Upload scan**: you upload one or more files → the web app stores them → sends them to clamd via streaming (`INSTREAM`) → records result.
-- **Path scan**: you provide an absolute path (must be under allowed roots) → web app asks clamd to scan that path (or streams contents depending on configuration) → records result.
-
-### Jobs
-Every scan request becomes a **job** with:
-- **ID**
-- **Type** (UPLOAD / PATH / WATCH)
-- **Status** (QUEUED → RUNNING → FINISHED / ERROR)
-- **Verdict** (OK / VIRUS_FOUND / ERROR)
-- Target (filename or path)
-- Endpoint used
-- Submitted by / timestamps
-- Detected signatures (when virus found)
-- Error message (if any)
-
-### Admin features
-- Manage clamd endpoints
-- Manage users (basic auth)
-- Configure allowed scan roots
-- Watch directories (periodic polling)
-- Webhook notifications (optional)
-- Audit log (admin events)
-
----
-
-## UI tabs & what each one contains
-
-<img width="1695" height="703" alt="Screenshot 2026-02-05 at 21 42 05" src="https://github.com/user-attachments/assets/66f74f23-f326-4774-ba59-e0ba33c1ffa3" />
-
-### 1) Dashboard
-Purpose: quick overview.
-- Endpoint count, recent jobs, default endpoint
-- “Latest scan jobs” snapshot
-- Endpoint health preview (status + basic ping/version output)
-
-### 2) Main
-Purpose: **only** Endpoint Health.
-- Select an endpoint
-- Refresh health data (ping/version/stats depending on endpoint response)
-
-### 3) Scan
-Purpose: submit scans.
-- **Upload scan**
-  - Choose files
-  - Select endpoint
-  - Queue scan
-- **Path scan**
-  - Absolute path
-  - Select endpoint
-  - Queue scan
-- Short “Scan jobs” table snippet (recent results)
-
-### 4) Scan jobs
-Purpose: operations view.
-- Full jobs list with status/verdict/target/endpoint/user
-- Click a job ID for job detail:
-  - timestamps
-  - detected signatures
-  - stored file path (if enabled/visible)
-  - quarantine info (if enabled)
-  - error message/log details
-
-### 5) Settings
-Purpose: configuration view.
-- **Quick settings** (read-only summary on the UI)
-- **Admin settings** (editable):
-  - Allowed scan roots (for path scans and watch)
-  - Upload max size
-  - Concurrent scans (executor threads)
-  - Quarantine on/off
-  - Webhook on/off + URL
-  - Watch on/off + poll interval
-
-> Some settings may require an app restart to fully apply (e.g., concurrency).
-
-### 6) Endpoints
-Admin page: **ClamD endpoints**
-- Create/update/delete endpoints
-- Enable/disable endpoint
-- Configure host/port/platform (e.g., TCP/UNIX)
-
-### 7) Users
-Admin page: **Users**
-- Create users
-- Change passwords
-- Enable/disable users
-
-### 8) Watch
-Admin page: **Watch directories**
-- Add watched directories (must be inside allowed roots)
-- Enable/disable watch entries
-- When enabled globally, watcher queues scan jobs for new/changed files
-
-### 9) Audit
-Admin page: **Audit log**
-- Records admin actions such as:
-  - endpoint changes
-  - user changes
-  - settings changes
-  - watch changes
-
----
-
-## Watch directories: how it works
-
-The watcher runs **inside the web client container** and periodically polls configured directories:
-- Poll interval is controlled by the **Watch poll seconds** setting (in Settings).
-- For each watched directory, the service detects changes (new/modified files).
-- For each detected change, a **scan job** is queued automatically.
-
-### Can I set scan interval from GUI?
-Yes — via **Watch poll seconds** in *Settings*.
-
-**Notes**
-- Paths must be under **Allowed scan roots**.
-- If the web client container cannot see the path (missing volume mount), watch will not work.
-
----
-
-## Webhook URL: how it works
-
-If webhooks are enabled:
-- On job completion (FINISHED/ERROR), the app can POST a payload to the configured URL.
-- Typical use: notify another system (Home Assistant, Slack gateway, custom API) that a scan completed.
-
-Payload content depends on your build, but generally includes:
-- jobId, status, verdict
-- endpoint
-- target
-- timestamps
-- detected signatures (if any)
-
----
-
-## Quarantine: how it works
-
-When enabled:
-- If a job verdict is **VIRUS_FOUND**, the uploaded file may be moved or copied into a quarantine directory.
-- The job record stores `quarantinePath`.
-
-**Important**
-- Quarantine applies primarily to **upload scans** (where the app owns the file).
-- For path scans, quarantine depends on implementation and permissions.
-
----
-
-## REST API usage (CLI examples)
-
-### Authentication
-Most `/api/**` endpoints are protected with **Basic Auth**.
-
-Example:
-```bash
-curl -u 'admin:admin' http://HOST:8080/api/jobs
-```
-
-### List jobs
-```bash
-curl -sS -u 'admin:admin' 'http://HOST:8080/api/jobs'
-```
-
-### Upload scan (correct multipart fields)
-In your build, the upload endpoint expects:
-- `endpointId` (numeric)
-- `files` (one or more file parts)
+Copy [the standalone Compose example](examples/compose/standalone-h2.yaml) to a new directory as `docker-compose.yaml`, then:
 
 ```bash
-curl -v -u 'admin:admin' \
-  -F 'endpointId=33' \
-  -F 'files=@/path/to/test.txt' \
-  'http://HOST:8080/api/scan/upload'
+mkdir -p conf data
+# Place docker-compose.yaml here first.
+docker compose config --quiet
+docker compose up -d
+docker compose logs --tail=100 clamav-web-client
+docker compose exec -T clamav-web-client cat /app/data/bootstrap-admin-password
 ```
 
-Multiple files:
+Open `http://127.0.0.1:8080/login`, sign in as `admin` using the **generated** password, change it in **Admin → Users**, then securely delete `data/bootstrap-admin-password`. No insecure standard admin password is configured. `127.0.0.1` binding is intentional: use a TLS reverse proxy for remote access, not an internet-exposed HTTP login.
+
+This example uses **INSTREAM**: upload bytes pass to ClamD without requiring a shared file path. To show original file paths in native ClamdTop and scan `/scandir`, use the [shared paths override](examples/compose/shared-paths.override.yaml), identical absolute mounts, and the allowed scan roots policy. For a remote ClamD and existing PostgreSQL use [the remote deployment example](examples/compose/remote-clamd-postgres.yaml).
+
+## Persistence and security essentials
+
+- Preserve `./conf` (settings and encrypted identity key), `./data` (uploads, quarantine and default H2 database), and your external SQL backups together. Do **not** run `docker compose down -v` as an upgrade procedure.
+- H2 is for **one** instance. PostgreSQL/MySQL/MariaDB are supported as database backends, **not** as multi-replica HA for this app. Flyway runs versioned migrations and Hibernate validates; **never enable auto-baselining for an unreviewed existing DB**.
+- ClamD TCP 3310 is normally unauthenticated; never publish it to the internet. Browser authentication and API tokens do **not** secure ClamD's raw TCP port.
+- The native ClamdTop page needs WebSocket proxy upgrades on `/ws/clamdtop`. External API Scan/Reports requires a separately deployed compatible REST scanner and `CLAMAV_REST_URL`; the built-in `/api/v1` is **not** that scanner.
+- For the security.1 revision, see [upgrade/rebuild and verification](docs/SECURITY_DEPENDENCY_UPDATE.md). A source archive and a deployed registry image are not automatically identical.
+
+## Common deployment paths
+
+| Scenario | Example | Note |
+|---|---|---|
+| New H2 with bundled ClamD | [`standalone-h2.yaml`](examples/compose/standalone-h2.yaml) | Safe initial setup; loopback UI, INSTREAM |
+| Remote ClamD + external PostgreSQL | [`remote-clamd-postgres.yaml`](examples/compose/remote-clamd-postgres.yaml) | Create DB beforehand; private `.env` |
+| Native path scans and watched directories | [`shared-paths.override.yaml`](examples/compose/shared-paths.override.yaml) | Shared absolute mount paths, approved roots |
+| Environment file example | [`.env.example`](examples/compose/.env.example) | **Never commit the populated `.env`** |
+
+Full instructions, every administration field, optional LDAP/OIDC, PostgreSQL migration, Prometheus, Grafana, API, CLI/MCP examples, failure diagnostics, deployment diagrams and security checklist: **[Complete User Guide](docs/COMPLETE_USER_GUIDE.md)**.
+
+## Build from this source
+
 ```bash
-curl -v -u 'admin:admin' \
-  -F 'endpointId=33' \
-  -F 'files=@/path/a.txt' \
-  -F 'files=@/path/b.txt' \
-  'http://HOST:8080/api/scan/upload'
+mvn -B -ntp verify                       # Java 17+ and Maven, when installed
+docker build --pull -t clamav-web-client:2.0.0-security.1 .
+# To use the local image, replace image: in your deployment Compose with
+# clamav-web-client:2.0.0-security.1 and set pull_policy: never.
 ```
 
-### Path scan
-(Exact endpoint path can vary by build; common shape is `/api/scan/path`.)
-```bash
-curl -v -u 'admin:admin' \
-  -H 'Content-Type: application/json' \
-  -d '{"endpointId":33,"absolutePath":"/scandir/somefile"}' \
-  'http://HOST:8080/api/scan/path'
-```
+The Dockerfile builds with Maven/Java 21 and includes the native `clamdtop` binary. For development, the repository root `docker-compose.yml` is a **local-build** Compose, whereas the examples above use the **published image**. See the [Docker build guide](docs/DOCKER_BUILD.md) and [security revision details](docs/SECURITY_DEPENDENCY_UPDATE.md). `cli/dist` ships standalone binaries in this source archive; on a plain Git clone, build or obtain appropriate release artifacts separately.
 
-### Why an unauthenticated curl returns 401
-If you see `HTTP/1.1 401` and `WWW-Authenticate: Basic ...`, add `-u user:pass`.
+## Source and support
 
----
-
-## How to run scans from terminal (direct ClamAV vs via this app)
-
-### A) Via this Web UI (recommended for tracking jobs)
-Use the **API** commands above (`/api/scan/upload`, `/api/scan/path`) so the scan appears in:
-- Scan jobs
-- Job details
-- Audit / webhook (if enabled)
-
-### B) Directly against clamd (not tracked in this app)
-Example from a host that can reach clamd:
-```bash
-clamdscan --fdpass --host=192.18.68.1 --port=3310 /path/to/file
-```
-
-These scans will show in **clamd logs**, but **will not create jobs** in this web UI.
-
----
-
-## ClamAV logs: where to see scan logs
-
-### In Docker
-```bash
-docker logs -n 200 clamav
-```
-
-### Can clamd log the original filename for INSTREAM scans?
-Usually **no**, because INSTREAM is a byte stream; clamd doesn’t know the original filename.  
-You’ll see entries like:
-- `instream(172.18.0.1@PORT): OK`
-- `instream(...): Eicar-Test-Signature FOUND`
-
-If you need filenames in server logs, prefer **path scans** (where clamd sees a real file path) and enable logging options in `clamd.conf`.
-
----
-
-## Docker deployment (model docker-compose.yml)
-
-```yaml
-
-services:
-  clamav-server:
-    image: kosztyk/clamv-webui:latest
-    container_name: clamav
-    restart: unless-stopped
-    ports:
-      - "3310:3310"
-    volumes:
-      - ./conf:/etc/clamav:ro
-      - clamav-db:/var/lib/clamav
-    environment:
-      - TZ=UTC
-
-  clamav-web-client:
-    build: .
-    container_name: clamav-web-client
-    restart: unless-stopped
-    depends_on:
-      - clamav-server
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/app/data
-      - ./conf/clamav-web-client.properties:/app/conf/clamav-web-client.properties:rw
-      # If you use PATH scan / WATCH you MUST mount your scan roots:
-      - /scandir:/scandir:ro
-    environment:
-      - TZ=UTC
-
-volumes:
-  clamav-db: {}
-```
-
-### Common volume mistake (file vs directory)
-If you mount a **file** onto a **directory** path (or vice versa), Docker errors like:
-> "Are you trying to mount a directory onto a file (or vice-versa)?"
-
-Good:
-- `./conf:/etc/clamav:ro`  ✅ (directory → directory)
-
-If you want to mount a single file:
-- `./conf/clamd.conf:/etc/clamav/clamd.conf:ro` ✅ (file → file)
-
----
-
-## Troubleshooting quick hits
-
-### Jobs stuck in QUEUED
-Check web-client logs:
-```bash
-docker logs -n 300 clamav-web-client | egrep -i "scan|job|queue|error|exception"
-```
-
-Check clamd reachability:
-```bash
-docker run --rm --network container:clamav-web-client alpine sh -lc '
-  apk add --no-cache busybox-extras >/dev/null
-  nc -vz -w 3 clamav-server 3310 || true
-'
-```
-
-### “Required part 'files' is not present.”
-Use `files=@...` (not `file=@...`).
-
-### “Required parameter 'endpointId' is not present.”
-Use numeric `endpointId=<number>` (not `endpointName`).
-
----
-
-## Security notes
-- Change default credentials (`admin/admin`) immediately.
-- Do not expose directly to the internet without TLS + an auth gateway.
-- Restrict allowed scan roots to minimal paths.
-
-  ## This application was inspired and contains code from https://github.com/rguziy/clamav-web-client
+The project is published at [github.com/Kosztyk/clamv-webui](https://github.com/Kosztyk/clamv-webui). For problems, attach sanitized container logs, the app version/image digest, database engine, ClamD connection mode and the steps to reproduce. **Redact** credentials, authorization headers, LDAP bind details, webhook URLs, tokens and file contents. Historical technical documents remain under `docs/`; the single [Complete User Guide](docs/COMPLETE_USER_GUIDE.md) is the current user entry point.

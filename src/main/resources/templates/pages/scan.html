@@ -1,0 +1,12 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section><h1>Run a scan</h1><p class="muted">Upload local files, or request scanning of a mounted server path.</p>
+<div class="grid-two"><div class="panel panel-body"><h2>Upload file(s)</h2><form method="post" enctype="multipart/form-data" th:action="@{/scan/upload}">
+<label class="form-label">Files</label><input required multiple class="form-control" type="file" name="files"/>
+<label class="form-label mt-3">Clamd endpoint</label><select name="endpointId" class="form-select" required><option th:each="ep : ${endpoints}" th:value="${ep.id}" th:text="${ep.name}" th:selected="${ep.id == endpointId}"></option></select>
+<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/><button class="btn btn-primary mt-3">Queue upload scan</button></form></div>
+<div class="panel panel-body"><h2>Server path</h2><form method="post" th:action="@{/scan/path}">
+<label class="form-label">Absolute path within allowed roots</label><input required class="form-control" name="path" placeholder="/scandir/your-file"/>
+<label class="form-label mt-3">Clamd endpoint</label><select name="endpointId" class="form-select"><option th:each="ep : ${endpoints}" th:value="${ep.id}" th:text="${ep.name}" th:selected="${ep.id == endpointId}"></option></select>
+<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/><button class="btn btn-primary mt-3">Queue path scan</button></form></div></div>
+<p class="muted mt-3">Allowed roots: <code th:each="root : ${allowedRoots}" th:text="${root.toString() + ' '}"></code></p>
+<p class="muted">Effective upload limit in bytes:</p><ul><li th:each="ep : ${endpoints}"><span th:text="${ep.name}"></span>: <code th:text="${uploadLimits[ep.id]}"></code></li></ul>
+<h2>Recent jobs</h2><div th:replace="~{fragments/tables :: jobsTable(${jobs})}"></div></section></html>

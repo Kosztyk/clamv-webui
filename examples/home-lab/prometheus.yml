@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: clamav-webui
+    scheme: https
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["YOUR_WEB_UI_HOST:443"]
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/clamav_metrics_token
+    tls_config:
+      ca_file: /etc/prometheus/clamav-lab-ca.crt

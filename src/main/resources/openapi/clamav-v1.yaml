@@ -1,0 +1,284 @@
+openapi: 3.0.3
+info:
+  title: ClamAV Web UI - Stable API
+  version: 1.2.0-mcp
+  description: |
+    First-party, versioned API. Bearer credentials must be transmitted over HTTPS.
+    Create tokens with an admin session and CSRF token. Existing /api routes remain
+    during migration. This API never returns local scan storage or quarantine paths.
+servers:
+  - url: /api/v1
+security:
+  - BearerToken: []
+  - BasicAuth: []
+tags:
+  - name: Health
+  - name: Scanning
+  - name: Jobs
+  - name: Administration
+paths:
+  /auth:
+    get:
+      tags: [Administration]
+      summary: Verify the current identity without requiring a particular token scope
+      responses:
+        '200':
+          description: Identity of the authenticated caller; no credential values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated: {type: boolean}
+                  principal: {type: string}
+                  authentication: {type: string, enum: [user, token]}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /csrf:
+    get:
+      tags: [Administration]
+      summary: Authenticated session CSRF token for Basic-auth client writes
+      description: Retain the returned session cookie and send the token under headerName on POST requests. Bearer requests do not require this endpoint.
+      responses:
+        '200':
+          description: CSRF token and header/parameter names; response must not be cached
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: {type: string}
+                  headerName: {type: string}
+                  parameterName: {type: string}
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Web application liveness, not a clamd check
+      responses:
+        '200': {description: Web process alive, content: {application/json: {schema: {$ref: '#/components/schemas/ComponentHealth'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Database connection readiness (not clamd)
+      responses:
+        '200': {description: Database ready}
+        '503': {description: Database unavailable}
+  /health/clamd:
+    get:
+      tags: [Health]
+      summary: Actual daemon PING/version and signature database age
+      parameters:
+        - $ref: '#/components/parameters/endpointId'
+      responses:
+        '200': {description: Daemon reachable and signature database not known stale, content: {application/json: {schema: {$ref: '#/components/schemas/ClamdHealth'}}}}
+        '503': {description: Daemon unreachable or signatures stale}
+  /metrics/clamd:
+    get:
+      tags: [Health]
+      summary: Safe parsed clamd threads, queue and pool memory statistics
+      parameters:
+        - $ref: '#/components/parameters/endpointId'
+      responses:
+        '200':
+          description: Allowlisted statistics without paths or raw commands; missing values remain absent or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endpointId: {type: integer, format: int64}
+                  ok: {type: boolean}
+                  threads: {type: object, additionalProperties: {type: integer, format: int64}}
+                  queue: {type: object, additionalProperties: {type: integer, format: int64}}
+                  pools: {type: integer, format: int64, nullable: true}
+                  memory: {type: object, additionalProperties: {type: string}, description: Native ClamD memory quantities such as pools_used and pools_total; binary M units}
+                  checkedAt: {type: string, format: date-time}
+  /endpoints:
+    get:
+      tags: [Health]
+      summary: Named endpoints visible to this token (no hostnames)
+      responses:
+        '200': {description: Endpoint list, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Endpoint'}}}}}
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: Paginated, filtered jobs
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+        - $ref: '#/components/parameters/endpointId'
+        - {name: status, in: query, schema: {type: string, enum: [QUEUED, RUNNING, FINISHED]}}
+        - {name: verdict, in: query, schema: {type: string, enum: [OK, VIRUS_FOUND, ERROR]}}
+      responses:
+        '200': {description: Paged jobs, content: {application/json: {schema: {$ref: '#/components/schemas/JobPage'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /jobs/{id}:
+    get:
+      tags: [Jobs]
+      parameters: [{$ref: '#/components/parameters/jobId'}]
+      responses:
+        '200': {description: Safe job DTO, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
+        '404': {description: No such job}
+  /jobs/{id}/progress:
+    get:
+      tags: [Jobs]
+      summary: Polling-friendly QUEUED/RUNNING/FINISHED status and verdict
+      parameters: [{$ref: '#/components/parameters/jobId'}]
+      responses:
+        '200': {description: Status snapshot}
+  /scans/uploads:
+    post:
+      tags: [Scanning]
+      summary: Enqueue uploads into the same GUI scan execution pipeline
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                endpointId: {type: integer, format: int64}
+                files:
+                  type: array
+                  items: {type: string, format: binary}
+      responses:
+        '202': {description: Accepted; jobIds are generated in the local application}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '429': {description: Scan rate limit exceeded}
+  /scans/paths:
+    post:
+      tags: [Scanning]
+      summary: Enqueue allowed server path scan (token needs explicit pathRoots)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                endpointId: {type: integer, format: int64}
+                path: {type: string, example: /scandir/sample.bin}
+      responses:
+        '202': {description: Accepted, body includes jobId}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {description: Token path restriction violation}
+  /audit:
+    get:
+      tags: [Administration]
+      summary: Admin role OR audit:read token, sanitized audit records
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 0}}
+        - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+      responses:
+        '200': {description: Sanitized audit events; no IP addresses or details}
+        '403': {description: Insufficient privilege}
+  /tokens:
+    get:
+      tags: [Administration]
+      summary: Admin browser session only, metadata (never token secrets)
+      responses:
+        '200': {description: Token metadata}
+    post:
+      tags: [Administration]
+      summary: Admin browser session + CSRF required; secret shown exactly once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, scopes]
+              properties:
+                label: {type: string}
+                scopes: {type: array, items: {type: string, enum: [scan:upload, scan:path, jobs:read, endpoints:read, health:read, audit:read]}}
+                endpointIds: {type: array, items: {type: integer, format: int64}}
+                pathRoots: {type: array, items: {type: string}}
+                expiresAt: {type: string, format: date-time}
+      responses:
+        '201': {description: One-time secret and public token metadata}
+        '403': {description: Only administrators may issue credentials}
+  /tokens/{id}:
+    delete:
+      tags: [Administration]
+      summary: Revoke immediately (admin session and CSRF)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '204': {description: Revoked}
+        '404': {description: Not found}
+  /openapi.yaml:
+    get:
+      tags: [Administration]
+      summary: This OpenAPI contract
+      responses:
+        '200': {description: OpenAPI 3.0 YAML, content: {application/yaml: {schema: {type: string}}}}
+components:
+  securitySchemes:
+    BearerToken: {type: http, scheme: bearer, bearerFormat: opaque}
+    BasicAuth: {type: http, scheme: basic, description: HTTPS required. Mutating requests also require the session cookie and CSRF token from GET /csrf.}
+  parameters:
+    endpointId: {name: endpointId, in: query, required: false, schema: {type: integer, format: int64}}
+    jobId: {name: id, in: path, required: true, schema: {type: string}}
+  responses:
+    BadRequest: {description: Invalid request, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Unauthorized: {description: Missing, invalid or expired bearer token}
+  schemas:
+    ComponentHealth:
+      type: object
+      properties: {status: {type: string}, component: {type: string}, at: {type: string, format: date-time}}
+    ClamdHealth:
+      type: object
+      properties:
+        endpointId: {type: integer, format: int64}
+        endpoint: {type: string}
+        connectivity: {type: string, enum: [UP, DOWN]}
+        version: {type: string, nullable: true}
+        signatureDatabaseVersion: {type: string, nullable: true}
+        signatureDatabaseTime: {type: string, nullable: true}
+        signatureDatabaseTimestamp: {type: string, format: date-time, nullable: true, description: Parsed database timestamp in UTC using api.v1.clamd.database-timezone; null when unavailable or invalid}
+        signatureDatabaseFreshness: {type: string, enum: [FRESH, STALE, UNKNOWN]}
+        signatureAgeHours: {type: integer, nullable: true}
+        checkedAt: {type: string, format: date-time}
+    Endpoint:
+      type: object
+      properties: {id: {type: integer, format: int64}, name: {type: string}, enabled: {type: boolean}}
+    Job:
+      type: object
+      properties:
+        id: {type: string}
+        type: {type: string}
+        status: {type: string}
+        verdict: {type: string, nullable: true}
+        endpointId: {type: integer, nullable: true}
+        filename: {type: string, nullable: true, description: Only safe upload display name; no path scans targets}
+        sizeBytes: {type: integer, format: int64, nullable: true}
+        submittedAt: {type: string, format: date-time}
+        startedAt: {type: string, format: date-time, nullable: true}
+        finishedAt: {type: string, format: date-time, nullable: true}
+        signatures: {type: array, maxItems: 1000, items: {type: string, maxLength: 256}, description: Distinct sorted signature values only. Internal filenames and raw detection JSON are omitted. Missing/unreadable metadata produces an empty array.}
+        durationMillis: {type: integer, format: int64, nullable: true, description: Execution duration from startedAt to finishedAt; queue time is excluded}
+        quarantineStatus: {type: string, enum: [PENDING, RECORDED, NOT_RECORDED, NOT_APPLICABLE, UNKNOWN], description: Recorded quarantine evidence only; no live filesystem check. PATH/WATCH history without a recorded location is UNKNOWN.}
+        error: {$ref: '#/components/schemas/JobError'}
+    JobError:
+      type: object
+      nullable: true
+      required: [code, message]
+      properties:
+        code: {type: string, enum: [POLICY_REJECTED, NO_ELIGIBLE_FILES, CONFIGURATION_UNAVAILABLE, LIMIT_EXCEEDED, SCAN_FAILED]}
+        message: {type: string, description: Fixed public summary; raw daemon and exception messages are never returned}
+    JobPage:
+      type: object
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Job'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer, format: int64}
+        totalPages: {type: integer}
+    Error:
+      type: object
+      properties:
+        error: {type: string}
+        message: {type: string}
+        timestamp: {type: string, format: date-time}

@@ -1,0 +1,6 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section><h1>Scan details</h1><p><a th:href="@{/jobs}">Back to jobs</a></p><dl class="detail-grid"><dt>ID</dt><dd th:text="${job.id}"></dd>
+<dt>Type</dt><dd th:text="${job.type}"></dd><dt>Status</dt><dd th:text="${job.status}"></dd><dt>Verdict</dt><dd th:text="${job.verdict}"></dd>
+<dt>Target</dt><dd th:text="${job.target}"></dd><dt>Stored path</dt><dd th:text="${job.storedPath}"></dd>
+<dt>SHA256</dt><dd th:text="${job.sha256}"></dd><dt>Submitted</dt><dd th:text="${job.submittedAt}"></dd>
+<dt>Finished</dt><dd th:text="${job.finishedAt}"></dd><dt>Found signatures</dt><dd><pre th:text="${job.foundVirusesJson}"></pre></dd>
+<dt>Error</dt><dd th:text="${job.errorMessage}"></dd><dt>Quarantine</dt><dd th:text="${job.quarantinePath}"></dd></dl></section></html>

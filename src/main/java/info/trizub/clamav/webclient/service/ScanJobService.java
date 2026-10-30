@@ -8,6 +8,7 @@ import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -27,12 +28,15 @@ public class ScanJobService {
     private final SettingsService settings;
     private final ObjectMapper mapper;
     private final ScanExecutionService executor;
+    private final DaemonScanPolicy daemonPolicy;
 
-    public ScanJobService(ScanJobRepository repo, SettingsService settings, ObjectMapper mapper, ScanExecutionService executor) {
+    public ScanJobService(ScanJobRepository repo, SettingsService settings, ObjectMapper mapper, ScanExecutionService executor,
+                          DaemonScanPolicy daemonPolicy) {
         this.repo = repo;
         this.settings = settings;
         this.mapper = mapper;
         this.executor = executor;
+        this.daemonPolicy = daemonPolicy;
     }
 
     @PostConstruct
@@ -47,9 +51,26 @@ public class ScanJobService {
                 });
     }
 
+    /** After a transient DB outage, recover QUEUED work that was persisted but not enqueued.
+     * CAS claiming in ScanExecutionService prevents duplicate execution if already taken.
+     * RUNNING jobs require an operator-controlled single-instance restart; not HA recovery.
+     */
+    @Scheduled(fixedDelayString = "${app.scan.reconcile-interval-ms:60000}")
+    public void reconcileQueued() {
+        try {
+            for (ScanJob j : repo.findTop100ByStatusOrderBySubmittedAtAsc(ScanJobStatus.QUEUED)) {
+                executor.enqueue(j.getId());
+            }
+        } catch (Exception ex) {
+            log.warn("Scan queue reconciliation deferred while database unavailable: {}", ex.getMessage());
+        }
+    }
+
     public List<ScanJob> latest() {
         return repo.findTop200ByOrderBySubmittedAtDesc();
     }
+
+    public long uploadMaxBytes(ClamdEndpoint endpoint) { return daemonPolicy.uploadMaxBytes(endpoint); }
 
     /**
      * Fetch a job by id.
@@ -61,20 +82,32 @@ public class ScanJobService {
         return repo.findById(id).orElse(null);
     }
 
-    @Transactional
     public List<ScanJob> createUploadJobs(List<MultipartFile> files, ClamdEndpoint endpoint, String username) {
+        return createUploadJobs(files, endpoint, username, "BROWSER");
+    }
+
+    @Transactional
+    public List<ScanJob> createUploadJobs(List<MultipartFile> files, ClamdEndpoint endpoint, String username, String transport) {
         List<ScanJob> jobs = new ArrayList<>();
-        for (MultipartFile f : files) {
-            if (f == null || f.isEmpty()) continue;
-            if (f.getSize() > settings.uploadMaxBytes()) {
-                throw new IllegalArgumentException("File too large: " + f.getOriginalFilename());
-            }
+        record PendingUpload(MultipartFile file, String id, String name, Path stored) {}
+        List<PendingUpload> pending = new ArrayList<>();
+        // Validate the entire batch before copying files or queuing any job.
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) continue;
+            daemonPolicy.requireUpload(file.getSize(),endpoint);
             String id = UUID.randomUUID().toString().replace("-", "");
-            Path uploadDir = settings.uploadDir();
+            String name = (file.getOriginalFilename() == null ? "upload" : file.getOriginalFilename()).replaceAll("[^a-zA-Z0-9._-]", "_");
+            Path stored = settings.uploadDir().resolve(id + "-" + name);
+            daemonPolicy.requireNotExcluded(stored,endpoint);
+            pending.add(new PendingUpload(file,id,name,stored));
+        }
+        for (PendingUpload upload : pending) {
+            MultipartFile f = upload.file();
+            String id = upload.id();
+            String safeName = upload.name();
+            Path stored = upload.stored();
             try {
-                Files.createDirectories(uploadDir);
-                String safeName = (f.getOriginalFilename() == null ? "upload" : f.getOriginalFilename()).replaceAll("[^a-zA-Z0-9._-]", "_");
-                Path stored = uploadDir.resolve(id + "-" + safeName);
+                Files.createDirectories(stored.getParent());
 
                 // Save file
                 try (InputStream in = f.getInputStream()) {
@@ -97,24 +130,28 @@ public class ScanJobService {
                 job.setSizeBytes(f.getSize());
                 job.setEndpoint(endpoint);
                 job.setSubmittedBy(username);
+                job.setSubmittedTransport(transport);
                 job.setSubmittedAt(Instant.now());
                 repo.save(job);
                 jobs.add(job);
                 enqueueAfterCommit(job.getId());
                 } catch (Exception e) {
-                log.error("Failed to create upload job: {}", e.getMessage());
+                log.error("Failed to create upload job: {}", e.getMessage(), e);
+                throw new IllegalStateException("Unable to create upload scan job", e);
             }
         }
         return jobs;
     }
 
-    @Transactional
     public ScanJob createPathJob(String path, ClamdEndpoint endpoint, String username) {
-        Path requested = PathPolicy.normalize(path);
+        return createPathJob(path, endpoint, username, "BROWSER");
+    }
 
-        if (!PathPolicy.isUnderAllowedRoots(requested, settings.allowedRoots())) {
-            throw new IllegalArgumentException("Path is not allowed by policy. Allowed roots: " + settings.allowedRoots());
-        }
+    @Transactional
+    public ScanJob createPathJob(String path, ClamdEndpoint endpoint, String username, String transport) {
+        daemonPolicy.requireNotExcluded(PathPolicy.normalize(path),endpoint);
+        Path requested = PathPolicy.requireAllowed(PathPolicy.normalize(path), settings.allowedRoots());
+        daemonPolicy.requirePath(requested,endpoint);
 
         String id = UUID.randomUUID().toString().replace("-", "");
         ScanJob job = new ScanJob();
@@ -124,6 +161,7 @@ public class ScanJobService {
         job.setTarget(requested.toString());
         job.setEndpoint(endpoint);
         job.setSubmittedBy(username);
+        job.setSubmittedTransport(transport);
         job.setSubmittedAt(Instant.now());
         repo.save(job);
         enqueueAfterCommit(job.getId());
@@ -132,14 +170,17 @@ public class ScanJobService {
 
     @Transactional
     public ScanJob createWatchFileJob(Path file, ClamdEndpoint endpoint, String username) {
+        Path requested = PathPolicy.requireAllowed(file,settings.allowedRoots());
+        daemonPolicy.requirePath(requested,endpoint);
         String id = UUID.randomUUID().toString().replace("-", "");
         ScanJob job = new ScanJob();
         job.setId(id);
         job.setType(ScanJobType.WATCH);
         job.setStatus(ScanJobStatus.QUEUED);
-        job.setTarget(file.toAbsolutePath().normalize().toString());
+        job.setTarget(requested.toString());
         job.setEndpoint(endpoint);
         job.setSubmittedBy(username != null ? username : "watcher");
+        job.setSubmittedTransport("WATCH");
         job.setSubmittedAt(Instant.now());
         repo.save(job);
         enqueueAfterCommit(job.getId());

@@ -1,0 +1,19 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section>
+<h1>REST API Reports &amp; Analytics</h1><p class="muted">Statistics, live queue and history from the external REST service. GUI scan jobs remain under Scan Jobs.</p>
+<div th:unless="${restConfigured}" class="alert alert-warning">Set CLAMAV_REST_URL in Docker Compose to activate external reports.</div>
+<div data-rest-summary class="panel panel-body"><h2>API activity</h2><div role="status" data-rest-status class="muted">Connecting…</div><div class="rest-metrics" data-rest-metrics></div><div class="muted mt-2" data-rest-retention></div><details class="mt-2"><summary>Raw REST statistics (diagnostics)</summary><pre data-rest-raw></pre></details></div>
+<section class="panel panel-body mt-3" data-rest-jobs data-page-size="25"><h2>Jobs &amp; history</h2>
+<form data-rest-filters class="rest-filters"><label>View<select name="view" class="form-select"><option value="jobs">All jobs (live)</option><option value="history">Finished history</option></select></label>
+<label>Status<select name="status" class="form-select"><option value="">All</option><option>queued</option><option>running</option><option>completed</option><option>failed</option></select></label>
+<label>Mode<select name="mode" class="form-select"><option value="">All</option><option value="sync">Sync</option><option value="async">Async</option></select></label>
+<label>Detection<select name="infected" class="form-select"><option value="">All</option><option value="true">Detected</option><option value="false">Clean</option></select></label>
+<label>From<input type="datetime-local" name="from" class="form-control"/></label><label>To<input type="datetime-local" name="to" class="form-control"/></label>
+<label>Request ID<input type="text" name="request_id" maxlength="128" class="form-control" placeholder="Optional correlation ID"/></label>
+<button class="btn btn-primary" type="submit">Apply filters</button></form>
+<div data-rest-jobs-message class="rest-message" role="status"></div><div data-rest-job-table></div>
+<div class="rest-pagination"><button type="button" data-rest-prev class="btn btn-outline-light btn-sm">Previous</button><span data-rest-page>Page 1</span><button type="button" data-rest-next class="btn btn-outline-light btn-sm">Next</button></div>
+<div data-rest-detail hidden class="rest-detail"></div>
+<div class="rest-actions mt-4"><button type="button" class="btn btn-outline-light" data-rest-analyze>Generate analytics</button><button type="button" class="btn btn-outline-light" data-rest-export="csv">Export CSV</button><button type="button" class="btn btn-outline-light" data-rest-export="json">Export JSON</button></div>
+<div data-rest-report-status class="rest-message" role="status"></div><div data-rest-analytics class="rest-metrics"></div>
+</section>
+</section></html>

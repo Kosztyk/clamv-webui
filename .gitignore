@@ -1,0 +1,25 @@
+target/
+data/
+*.log
+.env
+.idea/
+.DS_Store
+
+# Phase 3 mounted identity-provider secrets
+.secrets/
+
+# Phase 3.1 auth settings encryption keys (never commit these)
+conf/auth-settings.key
+conf/*.key
+
+# Phase 3 local Java truststore / TLS artifacts (never commit)
+conf/ldap-test-truststore
+conf/*.jks
+conf/*.p12
+conf/*.pfx
+conf/*.crt
+conf/*.pem
+
+# Generated CLI executables are distributed as build/release artifacts.
+cli/dist/
+conf/integrations.properties

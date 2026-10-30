@@ -1,0 +1,57 @@
+groups:
+  - name: clamav-operations
+    rules:
+      - alert: ClamavMetricsTargetDown
+        expr: up{job="clamav-webui"} == 0
+        for: 3m
+        labels: {severity: critical}
+        annotations:
+          summary: "ClamAV Web UI Prometheus scrape unavailable"
+      - alert: ClamdEndpointUnreachable
+        expr: clamav_clamd_endpoint_configured == 1 and on(job,instance,slot) clamav_clamd_endpoint_available == 0
+        for: 3m
+        labels: {severity: critical}
+        annotations:
+          summary: "ClamD endpoint {{ $labels.slot }} unreachable"
+      - alert: ClamdTelemetryStale
+        expr: clamav_clamd_endpoint_stale == 1
+        for: 3m
+        labels: {severity: warning}
+        annotations:
+          summary: "ClamD metrics stale for slot {{ $labels.slot }}"
+      - alert: ClamdSignaturesTooOld
+        expr: time() - clamav_database_timestamp > 604800
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "ClamD signature database older than seven days (slot {{ $labels.slot }})"
+      - alert: ClamdQueuePressure
+        expr: clamav_queue_items > 10
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "ClamD queue exceeds ten items (slot {{ $labels.slot }})"
+      - alert: ClamavDetections
+        expr: sum by(job,instance) (increase(clamav_scans_total{verdict="virus_found"}[5m])) > 0
+        for: 0m
+        labels: {severity: warning}
+        annotations:
+          summary: "ClamAV malware detections reported during the last five minutes"
+      - alert: ClamdThreadPressure
+        expr: clamav_threads_busy / clamp_min(clamav_threads_max, 1) >= 0.9
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "ClamD scan thread saturation (slot {{ $labels.slot }})"
+      - alert: ClamdPoolMemorySpike
+        expr: clamav_pools_used_bytes > 1.5 * avg_over_time(clamav_pools_used_bytes[1h])
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "ClamD pool memory exceeds 150 percent of its one-hour average (slot {{ $labels.slot }})"
+      - alert: ClamavWorkerPressure
+        expr: clamav_scan_workers_busy / clamp_min(clamav_scan_workers_capacity, 1) >= 0.9
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "ClamAV scan worker pool saturation"

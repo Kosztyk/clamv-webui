@@ -1,0 +1,18 @@
+# Add-on override for real native path scanning and directory watching.
+# Combine with the standalone Compose, e.g.:
+# docker compose -f docker-compose.yaml -f examples/compose/shared-paths.override.yaml up -d
+# Relative paths are resolved from the FIRST Compose file's directory.
+services:
+  clamav-web-client:
+    environment:
+      CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "true"
+      CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "false"
+    volumes:
+      - ./data:/app/data
+      - ./scandir:/scandir:ro
+  clamav-server:
+    volumes:
+      - ./data:/app/data:ro           # uploaded files use exactly /app/data on both sides
+      - ./scandir:/scandir:ro         # path scans use exactly /scandir on both sides
+# Then, in Admin > Settings, set app.allowedScanRoots to /scandir.
+# Read-only roots cannot have their ORIGINALS moved into quarantine.

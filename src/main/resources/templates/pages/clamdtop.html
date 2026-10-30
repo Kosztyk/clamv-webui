@@ -1,0 +1,13 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section id="native-clamdtop">
+  <div class="native-clamdtop-toolbar">
+    <div class="native-clamdtop-title"><h1>ClamdTop</h1><span>Native, interactive clamdtop terminal</span></div>
+    <label for="native-clamdtop-endpoint">Endpoint</label>
+    <select id="native-clamdtop-endpoint" class="form-select"><option th:each="ep : ${endpoints}" th:value="${ep.id}" th:text="${ep.name + ' (' + ep.host + ':' + ep.port + ')'}" th:selected="${ep.id == endpointId}"></option></select>
+    <button id="native-clamdtop-connect" class="btn btn-primary" type="button">Connect</button>
+    <button id="native-clamdtop-disconnect" class="btn btn-outline-light" type="button">Disconnect</button>
+    <span id="native-clamdtop-status" role="status">Connecting…</span>
+  </div>
+  <div class="native-clamdtop-queue" data-rest-summary><span data-rest-status>REST API queue: connecting…</span><span data-rest-metrics></span></div>
+  <p class="native-clamdtop-hint">This is the real clamdtop ncurses interface, not a STATS approximation. Keys: H help · Q quit · R reset · arrows navigate. Clamd only shows file paths for path-based scans; INSTREAM has no filename.</p>
+  <div id="native-clamdtop-terminal" tabindex="0" aria-label="Live interactive ClamdTop terminal"></div>
+</section></html>

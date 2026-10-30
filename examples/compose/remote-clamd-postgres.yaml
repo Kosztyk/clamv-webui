@@ -1,0 +1,35 @@
+# Remote ClamD + existing external PostgreSQL.
+# Replace EXAMPLE environment values in private .env; NEVER commit .env.
+# This file does NOT create the database or the ClamD daemon.
+# Bind 8082 to the reverse-proxy-reachable IP (or loopback when proxy is local).
+services:
+  clamav-web-client:
+    image: kosztyk/clamav-web-client:v2
+    container_name: clamav-gui
+    ports:
+      - "${CLAMAV_WEB_BIND:-127.0.0.1}:8082:8080"
+    environment:
+      TZ: Europe/Bucharest
+      CLAMAV_HOST: "${CLAMAV_HOST:?Set CLAMAV_HOST in .env}"
+      CLAMAV_PORT: "${CLAMAV_PORT:-3310}"
+      CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"    # remote ClamD without identical filesystem
+      CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "false"
+      SPRING_DATASOURCE_URL: "${SPRING_DATASOURCE_URL:?Set JDBC URL in .env}"
+      SPRING_DATASOURCE_USERNAME: "${SPRING_DATASOURCE_USERNAME:?Set DB user in .env}"
+      SPRING_DATASOURCE_PASSWORD: "${SPRING_DATASOURCE_PASSWORD:?Set DB password in .env}"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
+      # Optional compatible *external* REST scanner; leave empty when not installed.
+      CLAMAV_REST_URL: "${CLAMAV_REST_URL:-}"
+      CLAMAV_REST_API_KEY: "${CLAMAV_REST_API_KEY:-}"
+      CLAMAV_REST_FORM_KEY: FILES
+      CLAMAV_REST_TIMEOUT_SECONDS: "10"
+      CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS: "3600"
+      CLAMAV_REST_REPORT_MAX_JOBS: "5000"
+      # Trust forwarded headers ONLY when reachable solely through a trusted proxy.
+      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-none}"
+    volumes:
+      - ./conf:/app/conf
+      - ./data:/app/data
+    restart: unless-stopped

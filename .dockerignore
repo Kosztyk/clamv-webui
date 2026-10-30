@@ -1,0 +1,19 @@
+target
+data
+.git
+.github
+*.zip
+.env
+conf/clamav-web-client.properties
+
+# Never put authentication encryption keys / Docker secrets into image layers
+conf/auth-settings.key
+.secrets
+conf/*.key
+
+# No runtime config, CA, truststore or secrets may enter the Docker build context.
+# Runtime /app/conf is a bind-mounted volume; Dockerfile does not copy conf/.
+conf/
+
+# The server image only needs Java sources; standalone CLI binaries are separate.
+cli/dist/

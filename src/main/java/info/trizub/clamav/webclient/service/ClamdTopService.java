@@ -2,7 +2,6 @@ package info.trizub.clamav.webclient.service;
 
 import info.trizub.clamav.webclient.model.ClamdEndpoint;
 import org.springframework.stereotype.Service;
-import xyz.capybara.clamav.ClamavClient;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,7 +19,7 @@ public class ClamdTopService {
             Pattern.CASE_INSENSITIVE
     );
     private static final Pattern QUEUE_PATTERN = Pattern.compile(
-            "QUEUE:\\s+(\\d+)\\s+items\\s+(\\d+)\\s+max.*",
+            "QUEUE:\\s*(\\d+)\\s+items(?:\\s+(\\d+)\\s+max)?(?:\\s.*)?",
             Pattern.CASE_INSENSITIVE
     );
     private static final Pattern POOLS_PATTERN = Pattern.compile("POOLS:\\s+(\\d+).*", Pattern.CASE_INSENSITIVE);
@@ -49,7 +48,7 @@ public class ClamdTopService {
         result.put("endpoint", endpointInfo(ep));
 
         try {
-            ClamavClient client = clientProvider.clientFor(ep);
+            ClamdClient client = clientProvider.clientFor(ep);
             client.ping();
 
             String version = safe(client.version());
@@ -74,6 +73,7 @@ public class ClamdTopService {
         Map<String, Object> mem = new LinkedHashMap<>();
         List<Map<String, String>> commands = new ArrayList<>();
         List<String> unparsed = new ArrayList<>();
+        boolean missingQueueCapacity = false;
 
         if (stats == null || stats.isBlank()) {
             parsed.put("threads", threads);
@@ -95,10 +95,10 @@ public class ClamdTopService {
                 int live = intValue(matcher.group(1));
                 int idle = intValue(matcher.group(2));
                 int max = intValue(matcher.group(3));
-                threads.put("live", live);
-                threads.put("idle", idle);
-                threads.put("busy", Math.max(0, live - idle));
-                threads.put("max", max);
+                addCount(threads, "live", live);
+                addCount(threads, "idle", idle);
+                addCount(threads, "busy", Math.max(0, live - idle));
+                addCount(threads, "max", max);
                 if (matcher.group(4) != null) {
                     threads.put("idleTimeout", intValue(matcher.group(4)));
                 }
@@ -107,8 +107,14 @@ public class ClamdTopService {
 
             matcher = QUEUE_PATTERN.matcher(line);
             if (matcher.matches()) {
-                queue.put("items", intValue(matcher.group(1)));
-                queue.put("max", intValue(matcher.group(2)));
+                addCount(queue, "items", intValue(matcher.group(1)));
+                if (matcher.group(2) != null && !missingQueueCapacity)
+                    addCount(queue, "max", intValue(matcher.group(2)));
+                else {
+                    // Native STATS provides a queue count, not a queue capacity.
+                    missingQueueCapacity = true;
+                    queue.remove("max");
+                }
                 continue;
             }
 
@@ -200,6 +206,10 @@ public class ClamdTopService {
         command.put("file", parts.length > 2 ? parts[2] : "");
         command.put("raw", line);
         return command;
+    }
+
+    private static void addCount(Map<String, Object> values, String key, int count) {
+        values.merge(key, count, (a, b) -> Math.addExact(((Number) a).intValue(), ((Number) b).intValue()));
     }
 
     private int intValue(String value) {

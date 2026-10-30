@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "count": 12,
+  "checks": [
+    "Anonymous dashboard redirects to /login",
+    "Forwarded HTTPS login redirect retains HTTPS and proxy host",
+    "Anonymous v1 request returns 401 JSON",
+    "Prometheus rejects missing scrape token",
+    "Form login succeeds with bootstrap credentials and CSRF",
+    "Authenticated HTML page /dashboard",
+    "Authenticated HTML page /admin/settings/authentication",
+    "Authenticated HTML page /clamdtop",
+    "Authenticated JSON response /api/v1/endpoints",
+    "Authenticated JSON response /api/health",
+    "Authenticated JSON response /actuator/info",
+    "Packaged static CSS loads"
+  ],
+  "server": "embedded Tomcat 11 / Spring Boot 4.0.9",
+  "database": "temporary H2 in memory"
+}

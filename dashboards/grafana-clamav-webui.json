@@ -1,0 +1,987 @@
+{
+  "id": null,
+  "uid": "clamav-webui",
+  "title": "ClamAV Web UI",
+  "tags": [
+    "clamav",
+    "security",
+    "operations"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 2,
+  "editable": true,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Scan rate and verdicts",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(type,verdict)(rate(clamav_scans_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{type}} / {{verdict}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Verdict distribution",
+      "type": "piechart",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Completed jobs by verdict within the selected time range.",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(verdict)(increase(clamav_scans_total{job=~\"$job\",instance=~\"$instance\"}[$__range]))",
+          "legendFormat": "{{verdict}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "pieType": "donut",
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Virus detection timeline",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Malware-positive scan jobs within each rolling rate interval. Per-file signature counts are shown in the signature table.",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(clamav_scans_total{job=~\"$job\",instance=~\"$instance\",verdict=\"virus_found\"}[$__rate_interval]))",
+          "legendFormat": "Malware-positive scans",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Detected signatures",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Top 25 cumulative file/signature detections since the selected application processes started. Counters reset on restart; Prometheus retains historical samples.",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(25,sum by(signature)(clamav_viruses_detected_total{job=~\"$job\",instance=~\"$instance\"})) > 0",
+          "legendFormat": "{{signature}}",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Detections (since process start)",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "signature": 0,
+              "Value": 1
+            },
+            "renameByName": {
+              "signature": "Signature",
+              "Value": "Detections (since process start)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Scan duration p95",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95,sum by(le,type)(rate(clamav_scan_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "{{type}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Pending / running jobs",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "A value of -1 means the database count is unavailable.",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamav_scan_jobs_pending{job=~\"$job\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} pending",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "clamav_scan_jobs_running{job=~\"$job\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}} running",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "ClamD queue depth",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Native STATS queue count. ClamD does not normally report a queue capacity.",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamav_queue_items{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "ClamD threads",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamav_threads_live{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}} live",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "(clamav_threads_idle{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}} idle",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "C",
+          "expr": "(clamav_threads_busy{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}} busy",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "D",
+          "expr": "(clamav_threads_max{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}} maximum",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "ClamD thread saturation",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamav_threads_busy{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} / clamp_min(clamav_threads_max{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"},1)) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "ClamD pool memory",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Pool memory from the MEMSTATS line of STATS; native MiB values are converted to bytes.",
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamav_pools_used_bytes{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}} used",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "(clamav_pools_total_bytes{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}} total",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Signature database version",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamav_database_version{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 12,
+      "title": "Signature database freshness",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Age in hours: green under 24h, amber from 24h, red from 168h. Unavailable timestamps remain unknown.",
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamp_min(time() - clamav_database_timestamp{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"},0) / 3600) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 24
+              },
+              {
+                "color": "red",
+                "value": 168
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 13,
+      "title": "Signature database timestamp",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamav_database_timestamp{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} * 1000) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeAsIso"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 14,
+      "title": "ClamD availability",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Configured endpoints only. 1 = available, 0 = unreachable.",
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamav_clamd_endpoint_available{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Unreachable",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Available",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 15,
+      "title": "Application worker saturation",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamav_scan_workers_busy{job=~\"$job\",instance=~\"$instance\"} / clamp_min(clamav_scan_workers_capacity{job=~\"$job\",instance=~\"$instance\"},1)",
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "Scan failures by reason",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(reason)(increase(clamav_scan_failures_total{job=~\"$job\",instance=~\"$instance\"}[1h]))",
+          "legendFormat": "{{reason}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "title": "ClamD telemetry stale",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "1 indicates an unreachable or stale sample; numeric daemon values remain unknown during outages.",
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamav_clamd_endpoint_stale{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"}) and on(job,instance,slot) (clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\",slot=~\"$slot\"} == 1)",
+          "legendFormat": "{{instance}} / slot {{slot}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 18,
+      "title": "Available worker capacity",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamav_scan_workers_capacity{job=~\"$job\",instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "Prometheus job",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "label_values(clamav_scans_total, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values(clamav_scans_total, job)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      },
+      {
+        "name": "instance",
+        "label": "Application instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "label_values(clamav_scans_total{job=~\"$job\"}, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values(clamav_scans_total{job=~\"$job\"}, instance)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      },
+      {
+        "name": "slot",
+        "label": "ClamD slot",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "label_values(clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\"}, slot)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values(clamav_clamd_endpoint_configured{job=~\"$job\",instance=~\"$instance\"}, slot)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "description": "Scan throughput, verdicts and detections; ClamD queue, thread and memory telemetry; signature database version and freshness."
+}

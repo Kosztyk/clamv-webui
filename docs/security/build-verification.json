@@ -1,0 +1,21 @@
+{
+  "source_revision": "2.0.0-security.1",
+  "application_version": "2.0.0",
+  "spring_boot": "4.0.9",
+  "command": "mvn -B -ntp verify",
+  "result": "BUILD SUCCESS",
+  "maven": "3.9.11",
+  "jdk": "OpenJDK 17.0.20",
+  "tests": {
+    "tests": 219,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 214
+  },
+  "skipped_reason": "AF_UNIX sockets prohibited in this environment",
+  "http_smoke_checks": 12,
+  "http_smoke_proxy_mode": "server.forward-headers-strategy=framework on temporary local test instance",
+  "docker_build_and_scout_scan": "Not run: Docker unavailable",
+  "browser_execution": "Blocked by AF_UNIX restrictions"
+}

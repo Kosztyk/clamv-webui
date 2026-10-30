@@ -25,7 +25,9 @@
     document.querySelectorAll(TAB_SEL).forEach(a => {
       const href = a.getAttribute('href') || '';
       const path = pathOf(href);
-      a.classList.toggle('active', path === urlPath || (urlPath === '/' && path === '/main'));
+      const selected = path === urlPath || (urlPath === '/' && path === '/main');
+      a.classList.toggle('active', selected);
+      if (selected) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
   }
 
@@ -46,6 +48,8 @@
   }
 
   function getCached(path) {
+    // Never serve a stale Authentication form or secret-configuration status.
+    if (path === '/admin/settings/authentication' || path === '/admin/configuration' || path === '/admin/integrations' || path === '/admin/api-tokens') return null;
     const item = cache.get(path);
     if (!item) return null;
     if ((Date.now() - item.ts) > CACHE_TTL_MS) { cache.delete(path); return null; }
@@ -83,6 +87,7 @@
 
       try { if (window.__applyThemeToggle) window.__applyThemeToggle(); } catch {}
       try { if (window.__rebindAfterSwap) window.__rebindAfterSwap(); } catch {}
+      document.dispatchEvent(new Event('clamav:page-ready'));
 
       // Release height lock after paint
       requestAnimationFrame(() => setTimeout(() => {
@@ -122,7 +127,7 @@
 
     try {
       const payload = await fetchPage(url, inFlight.signal);
-      cache.set(targetPath, { ...payload, ts: Date.now() });
+      if (targetPath !== '/admin/settings/authentication' && targetPath !== '/admin/configuration' && targetPath !== '/admin/integrations' && targetPath !== '/admin/api-tokens') cache.set(targetPath, { ...payload, ts: Date.now() });
       swapIntoMain(main, payload);
       if (push) history.pushState({ pjax: true }, '', url);
     } catch (e) {
@@ -154,7 +159,7 @@
   async function prefetch(href) {
     if (!href || !sameOrigin(href)) return;
     const path = pathOf(href);
-    if (!path) return;
+    if (!path || path === '/admin/settings/authentication' || path === '/admin/configuration' || path === '/admin/integrations' || path === '/admin/api-tokens') return;
     if (getCached(path)) return;
 
     const ac = new AbortController();

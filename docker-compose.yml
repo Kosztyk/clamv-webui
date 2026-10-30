@@ -1,28 +1,54 @@
-
 services:
   clamav-web-client:
-    build: .
+    # Build the application from the Dockerfile in this directory.
+    # This is a LOCAL tag; Docker Compose will build it, not pull it from Docker Hub.
+    image: clamav-web-client:2.0.0-local
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: Dockerfile
+      pull: false
+
     container_name: clamav-web-client
+
     ports:
       - "8080:8080"
+
     environment:
-      - CLAMAV_HOST=clamav-server
-      - CLAMAV_PORT=3310
-      - CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"
-      - CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "true"
-      # Optional: override DB to Postgres
-      # - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/clamavweb
-      # - SPRING_DATASOURCE_USERNAME=clamavweb
-      # - SPRING_DATASOURCE_PASSWORD=changeme
+      # Use the bundled ClamAV service on the Compose network.
+      # If clamd runs elsewhere, override this in your own deployment Compose.
+      CLAMAV_HOST: "clamav-server"
+      CLAMAV_PORT: "3310"
+
+      # REST URL is reached by the GUI container, not by the browser.
+      CLAMAV_REST_URL: "http://192.168.68.144:3000"
+      CLAMAV_REST_API_KEY: ""
+      CLAMAV_REST_FORM_KEY: "FILES"
+      CLAMAV_REST_TIMEOUT_SECONDS: "10"
+      CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS: "3600"
+      CLAMAV_REST_REPORT_MAX_JOBS: "5000"
+
+      CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "true"
+      CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "false"
+
     volumes:
       - ./conf:/app/conf
       - ./data:/app/data
+
     depends_on:
-      - clamav-server
+      clamav-server:
+        condition: service_started
+
+    restart: unless-stopped
 
   clamav-server:
     image: clamav/clamav:latest
     container_name: clamav
+
     ports:
       - "3310:3310"
 
+    volumes:
+      - ./data:/app/data:ro
+
+    restart: unless-stopped

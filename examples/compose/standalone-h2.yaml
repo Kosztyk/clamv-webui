@@ -1,0 +1,31 @@
+# Standalone Compose — H2 database, bundled ClamD, safe default INSTREAM
+# Save as docker-compose.yaml in a new deployment directory.
+# Attach an HTTPS reverse proxy before using this beyond localhost.
+services:
+  clamav-web-client:
+    image: kosztyk/clamav-web-client:v2
+    container_name: clamav-web-client
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      TZ: Europe/Bucharest
+      CLAMAV_HOST: clamav-server
+      CLAMAV_PORT: "3310"
+      CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"   # INSTREAM: no shared upload path needed
+      CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "false"
+    volumes:
+      - ./conf:/app/conf
+      - ./data:/app/data
+    depends_on:
+      - clamav-server
+    restart: unless-stopped
+
+  clamav-server:
+    image: clamav/clamav:latest
+    container_name: clamav-server
+    volumes:
+      - clamav-signatures:/var/lib/clamav
+    restart: unless-stopped
+
+volumes:
+  clamav-signatures:

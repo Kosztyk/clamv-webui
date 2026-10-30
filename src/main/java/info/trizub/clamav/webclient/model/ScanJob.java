@@ -40,6 +40,8 @@ public class ScanJob {
 
     @Column(length = 64)
     private String submittedBy;
+    @Column(length = 32)
+    private String submittedTransport;
 
     private Instant submittedAt = Instant.now();
     private Instant startedAt;
@@ -77,6 +79,8 @@ public class ScanJob {
     public void setSizeBytes(Long sizeBytes) { this.sizeBytes = sizeBytes; }
     public ClamdEndpoint getEndpoint() { return endpoint; }
     public void setEndpoint(ClamdEndpoint endpoint) { this.endpoint = endpoint; }
+    public String getSubmittedTransport() { return submittedTransport; }
+    public void setSubmittedTransport(String v) { submittedTransport = v; }
     public String getSubmittedBy() { return submittedBy; }
     public void setSubmittedBy(String submittedBy) { this.submittedBy = submittedBy; }
     public Instant getSubmittedAt() { return submittedAt; }

@@ -1,0 +1,5 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section><h1>Endpoint Health</h1><p class="muted">Live daemon PING, VERSION and STATS snapshot.</p>
+<form method="get" th:action="@{/main}" class="inline-form"><label>Endpoint <select class="form-select" name="endpointId"><option th:each="ep : ${endpoints}" th:value="${ep.id}" th:text="${ep.name}" th:selected="${endpoint != null and ep.id == endpoint.id}"></option></select></label>
+<button class="btn btn-primary" type="submit">Refresh</button></form>
+<div class="alert alert-warning mt-3" th:if="${error}" th:text="${error}"></div><p th:if="${pingOk}"><strong>ClamD online</strong> <span th:text="${version}"></span></p>
+<pre th:if="${stats != null}" th:text="${stats}"></pre><p><a th:href="@{/clamdtop}">View live ClamdTop monitoring</a></p></section></html>

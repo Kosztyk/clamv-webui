@@ -1,0 +1,19 @@
+# EXAMPLE ONLY: merge the environment and secrets blocks into your current compose.
+# Do NOT replace your existing services/volumes and do NOT commit .secrets/.
+services:
+  clamav-web-client:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://192.168.68.112:5432/clamv
+      SPRING_DATASOURCE_USERNAME: ${CLAMV_DB_USERNAME:?Required}
+      SPRING_DATASOURCE_PASSWORD: ${CLAMV_DB_PASSWORD:?Required}
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
+      CLAMAV_IDENTITY_LDAP_ENABLED: "false"
+      CLAMAV_IDENTITY_OIDC_ENABLED: "false"
+      # Enable and configure either provider ONLY after the local login test.
+      # CLAMAV_IDENTITY_LDAP_MANAGER_PASSWORD_FILE: /run/secrets/ldap_bind_password
+      # CLAMAV_IDENTITY_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc_client_secret
+      # SERVER_FORWARD_HEADERS_STRATEGY: framework  # trusted reverse proxy only
+    # secrets: [ldap_bind_password, oidc_client_secret]
+# secrets:
+#   ldap_bind_password: {file: ./.secrets/ldap_bind_password}
+#   oidc_client_secret: {file: ./.secrets/oidc_client_secret}

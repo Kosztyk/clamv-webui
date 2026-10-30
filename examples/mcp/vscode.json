@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "clamav": {
+      "type": "stdio",
+      "command": "/usr/local/bin/clamctl",
+      "args": ["--config", "/home/operator/.config/clamctl/config.json", "mcp", "serve", "--upload-root", "/srv/artifacts"]
+    }
+  }
+}

@@ -24,17 +24,19 @@ public class WatcherService {
     private final WatchedDirectoryRepository watchRepo;
     private final ProcessedFileRepository processedRepo;
     private final ScanJobService scanJobService;
+    private final DaemonScanPolicy daemonPolicy;
 
     private final AtomicLong lastRunMs = new AtomicLong(0);
 
     public WatcherService(SettingsService settings,
                           WatchedDirectoryRepository watchRepo,
                           ProcessedFileRepository processedRepo,
-                          ScanJobService scanJobService) {
+                          ScanJobService scanJobService, DaemonScanPolicy daemonPolicy) {
         this.settings = settings;
         this.watchRepo = watchRepo;
         this.processedRepo = processedRepo;
         this.scanJobService = scanJobService;
+        this.daemonPolicy = daemonPolicy;
     }
 
     @Scheduled(fixedDelay = 30000)
@@ -65,6 +67,8 @@ public class WatcherService {
                         .limit(1000)
                         .forEach(p -> {
                             try {
+                                if (!PathPolicy.isUnderAllowedRoots(p, settings.allowedRoots())) return;
+                                daemonPolicy.requirePath(p,wd.getEndpoint());
                                 long lm = Files.getLastModifiedTime(p).toMillis();
                                 long sz = Files.size(p);
                                 var existing = processedRepo.findByPath(p.toAbsolutePath().normalize().toString());

@@ -1,0 +1,20 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    user: "${CLAMAV_LAB_UID:?Set your numeric UID}:${CLAMAV_LAB_GID:?Set your numeric GID}"
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/tmp/prometheus", "--storage.tsdb.retention.time=1d"]
+    ports: ["127.0.0.1:9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./metrics.token:/run/secrets/clamav_metrics_token:ro
+      - ./lab-ca.crt:/etc/prometheus/clamav-lab-ca.crt:ro
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["127.0.0.1:3001:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?Choose a private lab Grafana password}"
+    volumes: ["grafana-lab:/var/lib/grafana"]
+    restart: unless-stopped
+volumes:
+  grafana-lab:

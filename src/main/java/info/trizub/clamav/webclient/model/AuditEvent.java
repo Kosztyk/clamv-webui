@@ -28,6 +28,10 @@ public class AuditEvent {
     @Column(length = 64)
     private String jobId;
 
+    @Column(length = 32)
+    private String transport;
+    private Long endpointId;
+
     @Column(length = 64)
     private String ip;
 
@@ -46,6 +50,10 @@ public class AuditEvent {
         this.userAgent = userAgent;
     }
 
+    public String getTransport() { return transport; }
+    public void setTransport(String v) { transport = v; }
+    public Long getEndpointId() { return endpointId; }
+    public void setEndpointId(Long v) { endpointId = v; }
     public Long getId() { return id; }
     public Instant getAt() { return at; }
     public String getUsername() { return username; }

@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import xyz.capybara.clamav.ClamavClient;
 import xyz.capybara.clamav.commands.scan.result.ScanResult;
 
 import java.io.ByteArrayOutputStream;
@@ -36,7 +35,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import info.trizub.clamav.webclient.util.PathPolicy;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -54,21 +56,29 @@ public class ScanExecutionService {
     private final ClamavClientProvider clientProvider;
     private final QuarantineService quarantineService;
     private final NotificationService notificationService;
+    private final AuditService auditService;
+    private final info.trizub.clamav.webclient.metrics.ScanMetrics scanMetrics;
+    private final DaemonScanPolicy daemonPolicy;
 
     private ExecutorService executor;
+    private final Set<String> locallyQueued = ConcurrentHashMap.newKeySet();
 
     public ScanExecutionService(SettingsService settings,
                                ScanJobRepository jobRepo,
                                ObjectMapper mapper,
                                ClamavClientProvider clientProvider,
                                QuarantineService quarantineService,
-                               NotificationService notificationService) {
+                               NotificationService notificationService, AuditService auditService, info.trizub.clamav.webclient.metrics.ScanMetrics scanMetrics,
+                               DaemonScanPolicy daemonPolicy) {
         this.settings = settings;
         this.jobRepo = jobRepo;
         this.mapper = mapper;
         this.clientProvider = clientProvider;
         this.quarantineService = quarantineService;
         this.notificationService = notificationService;
+        this.auditService = auditService;
+        this.scanMetrics = scanMetrics;
+        this.daemonPolicy = daemonPolicy;
     }
 
     @PostConstruct
@@ -87,12 +97,23 @@ public class ScanExecutionService {
                     return t;
                 }
         );
+        scanMetrics.bindExecutor((ThreadPoolExecutor) executor);
         log.info("Scan executor initialized with {} threads", threads);
     }
 
     public void enqueue(String jobId) {
+        // A periodic recovery sweep must not multiply pending tasks in the in-memory queue.
+        if (!locallyQueued.add(jobId)) return;
         log.debug("Enqueue scan job {}", jobId);
-        executor.submit(() -> runJob(jobId));
+        try {
+            executor.submit(() -> {
+                try { runJob(jobId); }
+                finally { locallyQueued.remove(jobId); }
+            });
+        } catch (RuntimeException ex) {
+            locallyQueued.remove(jobId);
+            throw ex;
+        }
     }
 
     private void runJob(String jobId) {
@@ -106,13 +127,19 @@ public class ScanExecutionService {
                 job.getEndpoint() != null ? job.getEndpoint().getName() : "null");
 
         try {
-            markRunning(jobId);
-            log.debug("Job {} marked RUNNING", jobId);
+            if (!markRunning(jobId)) {
+                log.info("Job {} already claimed/completed; ignoring duplicate queue item", jobId);
+                return;
+            }
+            log.debug("Job {} atomically claimed RUNNING", jobId);
 
-            ClamavClient client = clientProvider.clientFor(job.getEndpoint());
+            ClamdClient client = clientProvider.clientFor(job.getEndpoint());
 
             if (job.getType() == ScanJobType.UPLOAD) {
                 Path stored = Paths.get(job.getStoredPath()).toAbsolutePath().normalize();
+                // Recheck queued work against refreshed configuration before any daemon command.
+                daemonPolicy.requireUpload(Files.size(stored),job.getEndpoint());
+                daemonPolicy.requirePath(stored,job.getEndpoint());
 
                 if (settings.uploadPathScanEnabled()) {
                     try {
@@ -144,8 +171,8 @@ public class ScanExecutionService {
                     }
                 }
             } else if (job.getType() == ScanJobType.PATH || job.getType() == ScanJobType.WATCH) {
-                Path target = Paths.get(job.getTarget());
-                ScanResult result = client.parallelScan(target);
+                Path target = PathPolicy.requireAllowed(Paths.get(job.getTarget()), settings.allowedRoots());
+                ScanResult result = daemonPolicy.scanPath(client,job.getEndpoint(),target);
                 handleResult(jobId, job.getType(), result, null);
             } else {
                 finishError(jobId, "Unsupported job type: " + job.getType());
@@ -173,6 +200,7 @@ public class ScanExecutionService {
     private void handleResult(String jobId, ScanJobType type, ScanResult result, Path uploadedFile) {
         if (result instanceof ScanResult.OK) {
             finishOk(jobId);
+            notifyIfNeeded(jobId);
         } else if (result instanceof ScanResult.VirusFound) {
             ScanResult.VirusFound vf = (ScanResult.VirusFound) result;
             Map<String, Collection<String>> found = vf.getFoundViruses();
@@ -220,6 +248,11 @@ public class ScanExecutionService {
             throw new IOException("Upload file is missing in the web container: " + stored);
         }
 
+        if (endpoint.getHost().startsWith("/")) {
+            handleResult(job.getId(),job.getType(),clientProvider.clientFor(endpoint).parallelScan(stored),stored);
+            return;
+        }
+
         String response = sendClamdPathCommand(endpoint, "MULTISCAN", stored.toString());
         NativePathScanResult parsed = parseNativePathScanResponse(response);
 
@@ -240,6 +273,7 @@ public class ScanExecutionService {
         }
 
         finishOk(job.getId());
+        notifyIfNeeded(job.getId());
         log.debug("Job {} finished OK through direct native MULTISCAN path scan", job.getId());
     }
 
@@ -340,26 +374,26 @@ public class ScanExecutionService {
         }
     }
 
-    @Transactional
-    public void markRunning(String id) {
-        ScanJob job = jobRepo.findById(id).orElseThrow();
-        job.setStatus(ScanJobStatus.RUNNING);
-        job.setStartedAt(Instant.now());
-        jobRepo.save(job);
+    public boolean markRunning(String id) {
+        return jobRepo.claimQueued(id, ScanJobStatus.QUEUED,
+                ScanJobStatus.RUNNING, Instant.now()) == 1;
     }
 
     @Transactional
     public void finishOk(String id) {
         ScanJob job = jobRepo.findById(id).orElseThrow();
+        if (job.getStatus() == ScanJobStatus.FINISHED) return;
         job.setStatus(ScanJobStatus.FINISHED);
         job.setVerdict(ScanVerdict.OK);
         job.setFinishedAt(Instant.now());
         jobRepo.save(job);
+        auditResultSafely(job);
     }
 
     @Transactional
     public void finishFound(String id, Object foundViruses) {
         ScanJob job = jobRepo.findById(id).orElseThrow();
+        if (job.getStatus() == ScanJobStatus.FINISHED) return;
         job.setStatus(ScanJobStatus.FINISHED);
         job.setVerdict(ScanVerdict.VIRUS_FOUND);
         try {
@@ -369,16 +403,25 @@ public class ScanExecutionService {
         }
         job.setFinishedAt(Instant.now());
         jobRepo.save(job);
+        auditResultSafely(job);
     }
 
     @Transactional
     public void finishError(String id, String message) {
         ScanJob job = jobRepo.findById(id).orElseThrow();
+        if (job.getStatus() == ScanJobStatus.FINISHED) return;
         job.setStatus(ScanJobStatus.FINISHED);
         job.setVerdict(ScanVerdict.ERROR);
         job.setErrorMessage(message);
         job.setFinishedAt(Instant.now());
         jobRepo.save(job);
+        auditResultSafely(job);
+    }
+
+    private void auditResultSafely(ScanJob job) {
+        scanMetrics.recordCompletion(job);
+        try { auditService.recordResult(job); }
+        catch (Exception e) { log.error("Unable to audit scan result for job {}", job.getId(), e); }
     }
 
     @Transactional

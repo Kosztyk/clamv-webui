@@ -7,7 +7,15 @@ import xyz.capybara.clamav.ClamavClient;
 @Service
 public class ClamavClientProvider {
 
-    public ClamavClient clientFor(ClamdEndpoint ep) {
-        return new ClamavClient(ep.getHost(), ep.getPort(), ep.getPlatform());
+    public ClamdClient clientFor(ClamdEndpoint ep) {
+        if (ep.getHost().startsWith("/")) return new UnixClamdClient(ep.getHost());
+        ClamavClient client = new ClamavClient(ep.getHost(), ep.getPort(), ep.getPlatform());
+        return new ClamdClient() {
+            public void ping() { client.ping(); }
+            public String version() { return client.version(); }
+            public String stats() { return client.stats(); }
+            public xyz.capybara.clamav.commands.scan.result.ScanResult scan(java.io.InputStream input) { return client.scan(input); }
+            public xyz.capybara.clamav.commands.scan.result.ScanResult parallelScan(java.nio.file.Path path) { return client.parallelScan(path); }
+        };
     }
 }

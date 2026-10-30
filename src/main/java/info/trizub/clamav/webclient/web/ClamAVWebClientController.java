@@ -4,10 +4,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.LocaleResolver;
 
 import java.util.Locale;
+import java.util.Set;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * Legacy routes kept for backwards compatibility with the original project.
@@ -40,9 +41,21 @@ public class ClamAVWebClientController {
         return "redirect:/scan";
     }
 
+    private static final Set<String> LANGUAGES = Set.of("en", "uk", "ro", "fr", "es", "de");
+
     @GetMapping("/setLocale")
-    public String setLocale(@RequestParam String lang, HttpServletRequest req) {
-        localeResolver.setLocale(req, null, Locale.forLanguageTag(lang));
-        return "redirect:/dashboard";
+    public String setLocale(@RequestParam String lang,
+            @RequestParam(required = false) String returnTo,
+            HttpServletRequest req, jakarta.servlet.http.HttpServletResponse res,
+            Authentication authentication) {
+        String selected = lang == null ? "" : lang.toLowerCase(Locale.ROOT);
+        if (!LANGUAGES.contains(selected)) selected = "en";
+        localeResolver.setLocale(req, res, Locale.forLanguageTag(selected));
+        // Only accept plain same-site paths; no external/protocol-relative URLs.
+        if (returnTo != null && returnTo.matches("/[A-Za-z0-9/_-]*")
+                && !returnTo.startsWith("//") && !returnTo.startsWith("/setLocale")) {
+            return "redirect:" + returnTo;
+        }
+        return authentication == null ? "redirect:/login" : "redirect:/dashboard";
     }
 }

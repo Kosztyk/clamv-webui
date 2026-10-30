@@ -1,0 +1,7 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section><h1>Dashboard</h1><p class="muted">Recent activity and scanning overview.</p>
+<div class="metrics-grid"><div class="metric"><span>Endpoints</span><strong th:text="${endpointsCount}">0</strong></div><div class="metric"><span>Recent jobs</span><strong th:text="${jobsCount}">0</strong></div><div class="metric"><span>Default endpoint</span><strong th:text="${defaultEndpointName}">default</strong></div></div>
+<div xmlns:sec="http://www.thymeleaf.org/extras/spring-security" sec:authorize="hasAnyRole('OPERATOR','ADMIN')" data-rest-summary class="panel panel-body mt-3">
+<h2>External REST API</h2><p class="muted">Separate statistics for scans initiated through the external service.</p>
+<p data-rest-status class="muted">Connecting to API…</p><div data-rest-metrics class="rest-metrics"></div><p data-rest-retention class="muted"></p>
+<p><a class="btn btn-outline-light btn-sm" th:href="@{/api-scan}">API Scan</a> <a class="btn btn-outline-light btn-sm" th:href="@{/api-reports}">API Reports</a></p></div>
+<h2>Latest scan jobs</h2><div th:replace="~{fragments/tables :: jobsTable(${jobs})}"></div></section></html>

@@ -1,0 +1,1 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section><h1>Scan Jobs</h1><p class="muted">Queued, running and completed scans.</p><div th:replace="~{fragments/tables :: jobsTable(${jobs})}"></div></section></html>

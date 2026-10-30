@@ -18,6 +18,8 @@ public class DbUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        if (username == null || username.startsWith("ldap:") || username.startsWith("oidc:"))
+            throw new UsernameNotFoundException("Reserved identity namespace");
         var u = repo.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("Not found: " + username));
         var auth = u.getRoles().stream().map(SimpleGrantedAuthority::new).collect(Collectors.toSet());
         return org.springframework.security.core.userdetails.User

@@ -41,9 +41,10 @@ public class NotificationService {
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception e) {
-            // Include the exception itself so failures with an empty/null message (for
-            // example NullPointerException) still produce a useful stack trace.
-            log.warn("Webhook notification failed: {}", e.toString(), e);
+            // HTTP client exceptions may include the token-bearing webhook URL.
+            // Do not log exception messages or stack traces containing that secret.
+            log.warn("Webhook notification failed ({}). Check receiver and network settings.",
+                    e.getClass().getSimpleName());
         }
     }
 

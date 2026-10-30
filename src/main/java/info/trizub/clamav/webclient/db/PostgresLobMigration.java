@@ -6,6 +6,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -23,9 +24,11 @@ import java.util.Locale;
  *
  * If the columns are already TEXT (or the database is not Postgres), it does nothing.
  *
- * NOTE: For very large tables this can take time; it runs once at startup.
+ * NOTE: Opt-in only. Default is off: back up and inspect historical OIDs before
+ * using this legacy conversion. Flyway migrations never silently convert them.
  */
 @Component
+@ConditionalOnProperty(name = "app.db.postgres-lob-auto-migrate", havingValue = "true")
 public class PostgresLobMigration {
 
     private static final Logger log = LoggerFactory.getLogger(PostgresLobMigration.class);

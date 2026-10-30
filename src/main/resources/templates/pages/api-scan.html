@@ -1,0 +1,12 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section>
+<h1>REST API Scan</h1><p class="muted">Send files to your external ClamAV REST API. This is separate from local GUI scan jobs.</p>
+<div th:unless="${restConfigured}" class="alert alert-warning">External API is not configured. Set CLAMAV_REST_URL in Docker Compose.</div>
+<div class="grid-two"><div class="panel panel-body"><h2>Submit API scan</h2>
+<form data-rest-upload><label class="form-label" for="rest-files">Files</label><input id="rest-files" type="file" name="files" multiple required class="form-control"/>
+<label class="form-label mt-3" for="rest-webhook">Webhook</label><select id="rest-webhook" name="webhookId" data-rest-webhooks class="form-select"><option value="">API default (if configured)</option></select>
+<button type="submit" class="btn btn-primary mt-3">Queue API scan</button></form><div role="status" class="rest-message mt-3" data-rest-upload-status></div>
+<p class="muted mt-3">Files are proxied by this Web UI. The external API key is never sent to your browser.</p></div>
+<div class="panel panel-body" data-rest-summary><h2>API service status</h2><div class="muted" data-rest-status>Connecting…</div><div class="rest-metrics" data-rest-metrics></div><p class="muted" data-rest-retention></p></div></div>
+<h2>Most recent external API jobs</h2><section data-rest-jobs data-page-size="10"><div data-rest-jobs-message class="muted"></div><div data-rest-job-table></div>
+<div class="rest-pagination"><button type="button" class="btn btn-outline-light btn-sm" data-rest-prev>Previous</button><span data-rest-page>Page 1</span><button type="button" class="btn btn-outline-light btn-sm" data-rest-next>Next</button></div><div data-rest-detail hidden></div></section>
+</section></html>
