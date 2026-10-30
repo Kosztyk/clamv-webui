@@ -4,6 +4,25 @@
 
 **Application version:** 2.0.0. **Image used in examples:** [`kosztyk/clamav-web-client:v2`](https://hub.docker.com/r/kosztyk/clamav-web-client). 
 
+**Important note for users upgrading from v1 to v2:**
+
+If you're upgrading an existing installation and want to preserve your database, please review the database migration instructions before starting v2.
+
+For compatible legacy databases that do not yet have Flyway migration history, a one-time migration may require these Docker Compose environment variables:
+
+```yaml
+SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+SPRING_FLYWAY_BASELINE_VERSION: "1"
+```
+
+This applies to existing H2, PostgreSQL, MySQL, and MariaDB installations where manual Flyway baselining is appropriate. It is **not needed for fresh installations or databases already managed by Flyway**.
+
+Always back up your database and the application's `conf` and `data` directories, verify the existing schema, and test the migration before upgrading production.
+
+After successful migration, remove the baselining settings.
+
+Full instructions: [Database Migration Guide](https://github.com/Kosztyk/clamv-webui/blob/main/docs/PHASE2_DATABASE_PORTABILITY.md).
+
 > **Start here:** [**Complete User & Administrator Guide — all features, UI fields, configuration, Docker Compose, APIs, upgrades and troubleshooting**](docs/COMPLETE_USER_GUIDE.md). This is the canonical, single-document how-to, with a linked table of contents.
 
 ## What you can do
