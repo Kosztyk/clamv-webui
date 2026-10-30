@@ -2,7 +2,7 @@
 
 **Self-hosted ClamAV management, scanning, monitoring and integrations.** Manage ClamD from a browser: upload and server-path scans, asynchronous jobs, quarantine, watched directories, audit history, native interactive ClamdTop, a separate REST scanner bridge, local/LDAP/OIDC sign-in, scoped API tokens, Prometheus/Grafana, CLI and MCP.
 
-**Application version:** 2.0.0. **Image used in examples:** [`kosztyk/clamav-web-client:v2`](https://hub.docker.com/r/kosztyk/clamav-web-client). **Source snapshot:** `v2.0.0-security.1`, based on Spring Boot 4.0.9 (see [security revision](docs/SECURITY_DEPENDENCY_UPDATE.md)). The image tag `v2` is mutable; **do not assume it already contains this particular source revision** without verifying its digest/build. To run the security.1 source itself, build a local image using the included `Dockerfile`.
+**Application version:** 2.0.0. **Image used in examples:** [`kosztyk/clamav-web-client:v2`](https://hub.docker.com/r/kosztyk/clamav-web-client). 
 
 > **Start here:** [**Complete User & Administrator Guide — all features, UI fields, configuration, Docker Compose, APIs, upgrades and troubleshooting**](docs/COMPLETE_USER_GUIDE.md). This is the canonical, single-document how-to, with a linked table of contents.
 
