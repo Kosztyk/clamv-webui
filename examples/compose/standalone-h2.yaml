@@ -5,15 +5,29 @@ services:
   clamav-web-client:
     image: kosztyk/clamav-web-client:v2
     container_name: clamav-web-client
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "127.0.0.1:8080:8080"
     environment:
+      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-framework}"
+      # Optional webhook tuning; finite timeouts and public destinations are the built-in defaults.
+      CLAMAV_WEBHOOK_CONNECT_TIMEOUT: "${CLAMAV_WEBHOOK_CONNECT_TIMEOUT:-5s}"
+      CLAMAV_WEBHOOK_READ_TIMEOUT: "${CLAMAV_WEBHOOK_READ_TIMEOUT:-10s}"
+      CLAMAV_WEBHOOK_DNS_TIMEOUT: "${CLAMAV_WEBHOOK_DNS_TIMEOUT:-5s}"
+      CLAMAV_WEBHOOK_DELIVERY_TIMEOUT: "${CLAMAV_WEBHOOK_DELIVERY_TIMEOUT:-20s}"
+      CLAMAV_WEBHOOK_WORKERS: "${CLAMAV_WEBHOOK_WORKERS:-2}"
+      CLAMAV_WEBHOOK_QUEUE_CAPACITY: "${CLAMAV_WEBHOOK_QUEUE_CAPACITY:-100}"
+      CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES: "${CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES:-false}"
       TZ: Europe/Bucharest
       CLAMAV_HOST: clamav-server
       CLAMAV_PORT: "3310"
       CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"   # INSTREAM: no shared upload path needed
       CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "false"
     volumes:
+      # Prepare bind mounts for UID/GID 10001; see docs/NON_ROOT_CONTAINER.md.
       - ./conf:/app/conf
       - ./data:/app/data
     depends_on:

@@ -1,5 +1,30 @@
 # ClamAV Web UI
 
+**Complete application source with issues #10, #11 and #12 built in:** build normally:
+
+```bash
+docker build --pull -t clamav-web-client:2.0.0-local .
+```
+
+The Dockerfile runs the application as **UID/GID `10001:10001`** (issue #10),
+and `application.properties` defaults to **`framework` forwarded-header
+handling** (issue #11). Bearer authentication recognizes HTTPS terminated by
+a reverse proxy or Kubernetes Ingress without a helper script or opt-in flag.
+Keep the backend reachable only through your trusted proxy, which must replace
+forwarded headers. See [server deployment](SERVER_DEPLOYMENT.md),
+[volume permissions](docs/NON_ROOT_CONTAINER.md) and
+[proxy configuration](docs/REVERSE_PROXY_TLS.md).
+
+**Webhook resilience (issue #12):** delivery runs on a dedicated bounded queue
+with finite connect/read/DNS/total timeouts. Private destinations are denied by
+default; operators can explicitly allow internal receivers. See
+[webhook policy and deployment settings](docs/WEBHOOK_RESILIENCE.md).
+
+For the complete upgrade procedure, local/self-signed HTTPS checks and expected
+test results, follow [Update and verify](docs/UPDATE_AND_VERIFY.md). See also
+the [31 October update notes](docs/UPDATE_NOTES_2026_10_31.md) and
+[reported field validation](docs/FIELD_VALIDATION.md).
+
 **Self-hosted ClamAV management, scanning, monitoring and integrations.** Manage ClamD from a browser: upload and server-path scans, asynchronous jobs, quarantine, watched directories, audit history, native interactive ClamdTop, a separate REST scanner bridge, local/LDAP/OIDC sign-in, scoped API tokens, Prometheus/Grafana, CLI and MCP.
 
 **Application version:** 2.0.0. **Image used in examples:** [`kosztyk/clamav-web-client:v2`](https://hub.docker.com/r/kosztyk/clamav-web-client). 
@@ -45,6 +70,9 @@ Copy [the standalone Compose example](examples/compose/standalone-h2.yaml) to a 
 
 ```bash
 mkdir -p conf data
+# Linux bind mounts: prepare these application-owned folders for the runtime UID.
+sudo chown -R 10001:10001 conf data
+sudo chmod -R u+rwX conf data
 # Place docker-compose.yaml here first.
 docker compose config --quiet
 docker compose up -d
@@ -58,6 +86,7 @@ This example uses **INSTREAM**: upload bytes pass to ClamD without requiring a s
 
 ## Persistence and security essentials
 
+- The Web UI image runs as **UID/GID `10001:10001`**. Existing bind-mounted `conf` and `data` folders must be writable by that identity before upgrading. See [non-root deployment and permission migration](docs/NON_ROOT_CONTAINER.md), including Docker Desktop, named volumes, Unix sockets and Kubernetes examples.
 - Preserve `./conf` (settings and encrypted identity key), `./data` (uploads, quarantine and default H2 database), and your external SQL backups together. Do **not** run `docker compose down -v` as an upgrade procedure.
 - H2 is for **one** instance. PostgreSQL/MySQL/MariaDB are supported as database backends, **not** as multi-replica HA for this app. Flyway runs versioned migrations and Hibernate validates; **never enable auto-baselining for an unreviewed existing DB**.
 - ClamD TCP 3310 is normally unauthenticated; never publish it to the internet. Browser authentication and API tokens do **not** secure ClamD's raw TCP port.
@@ -79,9 +108,9 @@ Full instructions, every administration field, optional LDAP/OIDC, PostgreSQL mi
 
 ```bash
 mvn -B -ntp verify                       # Java 17+ and Maven, when installed
-docker build --pull -t clamav-web-client:2.0.0-security.1 .
+docker build --pull -t clamav-web-client:2.0.0-local .
 # To use the local image, replace image: in your deployment Compose with
-# clamav-web-client:2.0.0-security.1 and set pull_policy: never.
+# clamav-web-client:2.0.0-local and set pull_policy: never.
 ```
 
 The Dockerfile builds with Maven/Java 21 and includes the native `clamdtop` binary. For development, the repository root `docker-compose.yml` is a **local-build** Compose, whereas the examples above use the **published image**. See the [Docker build guide](docs/DOCKER_BUILD.md) and [security revision details](docs/SECURITY_DEPENDENCY_UPDATE.md). `cli/dist` ships standalone binaries in this source archive; on a plain Git clone, build or obtain appropriate release artifacts separately.

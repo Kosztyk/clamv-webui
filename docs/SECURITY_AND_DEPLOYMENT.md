@@ -1,4 +1,4 @@
-# Security and deployment: Phase 0
+# Security and deployment
 
 ## Credentials / secrets
 
@@ -8,17 +8,35 @@
 - This change does **not** silently reset existing accounts. Older deployments that still use `admin/admin` log an urgent warning and must rotate the credential manually.
 - The application prohibits deleting its last enabled admin account; create a second admin before removing the first.
 - Do not keep webhook URLs with embedded bearer tokens in public source control; they are persisted in `./conf/clamav-web-client.properties`. Restrict that file/directory and back up separately from the image.
-- `/api/**` currently supports Basic Auth; use HTTPS. Dedicated API tokens/SSO belong to later phases.
+- `/api/v1/**` supports scoped Bearer tokens over HTTPS; browser sessions and legacy Basic-auth routes retain their own role/CSRF rules. Local, LDAP/AD and OIDC sign-in are supported. See the [API and authentication guide](COMPLETE_USER_GUIDE.md).
 
 ## Transport security / reverse proxies
 
+For Bearer/CLI/MCP HTTPS recognition behind a trusted TLS-terminating proxy,
+see [issue #11 configuration and regression coverage](REVERSE_PROXY_TLS.md).
+
 - This application does **not** terminate HTTPS itself in the supplied Compose example. Bind port 8080 to `127.0.0.1` and front it with a trusted NGINX, Traefik, or Caddy reverse proxy that serves HTTPS and handles certificates/HSTS.
 - Basic authentication and the web login session must never transit unencrypted public connections. Configure `Secure`, `HttpOnly`, and `SameSite` cookies through the TLS-terminating proxy and Spring configuration appropriate to deployment; avoid mixed HTTP/HTTPS links.
-- The app sets `server.forward-headers-strategy=none` by default, avoiding trust in externally supplied `X-Forwarded-*` fields. Only set `SERVER_FORWARD_HEADERS_STRATEGY=framework` if direct app access is blocked and the proxy **strips all inbound forwarded headers and replaces them with its own**. Restrict incoming connections to the trusted proxy.
+- The app packages `server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}` by default, so TLS termination works with normal Docker/JAR builds. Restrict backend connections to the trusted proxy, which must **strip all inbound forwarded headers and replace them with its own**. Forwarded headers are trusted input in this mode. A deployment exposed directly without a trusted proxy can explicitly set `SERVER_FORWARD_HEADERS_STRATEGY=none` to ignore them; machine credentials still require HTTPS.
 - `/actuator/**` should be restricted to a management network or disabled if not needed. Spring Actuator metrics/health exposure does not imply a public, authenticated metrics endpoint.
 - The H2 web console is **disabled** by default. The H2 database file is inside the mounted data directory.
 
+## Webhook egress policy
+
+Direct notifications use bounded background delivery, explicit connection/read/DNS/total
+timeouts and address validation at connection-time resolution. Private destinations
+are denied unless `CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true` is set by the
+server operator; listed metadata/platform and link-local addresses remain denied.
+Redirects, automatic retries and receiver-body buffering are disabled. URL
+credentials and response/exception content are not logged. See
+[Webhook resilience](WEBHOOK_RESILIENCE.md) for exact policy, settings and limits.
+
 ## Volumes / file access
+
+The container runs as UID/GID `10001:10001`. Prepare writable host `conf` and
+`data` folders before first start or upgrading an existing root-owned install;
+see [non-root deployment](NON_ROOT_CONTAINER.md) for the commands, Docker
+Desktop/named-volume options, scan/socket permissions and Kubernetes settings.
 
 | Path | Web UI | ClamAV daemon | Use |
 |---|---|---|---|
@@ -27,7 +45,7 @@
 | `/scandir` (optional) | Read for path/watcher policy | Read at **same absolute path** | Native path scans and watched directories. |
 
 - Do **not** mount Docker socket, host root filesystem, or broad host secrets into either container.
-- The ClamAV TCP port 3310 remains internal to the Compose network in the sample (no host port publication).
+- The standalone deployment example keeps ClamAV TCP port 3310 inside the Compose network. The root development Compose publishes it for local testing; remove or firewall that publication for production.
 - Back up H2 while the application is stopped or use a database-consistent backup method. Never share the file-backed H2 volume between replicas.
 - Filesystem symlinks and scan roots are resolved by `Path.toRealPath()` and checked against canonical, existing allowed directories when a job is queued; the scanner also rechecks the target at execution. An operator with write access to target directories can still race a filesystem pathname between validation and ClamD access; use read-only, trusted mounts for path scans.
 

@@ -1,0 +1,128 @@
+{
+  "validated_at_utc": "2026-10-31T12:40:59.892337+00:00",
+  "application_version": "2.0.0",
+  "repository": "Kosztyk/clamv-webui",
+  "base_commit": "620400fabc087da127e3d87bca3766def444a600",
+  "input_full_source_archive_sha256": "f41eea23fb0506f349848bc2d44431c5508cebeaaae17fa42b1574de11f07dee",
+  "issues_included": [
+    10,
+    11,
+    12
+  ],
+  "maven": {
+    "command": "mvn -B -ntp clean verify",
+    "result": "BUILD SUCCESS",
+    "runtime": "OpenJDK 17.0.20",
+    "counts": {
+      "tests": 307,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 5,
+      "passed": 302
+    },
+    "focused_webhook_counts_within_full_suite": {
+      "tests": 82,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "static_release_gate": {
+    "command": "bash scripts/release-gate.sh --static-only",
+    "result": "passed",
+    "configuration_observer_tests": 5,
+    "browser_checks": "Skipped: Playwright/Chromium unavailable locally; CI installs and runs them",
+    "maven_inside_static_gate": "Skipped intentionally; full Maven verification was run separately"
+  },
+  "optional_deployment_helper": {
+    "method": "Actual Bash helper executed against a simulated Docker CLI; no Docker image/runtime execution",
+    "scenarios": [
+      {
+        "scenario": "existing",
+        "result": "passed"
+      },
+      {
+        "scenario": "fresh",
+        "result": "passed"
+      },
+      {
+        "scenario": "already_owned",
+        "result": "passed"
+      },
+      {
+        "scenario": "build_failure",
+        "result": "passed"
+      },
+      {
+        "scenario": "permission_failure",
+        "result": "passed"
+      },
+      {
+        "scenario": "unmanaged_override",
+        "result": "passed"
+      },
+      {
+        "scenario": "wrong_user",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_enabled",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_retained",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_disabled",
+        "result": "passed"
+      }
+    ]
+  },
+  "source_checks": {
+    "shell_syntax": [
+      "build-and-start.sh",
+      "scripts/release-gate.sh",
+      "scripts/smoke-eicar.sh",
+      "scripts/smoke-non-root.sh"
+    ],
+    "yaml_syntax": [
+      ".github/workflows/phase0-ci.yml",
+      "docker-compose.yml",
+      "docs/PHASE3_DOCKER_COMPOSE_EXAMPLE.yml",
+      "examples/compose/remote-clamd-postgres.yaml",
+      "examples/compose/reverse-proxy.override.yaml",
+      "examples/compose/standalone-h2.yaml",
+      "examples/compose/webhook-policy.override.yaml"
+    ],
+    "changed_markdown_files": [
+      "README.md",
+      "SERVER_DEPLOYMENT.md",
+      "docs/CLI.md",
+      "docs/COMPLETE_USER_GUIDE.md",
+      "docs/DOCKER_BUILD.md",
+      "docs/FIELD_VALIDATION.md",
+      "docs/MCP.md",
+      "docs/NON_ROOT_CONTAINER.md",
+      "docs/PHASE1_API_SECURITY.md",
+      "docs/PHASE31_AUTH_MANAGEMENT.md",
+      "docs/PHASE3_ENTERPRISE_IDENTITY.md",
+      "docs/README.md",
+      "docs/REVERSE_PROXY_TLS.md",
+      "docs/SECURITY_AND_DEPLOYMENT.md",
+      "docs/UPDATE_AND_VERIFY.md",
+      "docs/UPDATE_NOTES_2026_10_31.md",
+      "docs/WEBHOOK_RESILIENCE.md"
+    ],
+    "new_broken_relative_links": [],
+    "introduced_secret_pattern_findings": [],
+    "unchanged_existing_secret_like_test_fixture_files": [
+      "src/test/java/info/trizub/clamav/webclient/web/UiSmokeTest.java"
+    ]
+  },
+  "docker_compose_validation": "Changed YAML parsed; Docker CLI unavailable, so docker compose config was not run locally",
+  "docker_image_and_eicar": "Docker unavailable locally; the GitHub CI workflow is configured to build and exercise the image",
+  "external_database_engines": "Docker-backed integration profile not run locally; field reports are separately attributed in docs/FIELD_VALIDATION.md",
+  "runtime_advisory_inventory": "Prior same-source advisory query retained in docs/security/webhook-runtime-dependencies.json; not a new Docker OS/JRE scan",
+  "publication_scope": "Application source, tests, documentation, deployment examples and CI; no Docker registry image or versioned release is published by this operation"
+}

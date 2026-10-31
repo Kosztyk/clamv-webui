@@ -5,13 +5,15 @@ import info.trizub.clamav.webclient.model.ScanJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 
 @Service
 public class NotificationService {
@@ -21,30 +23,43 @@ public class NotificationService {
 
     private final SettingsService settings;
     private final ObjectMapper mapper;
+    private final WebhookDeliveryClient client;
+    private final ExecutorService executor;
 
-    public NotificationService(SettingsService settings, ObjectMapper mapper) {
+    public NotificationService(SettingsService settings, ObjectMapper mapper, WebhookDeliveryClient client,
+            @Qualifier("webhookNotificationExecutor") ExecutorService executor) {
         this.settings = settings;
         this.mapper = mapper;
+        this.client = client;
+        this.executor = executor;
     }
 
     public void notifyIfNeeded(ScanJob job) {
-        if (!settings.webhookEnabled()) return;
-        String url = settings.webhookUrl();
-        if (url == null || url.isBlank()) return;
-
         try {
-            Map<String, Object> payload = buildPayload(job, url);
-
-            RestClient.create().post().uri(url)
-                    .header("Content-Type", "application/json")
-                    .body(mapper.writeValueAsString(payload))
-                    .retrieve()
-                    .toBodilessEntity();
+            if (!settings.webhookEnabled()) return;
+            String url = settings.webhookUrl();
+            if (url == null || url.isBlank()) return;
+            URI destination = client.validateUrl(url);
+            // Snapshot before dispatch: a background thread must never dereference a JPA job/endpoint.
+            String body = mapper.writeValueAsString(buildPayload(job, url));
+            executor.execute(() -> deliver(destination, body));
+        } catch (RejectedExecutionException e) {
+            log.warn("Webhook notification dropped: delivery queue is full or shutting down. Scan results are preserved.");
         } catch (Exception e) {
             // HTTP client exceptions may include the token-bearing webhook URL.
             // Do not log exception messages or stack traces containing that secret.
             log.warn("Webhook notification failed ({}). Check receiver and network settings.",
                     e.getClass().getSimpleName());
+        }
+    }
+
+    private void deliver(URI destination, String body) {
+        try {
+            client.post(destination, body);
+        } catch (Exception e) {
+            // URLs, request/response bodies and exception messages may contain credentials or filenames.
+            log.warn("Webhook notification failed ({}). Check receiver, address policy and network settings.",
+                e.getClass().getSimpleName());
         }
     }
 
@@ -92,6 +107,7 @@ public class NotificationService {
             }
 
             host = host.toLowerCase(Locale.ROOT);
+            if (host.endsWith(".")) host = host.substring(0, host.length() - 1);
             boolean discordHost = host.equals("discord.com")
                     || host.endsWith(".discord.com")
                     || host.equals("discordapp.com")

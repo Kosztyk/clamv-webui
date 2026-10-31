@@ -1,0 +1,235 @@
+{
+  "validated_at_utc": "2026-10-31T10:57:00.385342+00:00",
+  "issue": "https://github.com/Kosztyk/clamv-webui/issues/12",
+  "build_command": "docker build --pull -t clamav-web-client:2.0.0-local .",
+  "helper_required": false,
+  "defaults": {
+    "connect_timeout": "5s",
+    "read_timeout": "10s",
+    "dns_timeout": "5s",
+    "delivery_timeout": "20s",
+    "workers": 2,
+    "queue_capacity": 100,
+    "allow_private_addresses": false
+  },
+  "dispatch": "Dedicated bounded executor with abort rejection; never caller-runs; immutable JSON snapshot before dispatch",
+  "address_policy": "HTTP(S), no userinfo/fragments; actual connection DNS answers checked; mixed unsafe answers denied; redirects disabled",
+  "private_opt_in": "CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true (startup environment only)",
+  "metadata_policy": "Unspecified/link-local/multicast/reserved and listed cloud metadata/platform addresses remain blocked after private opt-in",
+  "delivery_limits": "Best-effort memory queue; no durable outbox, automatic retries or guaranteed cross-worker order",
+  "payload_compatibility": "Existing generic nullable JSON and Discord content/disabled mentions retained",
+  "maven": {
+    "command": "mvn -B -ntp clean verify",
+    "result": "BUILD SUCCESS",
+    "tests": 307,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 302,
+    "runtime": "OpenJDK 17.0.20",
+    "spring_boot": "4.0.9"
+  },
+  "added_regression_cases": 78,
+  "relevant_suites": [
+    {
+      "class": "info.trizub.clamav.webclient.security.ApiTokenDirectTlsIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "info.trizub.clamav.webclient.security.ApiTokenProxyTlsIntegrationTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.NotificationDispatchTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.NotificationServiceTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.WebhookAddressPolicyTest",
+      "tests": 66,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.WebhookDeliveryClientTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.WebhookNotificationPropertiesTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "info.trizub.clamav.webclient.web.UiSmokeTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "executable_jar_checks": {
+    "method": "java -jar with no forwarding property/environment/helper option",
+    "checks": [
+      {
+        "check": "login page",
+        "status": 200,
+        "result": "passed"
+      },
+      {
+        "check": "packaged webhook settings page",
+        "status": 200,
+        "result": "passed"
+      },
+      {
+        "check": "packaged policy blocks metadata despite form opt-in attempt",
+        "status": 302,
+        "result": "passed"
+      },
+      {
+        "check": "packaged policy rejection shown in settings",
+        "status": 200,
+        "result": "passed"
+      },
+      {
+        "check": "token issuance via forwarded HTTPS using packaged default",
+        "status": 201,
+        "result": "passed"
+      },
+      {
+        "check": "X-Forwarded-Proto HTTPS with valid Bearer token",
+        "status": 200,
+        "result": "passed"
+      },
+      {
+        "check": "RFC Forwarded HTTPS with valid Bearer token",
+        "status": 200,
+        "result": "passed"
+      },
+      {
+        "check": "plain HTTP still rejects Bearer token",
+        "status": 403,
+        "result": "passed"
+      },
+      {
+        "check": "forwarded HTTP rejects Bearer token",
+        "status": 403,
+        "result": "passed"
+      },
+      {
+        "check": "invalid token still rejected",
+        "status": 401,
+        "result": "passed"
+      },
+      {
+        "check": "scope enforcement still active",
+        "status": 403,
+        "result": "passed"
+      },
+      {
+        "check": "token revocation",
+        "status": 204,
+        "result": "passed"
+      },
+      {
+        "check": "revoked token still rejected",
+        "status": 401,
+        "result": "passed"
+      },
+      {
+        "check": "packaged process writes application configuration",
+        "result": "passed"
+      }
+    ],
+    "docker_container": false,
+    "non_root_execution": "Unavailable: this environment maps only UID/GID 0; Dockerfile identity and ownership are checked statically"
+  },
+  "optional_deployment_helper": {
+    "method": "Actual Bash helper executed against a simulated Docker CLI; no Docker image/runtime execution",
+    "scenarios": [
+      {
+        "scenario": "existing",
+        "result": "passed"
+      },
+      {
+        "scenario": "fresh",
+        "result": "passed"
+      },
+      {
+        "scenario": "already_owned",
+        "result": "passed"
+      },
+      {
+        "scenario": "build_failure",
+        "result": "passed"
+      },
+      {
+        "scenario": "permission_failure",
+        "result": "passed"
+      },
+      {
+        "scenario": "unmanaged_override",
+        "result": "passed"
+      },
+      {
+        "scenario": "wrong_user",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_enabled",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_retained",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_disabled",
+        "result": "passed"
+      }
+    ]
+  },
+  "source_checks": {
+    "phase_1_2_4_static": "passed",
+    "javascript_configuration_observer": "5 passed",
+    "i18n_static": "passed",
+    "shell_syntax": "5 files passed",
+    "yaml_syntax": "14 files passed"
+  },
+  "dependency_report": "webhook-runtime-dependencies.json",
+  "full_runtime_osv_check": {
+    "status": "completed",
+    "database": "OSV",
+    "queried_components": 159,
+    "matched_components": []
+  },
+  "http_stack": {
+    "httpclient5": "5.6.5",
+    "httpcore5": "5.4.4",
+    "httpcore5-h2": "5.4.4"
+  },
+  "mariadb_maintenance_update": "3.5.10 -> 3.5.11",
+  "docker_runtime": "Docker unavailable; no image build, non-root container, native PTY or EICAR container execution is claimed",
+  "browser_checks": "Chromium/Playwright unavailable; settings HTML, permissions, CSRF and policy checked by Spring and executable-JAR HTTP tests",
+  "external_db_integration": "Docker-backed Postgres/MySQL/MariaDB test profile was not executed"
+}

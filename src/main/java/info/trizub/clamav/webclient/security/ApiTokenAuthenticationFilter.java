@@ -29,7 +29,7 @@ public class ApiTokenAuthenticationFilter extends OncePerRequestFilter {
         String auth = req.getHeader("Authorization");
         if (auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7)) {
             if (!req.isSecure()) {
-                error(res, 403, "tls_required", "Bearer tokens require HTTPS"); return;
+                error(res, 403, "tls_required", "Bearer tokens require HTTPS. Forwarded HTTPS support defaults to framework; verify the trusted proxy forwards the original HTTPS scheme and check any SERVER_FORWARD_HEADERS_STRATEGY override."); return;
             }
             if (auth.length() > 512) { error(res, 401, "invalid_token", "Invalid bearer token"); return; }
             var principal = tokens.authenticate(auth.substring(7).trim());

@@ -46,6 +46,11 @@
 		<argLine />
 		<!-- Boot 4.0.9 manages the fixes listed in docs/SECURITY_DEPENDENCY_UPDATE.md. -->
 		<postgresql.version>42.7.13</postgresql.version>
+		<!-- Override Boot's older HTTP stack: fixes CVE-2026-64607/54399/54428. -->
+		<httpclient5.version>5.6.5</httpclient5.version>
+		<httpcore5.version>5.4.4</httpcore5.version>
+		<!-- Current 3.5 maintenance fixes; retain the existing JDBC connection behavior. -->
+		<mariadb.version>3.5.11</mariadb.version>
 	</properties>
 
 	<dependencyManagement>
@@ -59,6 +64,11 @@
 	</dependencyManagement>
 
 	<dependencies>
+		<!-- Managed by Boot; the webhook transport validates the DNS addresses it actually connects to. -->
+		<dependency>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-thymeleaf</artifactId>

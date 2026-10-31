@@ -2,6 +2,7 @@
 """Offline locale catalog, routing and Chromium smoke checks (if Playwright available)."""
 from pathlib import Path
 import json
+import os
 from subprocess import run
 BASE = Path(__file__).resolve().parents[1]
 resources = BASE/'src/main/resources'
@@ -30,7 +31,7 @@ except ImportError:
     print('SKIPPED: Chromium browser tests (Playwright not installed)')
     raise SystemExit(0)
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium', args=['--no-sandbox'])
+    browser=p.chromium.launch(headless=True,executable_path=os.environ.get('CHROMIUM_PATH', '/usr/bin/chromium'), args=['--no-sandbox'])
     for lang,title,dashboard,auth in [('en','Dashboard','Dashboard','Authentication'),('uk','Панель керування','Панель керування','Автентифікація'),('ro','Tablou de bord','Tablou de bord','Autentificare'),('fr','Tableau de bord','Tableau de bord','Authentification'),('es','Panel de control','Panel de control','Autenticación'),('de','Dashboard','Dashboard','Authentifizierung')]:
         page=browser.new_page()
         page.set_content(f'''<!doctype html><html lang="{lang}"><head><title>Dashboard</title></head><body>

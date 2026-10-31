@@ -12,6 +12,24 @@ Extract the full source archive and run from the directory containing
 docker build --pull -t clamav-web-client:2.0.0-local .
 ```
 
+The non-root and proxy fixes are part of this normal build: the Dockerfile declares
+`USER 10001:10001` (issue #10), and the JAR packages
+`server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}`
+(issue #11). No `build-and-start.sh` command or `--trusted-proxy` flag is
+required. HTTPS forwarded by a trusted TLS-terminating proxy is recognized
+automatically; the proxy must replace incoming forwarding headers and be the
+only path to the backend. Remove an old `SERVER_FORWARD_HEADERS_STRATEGY=none`
+override if you want the new default. See [proxy TLS](REVERSE_PROXY_TLS.md).
+
+Issue #12 is also built into the source: asynchronous, bounded webhook delivery,
+finite timeouts and private-address filtering. See [webhook configuration](WEBHOOK_RESILIENCE.md)
+for optional operator tuning; the defaults need no build helper.
+
+See [Update and verify](UPDATE_AND_VERIFY.md) for the complete existing-deployment
+procedure and copyable runtime checks, including local HTTPS with a self-signed
+certificate. [Update notes](UPDATE_NOTES_2026_10_31.md) summarize compatibility
+and the optional settings.
+
 The build uses Maven with Java 21 inside its build stage and runs `mvn verify`,
 including tests. The runtime stage contains the Java application, native
 `clamdtop` and its PTY helper. Java, Maven and Go are not required on the Docker
@@ -22,6 +40,8 @@ For a fresh deployment using the included Compose file:
 
 ```bash
 mkdir -p conf data
+sudo chown -R 10001:10001 conf data
+sudo chmod -R u+rwX conf data
 docker compose config --quiet
 docker compose up -d --build
 docker compose logs -f clamav-web-client
@@ -32,6 +52,12 @@ storage. An existing deployment should retain its own Compose environment,
 external database settings, endpoint configuration, secrets and volume mounts.
 Do not replace runtime settings or delete `conf`/`data` to update application
 source.
+
+The runtime uses UID/GID `10001:10001`. Before updating an existing installation,
+prepare its bind-mounted folders using the
+[non-root permission migration](NON_ROOT_CONTAINER.md). Image ownership does not
+change the ownership of mounted host directories. Docker-managed named volumes
+are an alternative for new installs, including Docker Desktop.
 
 If using an existing deployment Compose, select the locally built image in its
 Web UI service:

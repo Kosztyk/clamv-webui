@@ -7,6 +7,7 @@ import info.trizub.clamav.webclient.repo.AuditEventRepository;
 import info.trizub.clamav.webclient.repo.AppUserRepository;
 import info.trizub.clamav.webclient.repo.WatchedDirectoryRepository;
 import info.trizub.clamav.webclient.service.*;
+import info.trizub.clamav.webclient.config.WebhookNotificationProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
-import java.net.URI;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -72,6 +72,8 @@ public class WebUiController {
     private final AppUserRepository userRepo;
     private final UserService userService;
     private final WatchedDirectoryRepository watchRepo;
+    private final WebhookAddressPolicy webhookPolicy;
+    private final WebhookNotificationProperties webhookProperties;
 
     public WebUiController(ClamdTopService clamdTop, SettingsService settings,
                            EndpointService endpoints,
@@ -81,7 +83,9 @@ public class WebUiController {
                            AuditEventRepository auditRepo,
                            AppUserRepository userRepo,
                            UserService userService,
-                           WatchedDirectoryRepository watchRepo) {
+                           WatchedDirectoryRepository watchRepo,
+                           WebhookAddressPolicy webhookPolicy,
+                           WebhookNotificationProperties webhookProperties) {
         this.clamdTop = clamdTop;
         this.settings = settings;
         this.endpoints = endpoints;
@@ -92,6 +96,8 @@ public class WebUiController {
         this.userRepo = userRepo;
         this.userService = userService;
         this.watchRepo = watchRepo;
+        this.webhookPolicy = webhookPolicy;
+        this.webhookProperties = webhookProperties;
     }
 
     @GetMapping("/login")
@@ -232,6 +238,9 @@ public class WebUiController {
         model.addAttribute("settings", safeSettings);
         model.addAttribute("webhookEnabled", settings.webhookEnabled());
         model.addAttribute("webhookConfigured", !settings.webhookUrl().isBlank());
+        model.addAttribute("webhookPrivateAllowed", webhookPolicy.allowsPrivateAddresses());
+        model.addAttribute("webhookConnectTimeoutMs", webhookProperties.getConnectTimeout().toMillis());
+        model.addAttribute("webhookReadTimeoutMs", webhookProperties.getReadTimeout().toMillis());
         model.addAttribute("editableSettingsKeys", List.of(
             "app.allowedScanRoots", "app.upload.maxBytes", "app.concurrentScans",
             "app.storage.uploadDir", "app.storage.quarantineDir", "app.quarantine.enabled",
@@ -276,7 +285,7 @@ public class WebUiController {
             // Preserve the legacy HTTP generic-webhook support, while requiring
             // HTTPS for Discord token-bearing webhook destinations.
             if (!isValidNotificationUrl(replacement)) {
-                redirect.addFlashAttribute("errorMsg", "Invalid webhook URL. Use an absolute HTTP(S) URL; Discord requires HTTPS.");
+                redirect.addFlashAttribute("errorMsg", "Invalid or blocked webhook URL. Use HTTP(S); Discord requires HTTPS. Private addresses require server opt-in; metadata and link-local destinations are blocked.");
                 return "redirect:/admin/settings";
             }
             allowed.put("app.webhook.url", replacement);
@@ -284,6 +293,10 @@ public class WebUiController {
         String finalUrl = allowed.getOrDefault("app.webhook.url", settings.webhookUrl());
         if ("true".equals(allowed.get("app.webhook.enabled")) && finalUrl.isBlank()) {
             redirect.addFlashAttribute("errorMsg", "Enter a webhook URL before enabling notifications.");
+            return "redirect:/admin/settings";
+        }
+        if ("true".equals(allowed.get("app.webhook.enabled")) && !isValidNotificationUrl(finalUrl)) {
+            redirect.addFlashAttribute("errorMsg", "Saved webhook destination is blocked by the server address policy. Replace it or disable notifications.");
             return "redirect:/admin/settings";
         }
 
@@ -294,17 +307,10 @@ public class WebUiController {
         return "redirect:/admin/settings";
     }
 
-    private static boolean isValidNotificationUrl(String url) {
+    private boolean isValidNotificationUrl(String url) {
         try {
-            URI uri = URI.create(url);
-            String scheme = uri.getScheme();
-            String host = uri.getHost();
-            if (scheme == null || host == null || uri.getRawUserInfo() != null || uri.getFragment() != null) return false;
-            if (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https")) return false;
-            String domain = host.toLowerCase(Locale.ROOT);
-            if ((domain.equals("discord.com") || domain.endsWith(".discord.com")
-                    || domain.equals("discordapp.com") || domain.endsWith(".discordapp.com"))
-                    && !scheme.equalsIgnoreCase("https")) return false;
+            // Numeric destinations are checked now; hostname DNS is checked by the delivery transport.
+            webhookPolicy.validateUrl(url);
             return true;
         } catch (IllegalArgumentException ex) {
             return false;

@@ -1,0 +1,1015 @@
+{
+  "checked_at_utc": "2026-10-31T10:55:35.111021+00:00",
+  "source": "Maven dependency:list; packaged JAR versions checked",
+  "runtime_components": 159,
+  "previous_runtime_components": 156,
+  "unrelated_existing_versions_preserved": true,
+  "updated_existing_components": [
+    {
+      "group": "org.mariadb.jdbc",
+      "name": "mariadb-java-client",
+      "previous_version": "3.5.10",
+      "version": "3.5.11"
+    }
+  ],
+  "added_components": [
+    {
+      "group": "org.apache.httpcomponents.client5",
+      "name": "httpclient5",
+      "version": "5.6.5",
+      "scope": "compile",
+      "sha256": "a10b555f7c85a720d1011a086d679d854b155816cde91a40198cc98c2b0867e8"
+    },
+    {
+      "group": "org.apache.httpcomponents.core5",
+      "name": "httpcore5",
+      "version": "5.4.4",
+      "scope": "compile",
+      "sha256": "b08e3c3a440fec2029e89980134c7c787dd6796454641ad1eafb81478d7e8b0b"
+    },
+    {
+      "group": "org.apache.httpcomponents.core5",
+      "name": "httpcore5-h2",
+      "version": "5.4.4",
+      "scope": "compile",
+      "sha256": "9a61441889f9b222ce99581977cc549b4dfca7ac9d2841582c1e57a31fa65b48"
+    }
+  ],
+  "components": [
+    {
+      "group": "org.apache.httpcomponents.client5",
+      "name": "httpclient5",
+      "version": "5.6.5",
+      "scope": "compile",
+      "sha256": "a10b555f7c85a720d1011a086d679d854b155816cde91a40198cc98c2b0867e8"
+    },
+    {
+      "group": "org.apache.httpcomponents.core5",
+      "name": "httpcore5",
+      "version": "5.4.4",
+      "scope": "compile",
+      "sha256": "b08e3c3a440fec2029e89980134c7c787dd6796454641ad1eafb81478d7e8b0b"
+    },
+    {
+      "group": "org.apache.httpcomponents.core5",
+      "name": "httpcore5-h2",
+      "version": "5.4.4",
+      "scope": "compile",
+      "sha256": "9a61441889f9b222ce99581977cc549b4dfca7ac9d2841582c1e57a31fa65b48"
+    },
+    {
+      "group": "org.slf4j",
+      "name": "slf4j-api",
+      "version": "2.0.20",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-thymeleaf",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-logging",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "ch.qos.logback",
+      "name": "logback-classic",
+      "version": "1.5.38",
+      "scope": "compile"
+    },
+    {
+      "group": "ch.qos.logback",
+      "name": "logback-core",
+      "version": "1.5.38",
+      "scope": "compile"
+    },
+    {
+      "group": "org.apache.logging.log4j",
+      "name": "log4j-to-slf4j",
+      "version": "2.25.5",
+      "scope": "compile"
+    },
+    {
+      "group": "org.apache.logging.log4j",
+      "name": "log4j-api",
+      "version": "2.25.5",
+      "scope": "compile"
+    },
+    {
+      "group": "org.slf4j",
+      "name": "jul-to-slf4j",
+      "version": "2.0.20",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-autoconfigure",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "jakarta.annotation",
+      "name": "jakarta.annotation-api",
+      "version": "3.0.0",
+      "scope": "compile"
+    },
+    {
+      "group": "org.yaml",
+      "name": "snakeyaml",
+      "version": "2.5",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-thymeleaf",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-webmvc",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-jackson",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-jackson",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "tools.jackson.core",
+      "name": "jackson-databind",
+      "version": "3.1.7",
+      "scope": "compile"
+    },
+    {
+      "group": "tools.jackson.core",
+      "name": "jackson-core",
+      "version": "3.1.7",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-tomcat",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-tomcat-runtime",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.apache.tomcat.embed",
+      "name": "tomcat-embed-core",
+      "version": "11.0.27",
+      "scope": "compile"
+    },
+    {
+      "group": "org.apache.tomcat.embed",
+      "name": "tomcat-embed-websocket",
+      "version": "11.0.27",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-tomcat",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-http-converter",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-webmvc",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-servlet",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-webmvc",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-websocket",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-websocket",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-messaging",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-websocket",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-jackson2",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-web",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-databind",
+      "version": "2.21.7",
+      "scope": "compile"
+    },
+    {
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-annotations",
+      "version": "2.21",
+      "scope": "compile"
+    },
+    {
+      "group": "com.fasterxml.jackson.core",
+      "name": "jackson-core",
+      "version": "2.21.7",
+      "scope": "compile"
+    },
+    {
+      "group": "com.fasterxml.jackson.datatype",
+      "name": "jackson-datatype-jdk8",
+      "version": "2.21.7",
+      "scope": "compile"
+    },
+    {
+      "group": "com.fasterxml.jackson.datatype",
+      "name": "jackson-datatype-jsr310",
+      "version": "2.21.7",
+      "scope": "compile"
+    },
+    {
+      "group": "com.fasterxml.jackson.module",
+      "name": "jackson-module-parameter-names",
+      "version": "2.21.7",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-security",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-security",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.security",
+      "name": "spring-security-config",
+      "version": "7.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.security",
+      "name": "spring-security-web",
+      "version": "7.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-aop",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.thymeleaf.extras",
+      "name": "thymeleaf-extras-springsecurity6",
+      "version": "3.1.5.RELEASE",
+      "scope": "compile"
+    },
+    {
+      "group": "org.thymeleaf",
+      "name": "thymeleaf-spring6",
+      "version": "3.1.5.RELEASE",
+      "scope": "compile"
+    },
+    {
+      "group": "org.thymeleaf",
+      "name": "thymeleaf",
+      "version": "3.1.5.RELEASE",
+      "scope": "compile"
+    },
+    {
+      "group": "org.attoparser",
+      "name": "attoparser",
+      "version": "2.0.7.RELEASE",
+      "scope": "compile"
+    },
+    {
+      "group": "org.unbescape",
+      "name": "unbescape",
+      "version": "1.1.6.RELEASE",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.security",
+      "name": "spring-security-ldap",
+      "version": "7.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.security",
+      "name": "spring-security-core",
+      "version": "7.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.security",
+      "name": "spring-security-crypto",
+      "version": "7.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-expression",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-beans",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-context",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-core",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "commons-logging",
+      "name": "commons-logging",
+      "version": "1.3.6",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-tx",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.ldap",
+      "name": "spring-ldap-core",
+      "version": "4.0.6",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-security-oauth2-client",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-security-oauth2-client",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.security",
+      "name": "spring-security-oauth2-client",
+      "version": "7.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "com.nimbusds",
+      "name": "oauth2-oidc-sdk",
+      "version": "11.26.1",
+      "scope": "compile"
+    },
+    {
+      "group": "com.github.stephenc.jcip",
+      "name": "jcip-annotations",
+      "version": "1.0-1",
+      "scope": "compile"
+    },
+    {
+      "group": "com.nimbusds",
+      "name": "content-type",
+      "version": "2.3",
+      "scope": "compile"
+    },
+    {
+      "group": "com.nimbusds",
+      "name": "lang-tag",
+      "version": "1.7",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.security",
+      "name": "spring-security-oauth2-jose",
+      "version": "7.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.security",
+      "name": "spring-security-oauth2-core",
+      "version": "7.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "com.nimbusds",
+      "name": "nimbus-jose-jwt",
+      "version": "10.4",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-data-jpa",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-jdbc",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "com.zaxxer",
+      "name": "HikariCP",
+      "version": "7.0.2",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-data-jpa",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-data-commons",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-persistence",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.data",
+      "name": "spring-data-commons",
+      "version": "4.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-hibernate",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-jpa",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "jakarta.persistence",
+      "name": "jakarta.persistence-api",
+      "version": "3.2.0",
+      "scope": "compile"
+    },
+    {
+      "group": "org.hibernate.orm",
+      "name": "hibernate-core",
+      "version": "7.2.25.Final",
+      "scope": "compile"
+    },
+    {
+      "group": "jakarta.transaction",
+      "name": "jakarta.transaction-api",
+      "version": "2.0.1",
+      "scope": "compile"
+    },
+    {
+      "group": "org.hibernate.models",
+      "name": "hibernate-models",
+      "version": "1.0.1",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.glassfish.jaxb",
+      "name": "jaxb-runtime",
+      "version": "4.0.9",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.glassfish.jaxb",
+      "name": "jaxb-core",
+      "version": "4.0.9",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.glassfish.jaxb",
+      "name": "txw2",
+      "version": "4.0.9",
+      "scope": "runtime"
+    },
+    {
+      "group": "com.sun.istack",
+      "name": "istack-commons-runtime",
+      "version": "4.1.2",
+      "scope": "runtime"
+    },
+    {
+      "group": "jakarta.inject",
+      "name": "jakarta.inject-api",
+      "version": "2.0.1",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-orm",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.data",
+      "name": "spring-data-jpa",
+      "version": "4.0.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.antlr",
+      "name": "antlr4-runtime",
+      "version": "4.13.2",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-aspects",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "org.aspectj",
+      "name": "aspectjweaver",
+      "version": "1.9.25.1",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-jdbc",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-sql",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-transaction",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-jdbc",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "com.h2database",
+      "name": "h2",
+      "version": "2.4.240",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-h2console",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.postgresql",
+      "name": "postgresql",
+      "version": "42.7.13",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.checkerframework",
+      "name": "checker-qual",
+      "version": "3.55.1",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-flyway",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-flyway",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.flywaydb",
+      "name": "flyway-database-postgresql",
+      "version": "11.14.1",
+      "scope": "compile"
+    },
+    {
+      "group": "org.flywaydb",
+      "name": "flyway-core",
+      "version": "11.14.1",
+      "scope": "compile"
+    },
+    {
+      "group": "org.flywaydb",
+      "name": "flyway-mysql",
+      "version": "11.14.1",
+      "scope": "compile"
+    },
+    {
+      "group": "com.mysql",
+      "name": "mysql-connector-j",
+      "version": "9.7.0",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.mariadb.jdbc",
+      "name": "mariadb-java-client",
+      "version": "3.5.11",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.jetbrains",
+      "name": "annotations",
+      "version": "17.0.0",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-validation",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-validation",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.apache.tomcat.embed",
+      "name": "tomcat-embed-el",
+      "version": "11.0.27",
+      "scope": "compile"
+    },
+    {
+      "group": "org.hibernate.validator",
+      "name": "hibernate-validator",
+      "version": "9.0.2.Final",
+      "scope": "compile"
+    },
+    {
+      "group": "jakarta.validation",
+      "name": "jakarta.validation-api",
+      "version": "3.1.1",
+      "scope": "compile"
+    },
+    {
+      "group": "org.jboss.logging",
+      "name": "jboss-logging",
+      "version": "3.6.3.Final",
+      "scope": "compile"
+    },
+    {
+      "group": "com.fasterxml",
+      "name": "classmate",
+      "version": "1.7.3",
+      "scope": "compile"
+    },
+    {
+      "group": "io.micrometer",
+      "name": "micrometer-registry-prometheus",
+      "version": "1.16.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.jspecify",
+      "name": "jspecify",
+      "version": "1.0.1",
+      "scope": "compile"
+    },
+    {
+      "group": "io.micrometer",
+      "name": "micrometer-core",
+      "version": "1.16.8",
+      "scope": "compile"
+    },
+    {
+      "group": "io.micrometer",
+      "name": "micrometer-commons",
+      "version": "1.16.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.hdrhistogram",
+      "name": "HdrHistogram",
+      "version": "2.2.2",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.latencyutils",
+      "name": "LatencyUtils",
+      "version": "2.0.3",
+      "scope": "runtime"
+    },
+    {
+      "group": "io.prometheus",
+      "name": "prometheus-metrics-core",
+      "version": "1.4.3",
+      "scope": "compile"
+    },
+    {
+      "group": "io.prometheus",
+      "name": "prometheus-metrics-model",
+      "version": "1.4.3",
+      "scope": "compile"
+    },
+    {
+      "group": "io.prometheus",
+      "name": "prometheus-metrics-config",
+      "version": "1.4.3",
+      "scope": "compile"
+    },
+    {
+      "group": "io.prometheus",
+      "name": "prometheus-metrics-tracer-common",
+      "version": "1.4.3",
+      "scope": "compile"
+    },
+    {
+      "group": "io.prometheus",
+      "name": "prometheus-metrics-exposition-formats",
+      "version": "1.4.3",
+      "scope": "runtime"
+    },
+    {
+      "group": "io.prometheus",
+      "name": "prometheus-metrics-exposition-textformats",
+      "version": "1.4.3",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-actuator",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-micrometer-metrics",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-micrometer-metrics",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-micrometer-observation",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-actuator-autoconfigure",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-actuator",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-health",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "io.micrometer",
+      "name": "micrometer-observation",
+      "version": "1.16.8",
+      "scope": "compile"
+    },
+    {
+      "group": "io.micrometer",
+      "name": "micrometer-jakarta9",
+      "version": "1.16.8",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-starter-mail",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-mail",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework",
+      "name": "spring-context-support",
+      "version": "7.0.10",
+      "scope": "compile"
+    },
+    {
+      "group": "jakarta.mail",
+      "name": "jakarta.mail-api",
+      "version": "2.1.5",
+      "scope": "compile"
+    },
+    {
+      "group": "jakarta.activation",
+      "name": "jakarta.activation-api",
+      "version": "2.1.4",
+      "scope": "compile"
+    },
+    {
+      "group": "org.eclipse.angus",
+      "name": "angus-mail",
+      "version": "2.0.5",
+      "scope": "runtime"
+    },
+    {
+      "group": "org.eclipse.angus",
+      "name": "angus-activation",
+      "version": "2.0.3",
+      "scope": "runtime"
+    },
+    {
+      "group": "xyz.capybara",
+      "name": "clamav-client",
+      "version": "2.1.2",
+      "scope": "compile"
+    },
+    {
+      "group": "org.jetbrains.kotlin",
+      "name": "kotlin-stdlib-jdk8",
+      "version": "2.2.21",
+      "scope": "compile"
+    },
+    {
+      "group": "org.jetbrains.kotlin",
+      "name": "kotlin-stdlib",
+      "version": "2.2.21",
+      "scope": "compile"
+    },
+    {
+      "group": "org.jetbrains.kotlin",
+      "name": "kotlin-stdlib-jdk7",
+      "version": "2.2.21",
+      "scope": "compile"
+    },
+    {
+      "group": "io.github.microutils",
+      "name": "kotlin-logging-jvm",
+      "version": "2.1.21",
+      "scope": "compile"
+    },
+    {
+      "group": "org.jetbrains.kotlin",
+      "name": "kotlin-stdlib-common",
+      "version": "1.6.0",
+      "scope": "compile"
+    },
+    {
+      "group": "jakarta.xml.bind",
+      "name": "jakarta.xml.bind-api",
+      "version": "4.0.5",
+      "scope": "runtime"
+    },
+    {
+      "group": "net.minidev",
+      "name": "json-smart",
+      "version": "2.6.0",
+      "scope": "compile"
+    },
+    {
+      "group": "net.minidev",
+      "name": "accessors-smart",
+      "version": "2.6.0",
+      "scope": "compile"
+    },
+    {
+      "group": "org.ow2.asm",
+      "name": "asm",
+      "version": "9.7.1",
+      "scope": "compile"
+    },
+    {
+      "group": "org.springframework.boot",
+      "name": "spring-boot-web-server",
+      "version": "4.0.9",
+      "scope": "compile"
+    },
+    {
+      "group": "net.bytebuddy",
+      "name": "byte-buddy",
+      "version": "1.17.8",
+      "scope": "runtime"
+    }
+  ],
+  "full_runtime_osv_check": {
+    "status": "completed",
+    "database": "OSV",
+    "queried_components": 159,
+    "matched_components": []
+  },
+  "http_stack_security_fixes": [
+    "CVE-2026-64607",
+    "CVE-2026-54399",
+    "CVE-2026-54428"
+  ],
+  "mariadb_security_fixes": [
+    "CVE-2026-119210",
+    "CVE-2026-119276",
+    "CVE-2026-119280",
+    "CVE-2026-119281"
+  ],
+  "scope": "Maven dependencies only; excludes operating-system/JRE container layers"
+}

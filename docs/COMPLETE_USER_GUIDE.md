@@ -1,13 +1,21 @@
 # ClamAV Web UI 2.0.0 — Complete User, Administrator & Deployment Guide
 
-**Documentation edition:** 30 October 2026  
-**Verified against:** uploaded `clamv-webui-v2.0.0-security.1-full-source(3).zip` and accompanying `docs.zip`  
+**Documentation edition:** 31 October 2026
+
+**Source edition:** application 2.0.0 with the security dependency updates and issues #10, #11 and #12
+
 **Example registry image:** `kosztyk/clamav-web-client:v2`  
-**Security-source build tag:** `clamav-web-client:2.0.0-security.1`
+**Current local build tag:** `clamav-web-client:2.0.0-local`
 
 This is the **single, consolidated how-to** for people deploying, administering or using ClamAV Web UI. It covers all available browser pages and fields, deployment alternatives, environment variables and persisted settings, authentication, database and scan modes, native ClamdTop, the *separate* REST bridge, machine APIs, CLI, MCP, monitoring, upgrade and troubleshooting. Where the source explicitly leaves a feature unsupported, the limitation is documented rather than presented as an option.
 
-> **Image provenance:** The provided source is the 2.0.0 security.1 revision (Spring Boot 4.0.9); this guide uses the requested Docker Hub `kosztyk/clamav-web-client:v2` tag for ready-to-pull deployments. **Do not assume `v2` includes security.1 until you have published/verified that exact build.** Build the supplied source locally to ensure you are running it, then tag/publish the tested build as desired.
+> **Image provenance:** The current source includes Spring Boot 4.0.9, dependency security updates, the non-root runtime, default reverse-proxy HTTPS recognition and webhook resilience. Updating this repository does not publish a Docker Hub image. Verify the image digest before assuming the example `v2` tag includes these changes, or build the current source normally with `docker build --pull -t clamav-web-client:2.0.0-local .`.
+
+For the current upgrade procedure and expected runtime test results, including
+LAN access with a self-signed certificate, see [Update and verify](UPDATE_AND_VERIFY.md).
+The [update notes](UPDATE_NOTES_2026_10_31.md) summarize defaults and compatibility;
+[field validation](FIELD_VALIDATION.md) distinguishes reported deployments from
+automated test coverage.
 
 ## Table of contents
 
@@ -18,7 +26,7 @@ This is the **single, consolidated how-to** for people deploying, administering 
 4. [3. Complete Compose A — new install, H2 and bundled ClamD](#3-complete-compose-a-new-install-h2-and-bundled-clamd)
 5. [4. Complete Compose B — remote ClamD + existing PostgreSQL + optional REST bridge](#4-complete-compose-b-remote-clamd-existing-postgresql-optional-rest-bridge)
 6. [5. Native path scans, uploads, ClamdTop filenames and watched folders](#5-native-path-scans-uploads-clamdtop-filenames-and-watched-folders)
-7. [6. Build, verify or publish the uploaded security.1 source](#6-build-verify-or-publish-the-uploaded-security1-source)
+7. [6. Build, verify or publish the current source](#6-build-verify-or-publish-the-current-source)
 8. [7. First login, session and local user management](#7-first-login-session-and-local-user-management)
 9. [8. Dashboard, Main and native ClamdTop](#8-dashboard-main-and-native-clamdtop)
 10. [9. Scan page — every field and job behavior](#9-scan-page-every-field-and-job-behavior)
@@ -94,6 +102,8 @@ Grafana -------------- queries Prometheus (not the Web UI directly)
 
 Required: Docker Engine with Compose plugin (or Java 17+/Maven for source compilation); a reachable and properly configured ClamD daemon; persistent writable directories for `conf` and `data`; a browser. ClamD needs current signature data. Reserve at least the space required by uploaded files, quarantine, databases and signature downloads. A non-local UI requires HTTPS through a reverse proxy.
 
+The container runs as **UID/GID `10001:10001`**. Prepare bind-mount ownership before first boot or upgrading a root-owned installation. See [non-root deployment and permission migration](NON_ROOT_CONTAINER.md) for Linux, Docker Desktop/named volumes, Kubernetes and native path/socket permissions.
+
 **Choose one setup:**
 
 1. **First installation:** bundled ClamD + local H2, **INSTREAM** scanning (Section 3).
@@ -127,6 +137,10 @@ services:
   clamav-web-client:
     image: kosztyk/clamav-web-client:v2
     container_name: clamav-web-client
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "127.0.0.1:8080:8080"
     environment:
@@ -157,6 +171,8 @@ On the Docker host:
 
 ```bash
 mkdir -p conf data
+sudo chown -R 10001:10001 conf data
+sudo chmod -R u+rwX conf data
 docker compose config --quiet
 docker compose pull
 docker compose up -d
@@ -186,6 +202,10 @@ services:
   clamav-web-client:
     image: kosztyk/clamav-web-client:v2
     container_name: clamav-gui
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "${CLAMAV_WEB_BIND:-127.0.0.1}:8082:8080"
     environment:
@@ -206,7 +226,7 @@ services:
       CLAMAV_REST_TIMEOUT_SECONDS: "10"
       CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS: "3600"
       CLAMAV_REST_REPORT_MAX_JOBS: "5000"
-      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-none}"
+      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-framework}"
     volumes:
       - ./conf:/app/conf
       - ./data:/app/data
@@ -224,13 +244,15 @@ SPRING_DATASOURCE_USERNAME=clamav
 SPRING_DATASOURCE_PASSWORD=YOUR_PRIVATE_PASSWORD
 CLAMAV_REST_URL=
 CLAMAV_REST_API_KEY=
-SERVER_FORWARD_HEADERS_STRATEGY=none
+SERVER_FORWARD_HEADERS_STRATEGY=framework
 ```
 
 These IP addresses illustrate a **private** LAN layout; substitute addresses actually reachable *from inside the Web UI container*. Create database `clamav` and a dedicated SQL account with appropriate schema DDL permissions **before** deploying. Use SQL TLS and protect DB port 5432. For an upstream compatible REST scanner, set `CLAMAV_REST_URL=http://REST_HOST:3000` and corresponding API key (or leave blank if none). Do **not** point `CLAMAV_REST_URL` at this GUI or its `/api/v1` endpoint.
 
 ```bash
 mkdir -p conf data
+sudo chown -R 10001:10001 conf data
+sudo chmod -R u+rwX conf data
 chmod 600 .env
 docker compose config --quiet  # safe syntax validation; don't post the full rendered config
 docker compose pull clamav-web-client
@@ -284,15 +306,15 @@ When composing volumes, inspect the merged configuration carefully; Compose merg
 
 **ClamdTop diagnostic:** If filenames show in development but not production, compare (1) upload mode env variables, (2) identical `/app/data` mounts in Web UI and ClamD, (3) both containers' actual storage paths, (4) whether a fallback to INSTREAM happened, and (5) whether the endpoint is a remote daemon without shared storage. `CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM=true` allows fallback when configured but can make ClamdTop show streams. It does **not** make arbitrary server paths remotely visible.
 
-## 6. Build, verify or publish the uploaded security.1 source
+## 6. Build, verify or publish the current source
 
-Run in the extracted application source folder (containing `pom.xml`, `src/`, `dashboards/` and `Dockerfile`):
+Run in the extracted application source folder or Git checkout (containing `pom.xml`, `src/`, `dashboards/` and `Dockerfile`):
 
 ```bash
 mvn -B -ntp verify  # optional when host has Maven and JDK installed
-docker build --pull --no-cache -t clamav-web-client:2.0.0-security.1 .
+docker build --pull -t clamav-web-client:2.0.0-local .
 # Optional: scan local image if Docker Scout is installed:
-docker scout cves local://clamav-web-client:2.0.0-security.1
+docker scout cves local://clamav-web-client:2.0.0-local
 ```
 
 The Dockerfile builds the application using Maven/Java 21, runs Maven verification, and places native `clamdtop`, `script` and ncurses runtime components in a Java 21 runtime image. To deploy **this locally built image** use:
@@ -300,7 +322,7 @@ The Dockerfile builds the application using Maven/Java 21, runs Maven verificati
 ```yaml
 services:
   clamav-web-client:
-    image: clamav-web-client:2.0.0-security.1
+    image: clamav-web-client:2.0.0-local
     pull_policy: never
     # Keep all the rest of your production ports/env/volumes as they were.
 ```
@@ -377,6 +399,23 @@ Click **Save settings** after changes. The dynamic webhook form includes **Enabl
 ### 11.1 Direct webhooks
 
 Direct scan notifications may include job ID, type, target, endpoint, submitter, final verdict, found signatures, error and available quarantine path. Compatible generic endpoints receive JSON; Discord endpoints receive adapted content with mentions disabled. Delivery failures do not erase scan results. There is **no durable local retry queue or delivery-history UI**. Upstream REST service webhooks (Section 13) are configured on the **external** REST scanner; these are distinct from direct managed job notifications.
+
+Delivery now uses two dedicated background workers with a queue of 100 pending
+notifications. Defaults are 5-second connect, 10-second read, 5-second DNS and
+20-second total delivery deadlines. A hung receiver or full webhook queue cannot
+occupy the scan workers; a full queue drops the new notification with a sanitized
+warning. Payloads are snapshotted before dispatch; failures do not change results.
+
+Private/local destinations are blocked by default and checked against the DNS
+addresses actually used for each new connection. Redirects and retries are
+disabled, and receiver bodies are ignored. To deliberately use an internal
+receiver, set `CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES: "true"` in the Web UI
+container's deployment environment and recreate it. Metadata/link-local and
+other prohibited destinations remain blocked. The UI cannot relax this server
+policy. All behavior is built into normal Docker/JAR builds; no helper is needed.
+
+Full configuration table, Compose/Kubernetes guidance, payload behavior and
+best-effort delivery limits: [Webhook resilience](WEBHOOK_RESILIENCE.md).
 
 ### 11.2 Safely edit the file directly
 
@@ -525,10 +564,10 @@ services:
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID: "clamav-webui"
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:?Set in private .env}"
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_SCOPE: "openid,profile,email,groups"
-      SERVER_FORWARD_HEADERS_STRATEGY: native
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
 ```
 
-Or use application namespace `CLAMAV_IDENTITY_OIDC_*` including `CLIENT_SECRET_FILE`, issuer, scopes, group roles, claim and logout controls. Do not configure two conflicting secret sources. The standard Spring registration name `oidc` is bridged internally to the actual callback registration name `clamav`. **Behind a reverse proxy**, set `SERVER_FORWARD_HEADERS_STRATEGY=native` **only** after ensuring the trusted proxy **overwrites** any externally supplied Forwarded / X-Forwarded-* headers. Wrong forwarded scheme/host causes invalid callback redirects or HTTP/HTTPS loops. Claims must actually include the mapped group names—requesting the `groups` scope does not magically create a group claim in every IdP (especially Google). Test with a low-privilege account before mapping administrators.
+Or use application namespace `CLAMAV_IDENTITY_OIDC_*` including `CLIENT_SECRET_FILE`, issuer, scopes, group roles, claim and logout controls. Do not configure two conflicting secret sources. The standard Spring registration name `oidc` is bridged internally to the actual callback registration name `clamav`. **Behind a reverse proxy**, the packaged `framework` default recognizes HTTPS automatically. Ensure the trusted proxy **overwrites** any externally supplied Forwarded / X-Forwarded-* headers and direct backend access is restricted. Wrong forwarded scheme/host causes invalid callback redirects or HTTP/HTTPS loops. Claims must actually include the mapped group names—requesting the `groups` scope does not magically create a group claim in every IdP (especially Google). Test with a low-privilege account before mapping administrators.
 
 ### 15.3 Provider precedence, identity separation, recovery
 
@@ -738,13 +777,13 @@ The reference below distinguishes **actual Docker environment variables** from `
 | `CLAMAV_BOOTSTRAP_ADMIN_PASSWORD` | Unset generates password file; first-run-only, minimum 12 chars |
 | `TZ` | Container timezone; examples `Europe/Bucharest`; independently check daemon signature timestamp timezone |
 | `SERVER_PORT` | `8080` application listener; host `ports:` mapping controls external port |
-| `SERVER_FORWARD_HEADERS_STRATEGY` | `none` by default; `native` only behind a trusted TLS-terminating proxy |
+| `SERVER_FORWARD_HEADERS_STRATEGY` | `framework` by default in the application and Compose; `none` explicitly disables forwarded-header trust; `native` remains available for deliberate container-specific configuration |
 | `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE` | `2048MB` default |
 | `SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE` | `2048MB` default |
 | `SERVER_TOMCAT_MAX_SWALLOW_SIZE` | `2048MB` default |
 | `JAVA_TOOL_OPTIONS` | JVM flags such as Java CA truststore or advanced `-D...` properties; preserve other flags |
 
-Scan allowed roots, storage/quarantine paths, worker concurrency and webhook settings belong to `conf/clamav-web-client.properties` as listed in Section 11. If you set `/scandir` but the Web UI container has no matching mount, scanning will fail. Docker service `image:`, `pull_policy:`, `ports:`, `volumes:`, `depends_on:` are Compose instructions, **not Java environment settings**.
+Scan roots, storage/quarantine paths, scan concurrency and webhook URL/enable belong to `conf/clamav-web-client.properties` as listed in Section 11. Webhook timeout/queue/address policy instead uses startup `CLAMAV_WEBHOOK_*` environment variables; see [Webhook resilience](WEBHOOK_RESILIENCE.md). If you set `/scandir` but the Web UI container has no matching mount, scanning will fail. Docker service `image:`, `pull_policy:`, `ports:`, `volumes:`, `depends_on:` are Compose instructions, **not Java environment settings**.
 
 ### 20.2 SQL and Flyway
 
@@ -886,6 +925,35 @@ docker compose logs --tail=200 clamav-web-client
 
 ## 22. Reverse proxy, certificates, secrets and network security
 
+### 22.1 Built-in HTTPS recognition for Bearer tokens behind a proxy
+
+The application packages
+`server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}`.
+A normal Docker build enables HTTPS recognition for TLS-terminating reverse
+proxies and Kubernetes Ingress:
+
+```bash
+docker build --pull -t clamav-web-client:2.0.0-local .
+```
+
+The image also runs as UID/GID `10001:10001`. Both fixes are in the source;
+no helper script or `--trusted-proxy` flag is required. Compose examples use the
+same `framework` default. Remove an old explicit
+`SERVER_FORWARD_HEADERS_STRATEGY=none` override to inherit it. To deliberately
+ignore forwarded headers for direct access, set that variable to `none` and
+use direct HTTPS for machine credentials.
+
+The proxy must replace incoming `Forwarded` and `X-Forwarded-*` headers and be
+the only permitted backend entry point. Use the external HTTPS URL in
+`clamctl`, MCP and API clients. See [Reverse proxy TLS](REVERSE_PROXY_TLS.md).
+
+A `403 tls_required` / `Bearer tokens require HTTPS` behind a TLS-terminating
+proxy means the original HTTPS scheme is missing or a runtime setting disabled
+forwarding. The Bearer filter still requires HTTPS, valid credentials and the
+necessary scopes. Client certificate flags do not change server scheme recognition.
+
+### 22.2 Nginx and network configuration
+
 Run the Web UI behind HTTPS on a trusted hostname; don't publish username/password or machine Bearer tokens over plain HTTP. A minimal Nginx configuration (adjust certificate paths, DNS, host proxy reachability and body limit) is:
 
 ```nginx
@@ -904,8 +972,13 @@ server {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_set_header Forwarded "";
         proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Prefix "";
+        proxy_set_header X-Forwarded-Ssl "";
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $clamav_ws_connection;
         proxy_read_timeout 3600s;
@@ -913,7 +986,7 @@ server {
 }
 ```
 
-`proxy_pass` addresses **the Docker host reachable from Nginx**, not blindly `localhost` when proxy and UI run on different machines. `SERVER_FORWARD_HEADERS_STRATEGY=native` should be enabled only if the proxy is the exclusive inbound path and replaces untrusted headers. The proxy must support `/ws/clamdtop` upgrades. Set upload limit appropriately for real capacity, not just the application's 2 GiB default.
+`proxy_pass` addresses **the Docker host reachable from Nginx**, not blindly `localhost` when proxy and UI run on different machines. The packaged `framework` default requires the proxy to be the exclusive inbound path and replace untrusted headers. This Nginx example assumes it is the TLS edge; configure an explicit trust chain for multiple proxies. The proxy must support `/ws/clamdtop` upgrades. Set upload limit appropriately for real capacity, not just the application's 2 GiB default.
 
 **Network hardening:** restrict `clamd:3310` to trusted internal clients only; restrict SQL 5432/3306 and management 9091 similarly. When using remote ClamD, verify firewall/ACL, correct host and storage policy. Make `./conf`, `.env`, LDAP bind secret files, OIDC client secrets and token files owner-readable only. Back up `conf/auth-settings.key` safely. Trust private CAs in the **Java JVM** when it connects to LDAPS/OIDC/HTTPS REST, and separately trust the Web UI certificate CA in `clamctl`/MCP clients. A trusted CA alone is not sufficient: hostname/SAN verification must also succeed. Avoid global `verify=false` or insecure HTTP redirects.
 
@@ -979,6 +1052,10 @@ Use absolute allowlisted **MCP-host** upload roots; they restrict which files th
 
 ## 25. End-to-end verification and EICAR detection
 
+For the non-root, reverse-proxy HTTPS and webhook changes, start with
+[the dedicated upgrade verification guide](UPDATE_AND_VERIFY.md). It includes
+expected HTTP statuses, local CA handling and focused timeout/address-policy tests.
+
 Run through the checks after install or upgrade:
 
 1. **Containers:** `docker compose ps`; `docker compose logs --tail=100 clamav-web-client`; verify `clamav-server` is started, reachable and has current signatures.
@@ -1002,7 +1079,10 @@ The provided source has tests and security verification notes, but a test report
 
 | Symptom | Most likely investigation / fix |
 |---|---|
+| Nginx `502` and `conf/integrations.properties: Operation not permitted` | Backend startup failed while setting owner-only permissions; migrate existing `conf`/`data` ownership to UID/GID 10001. `writable=true` alone does not prove ownership. See `NON_ROOT_CONTAINER.md` |
+| curl error 60 with a local/self-signed HTTPS certificate | Trust the correct local CA/server certificate using `--cacert` and match the URL to its SAN; public DNS is not required. See `UPDATE_AND_VERIFY.md` |
 | Login page loops or SSO redirect wrong | Check HTTPS hostname, trusted proxy headers (`SERVER_FORWARD_HEADERS_STRATEGY`), exact OIDC `/login/oauth2/code/clamav` callback |
+| `403 tls_required` for Bearer tokens behind HTTPS proxy | Use the packaged `framework` default, remove old `none` overrides, and verify the trusted edge sends HTTPS scheme and blocks direct backend access; see Section 22.1 |
 | Cannot log in as `admin` | Check persistent H2/SQL database, use actual bootstrap file for *new DB only*, local account status. Do not delete database to reinitialize |
 | Web UI starts but cannot scan | Check endpoint Enabled, ClamD host/port **from inside container**, daemon signatures, SQL readiness and policy |
 | ClamdTop black/blank or Connect fails | WebSocket `/ws/clamdtop` upgrade, proxy timeouts, native binary availability in image, daemon network/socket permissions |
@@ -1013,7 +1093,7 @@ The provided source has tests and security verification notes, but a test report
 | Watch sends no jobs | `app.watch.enabled`, watched row Enabled, allowed mount, no change in mtime/size, 30s polling/depth/1,000-entry bound |
 | `VIRUS_FOUND` but no quarantine file | Disabled quarantine, read-only original source, directory permission, recorded evidence not proof of filesystem move |
 | REST monitor unconfigured/unavailable | `CLAMAV_REST_URL` points to missing/non-compatible external scanner, wrong API key/path, upstream connectivity |
-| Webhook doesn't arrive | Direct vs upstream REST webhook confusion, masked URL, network/receiver, no built-in durable retry queue |
+| Webhook doesn't arrive | Direct vs upstream REST webhook, address policy/private receiver opt-in, timeout or queue-drop warnings, receiver status; see `WEBHOOK_RESILIENCE.md`; no durable retry queue |
 | LDAP TLS bind fails | Java trusts CA, certificate SAN matches LDAP hostname, correct LDAPS/StartTLS choice, bind DN/filter/group schema |
 | LDAP logs in but wrong role | Group search base/filter/member attribute, nested group depth, explicit VIEWER/OPERATOR/ADMIN mappings |
 | OIDC logs in but no privilege | IdP must actually emit groups claim; confirm path/values, do not rely only on requested scope |

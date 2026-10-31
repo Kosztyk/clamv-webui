@@ -39,7 +39,7 @@ printf 'header = "Authorization: Bearer %s"\n' "$CLAMV_API_TOKEN" | \
 
 `scan:path` tokens **must** have explicit `pathRoots` inside the existing global allowed scan roots. Blank path roots deliberately deny path submissions even when `scan:path` scope is selected. Blank endpoint restrictions mean any configured endpoint; set endpoint IDs to narrow them. Endpoint limits also filter job lists and individual job/progress responses, and health/metrics requests.
 
-**HTTPS required** for token and HTTP Basic credentials. The service uses `request.isSecure()` to verify HTTPS. If terminating TLS at a reverse proxy, terminate traffic only at a trusted proxy, *strip/replace* all client-supplied `Forwarded` and `X-Forwarded-*` headers, then set `SERVER_FORWARD_HEADERS_STRATEGY=framework` only after that trust boundary is enforced. The baseline uses `server.forward-headers-strategy=none` for safety, so Bearer/Basic access behind an unconfigured TLS-offloading proxy will return `tls_required`. Browser form sessions continue on the current development HTTP deployment; use HTTPS in production.
+**HTTPS required** for token and HTTP Basic credentials. The service uses `request.isSecure()` to verify HTTPS. If terminating TLS at a reverse proxy, terminate traffic only at a trusted proxy, *strip/replace* all client-supplied `Forwarded` and `X-Forwarded-*` headers, and restrict backend access to that proxy. The current application packages `server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}`, so forwarded HTTPS is recognized without opt-in. Set `SERVER_FORWARD_HEADERS_STRATEGY=none` only to explicitly disable forwarding for direct-access deployments; plain HTTP still returns `tls_required`. Browser form sessions continue on the current development HTTP deployment; use HTTPS in production.
 
 ## Health truthfulness
 
@@ -68,7 +68,7 @@ All changes are additive DDL managed by the baseline `spring.jpa.hibernate.ddl-a
 | `api.v1.max-page-size` | 100 | `API_V1_MAX_PAGE_SIZE` |
 | `api.v1.clamd.max-database-age-hours` | 168 | `API_V1_CLAMD_MAX_DATABASE_AGE_HOURS` |
 | `api.v1.clamd.database-timezone` | UTC | `API_V1_CLAMD_DATABASE_TIMEZONE` |
-| `server.forward-headers-strategy` | none | `SERVER_FORWARD_HEADERS_STRATEGY` (trusted proxy only) |
+| `server.forward-headers-strategy` | framework | `SERVER_FORWARD_HEADERS_STRATEGY` (`none` explicitly disables forwarding) |
 
 ## Verification and limitations
 

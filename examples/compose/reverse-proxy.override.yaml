@@ -1,0 +1,7 @@
+# Apply only when a trusted TLS-terminating proxy is the exclusive inbound path.
+# The edge must remove untrusted Forwarded/X-Forwarded-* headers and set its own.
+# docker compose -f docker-compose.yml -f examples/compose/reverse-proxy.override.yaml up -d --force-recreate clamav-web-client
+services:
+  clamav-web-client:
+    environment:
+      SERVER_FORWARD_HEADERS_STRATEGY: framework

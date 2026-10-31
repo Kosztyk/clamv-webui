@@ -11,10 +11,25 @@ services:
 
     container_name: clamav-web-client
 
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
     ports:
       - "8080:8080"
 
     environment:
+      # Matches the packaged default; the trusted proxy must replace forwarded headers.
+      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-framework}"
+      # Optional webhook tuning; finite timeouts and public destinations are the built-in defaults.
+      CLAMAV_WEBHOOK_CONNECT_TIMEOUT: "${CLAMAV_WEBHOOK_CONNECT_TIMEOUT:-5s}"
+      CLAMAV_WEBHOOK_READ_TIMEOUT: "${CLAMAV_WEBHOOK_READ_TIMEOUT:-10s}"
+      CLAMAV_WEBHOOK_DNS_TIMEOUT: "${CLAMAV_WEBHOOK_DNS_TIMEOUT:-5s}"
+      CLAMAV_WEBHOOK_DELIVERY_TIMEOUT: "${CLAMAV_WEBHOOK_DELIVERY_TIMEOUT:-20s}"
+      CLAMAV_WEBHOOK_WORKERS: "${CLAMAV_WEBHOOK_WORKERS:-2}"
+      CLAMAV_WEBHOOK_QUEUE_CAPACITY: "${CLAMAV_WEBHOOK_QUEUE_CAPACITY:-100}"
+      CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES: "${CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES:-false}"
       # Use the bundled ClamAV service on the Compose network.
       # If clamd runs elsewhere, override this in your own deployment Compose.
       CLAMAV_HOST: "clamav-server"
@@ -32,6 +47,7 @@ services:
       CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "false"
 
     volumes:
+      # Prepare existing host folders for UID/GID 10001; see docs/NON_ROOT_CONTAINER.md.
       - ./conf:/app/conf
       - ./data:/app/data
 

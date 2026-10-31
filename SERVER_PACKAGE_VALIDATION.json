@@ -1,0 +1,123 @@
+{
+  "application_version": "2.0.0",
+  "validated_at_utc": "2026-10-31T10:57:00.385342+00:00",
+  "upstream_source_base_commit": "620400fabc087da127e3d87bca3766def444a600",
+  "previous_complete_source_files": 893,
+  "package_file_count": 909,
+  "full_source_integrity": "All 905 paths from the tested webhook full-source archive retained; four publication/verification documentation files added",
+  "previous_archive_sha256": "b4ecbf93c070857a0f8946f84f0acb164e1457e89b4168246d83c12961088a62",
+  "issues_included": [
+    10,
+    11,
+    12
+  ],
+  "non_root_issue_10_fix": "Original Dockerfile retained: USER 10001:10001, writable application paths and root-owned read-only JAR",
+  "proxy_tls_issue_11_fix": "Packaged framework default retained; no proxy opt-in or helper required",
+  "webhook_issue_12_fix": {
+    "connect_timeout": "5s",
+    "read_timeout": "10s",
+    "dns_timeout": "5s",
+    "delivery_timeout": "20s",
+    "workers": 2,
+    "queue_capacity": 100,
+    "allow_private_addresses": false
+  },
+  "build_command": "docker build --pull -t clamav-web-client:2.0.0-local .",
+  "helper_required": false,
+  "bundled_configuration": "Original clean example restored; generated keys/databases/runtime state excluded",
+  "validation": {
+    "maven": {
+      "command": "mvn -B -ntp clean verify",
+      "result": "BUILD SUCCESS",
+      "tests": 307,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 5,
+      "passed": 302,
+      "runtime": "OpenJDK 17.0.20",
+      "spring_boot": "4.0.9"
+    },
+    "added_webhook_regressions": 78,
+    "executable_jar_checks_passed": 14,
+    "proxy_http_regressions_passed": 10,
+    "optional_deployment_helper": {
+      "method": "Actual Bash helper executed against a simulated Docker CLI; no Docker image/runtime execution",
+      "scenarios": [
+        {
+          "scenario": "existing",
+          "result": "passed"
+        },
+        {
+          "scenario": "fresh",
+          "result": "passed"
+        },
+        {
+          "scenario": "already_owned",
+          "result": "passed"
+        },
+        {
+          "scenario": "build_failure",
+          "result": "passed"
+        },
+        {
+          "scenario": "permission_failure",
+          "result": "passed"
+        },
+        {
+          "scenario": "unmanaged_override",
+          "result": "passed"
+        },
+        {
+          "scenario": "wrong_user",
+          "result": "passed"
+        },
+        {
+          "scenario": "proxy_enabled",
+          "result": "passed"
+        },
+        {
+          "scenario": "proxy_retained",
+          "result": "passed"
+        },
+        {
+          "scenario": "proxy_disabled",
+          "result": "passed"
+        }
+      ]
+    },
+    "source_static_checks": "passed",
+    "shell_and_yaml_syntax": "passed",
+    "javascript_configuration_observer_tests_passed": 5,
+    "full_runtime_osv_check": {
+      "status": "completed",
+      "database": "OSV",
+      "queried_components": 159,
+      "matched_components": []
+    }
+  },
+  "docker_image_build": "Docker unavailable; no image build, non-root container, native PTY or EICAR container execution is claimed",
+  "browser_smoke": "Chromium/Playwright unavailable; settings HTML, permissions, CSRF and policy checked by Spring and executable-JAR HTTP tests",
+  "external_db_integration": "Docker-backed Postgres/MySQL/MariaDB test profile was not executed",
+  "current_reports": [
+    "docs/security/webhook-resilience-validation.json",
+    "docs/security/webhook-runtime-dependencies.json"
+  ],
+  "prior_package_file_count": 905,
+  "repository_update": {
+    "date": "2026-10-31",
+    "source_archive_sha256": "f41eea23fb0506f349848bc2d44431c5508cebeaaae17fa42b1574de11f07dee",
+    "validation_report": "docs/security/repository-update-validation.json",
+    "current_maven_tests": 307,
+    "current_maven_failures": 0,
+    "current_maven_errors": 0,
+    "current_maven_skipped": 5,
+    "docs_include": [
+      "upgrade steps",
+      "volume ownership and startup troubleshooting",
+      "local self-signed HTTPS",
+      "webhook controls and verification",
+      "attributed field testing"
+    ],
+    "note": "Original package validation is retained below; the linked report records the new repository checks"
+  }
+}

@@ -1,0 +1,231 @@
+{
+  "validated_at_utc": "2026-10-31T10:57:00.385342+00:00",
+  "source_base_commit": "620400fabc087da127e3d87bca3766def444a600",
+  "issues": [
+    10,
+    11
+  ],
+  "configuration": {
+    "packaged_default": "framework",
+    "property": "server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}",
+    "normal_build_command": "docker build --pull -t clamav-web-client:2.0.0-local .",
+    "helper_required": false,
+    "proxy_opt_in_required": false,
+    "environment_variable": "SERVER_FORWARD_HEADERS_STRATEGY",
+    "direct_access_opt_out": "none",
+    "runtime_overrides": "Existing explicit environment/command-line configuration continues to override packaged defaults",
+    "proxy_boundary": "Trusted proxy must replace incoming forwarded headers and be the exclusive backend entry point"
+  },
+  "non_root_container": {
+    "dockerfile_user": "10001:10001",
+    "application_paths": [
+      "/app/conf",
+      "/app/data"
+    ],
+    "jar": "root-owned and read-only (0444)",
+    "verification": "Dockerfile assertions passed; Docker container execution unavailable"
+  },
+  "transport_check": "ApiTokenAuthenticationFilter continues to require request.isSecure(); framework forwarding is the packaged default",
+  "maven": {
+    "command": "mvn -B -ntp clean verify",
+    "result": "BUILD SUCCESS",
+    "tests": 307,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 302,
+    "runtime": "OpenJDK 17.0.20",
+    "spring_boot": "4.0.9"
+  },
+  "http_regressions": {
+    "method": "Real Java HTTP client requests to embedded Tomcat loopback ports",
+    "default_proxy_suite_has_no_forwarding_override": true,
+    "direct_access_suite_explicitly_selects_none": true,
+    "suites": [
+      {
+        "class": "info.trizub.clamav.webclient.security.ApiTokenDirectTlsIntegrationTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "spoofedXForwardedProtoDoesNotEnableTlsWhenForwardingIsDisabled",
+          "directHttpRejectsBearerCredentials",
+          "spoofedRfcForwardedDoesNotEnableTlsWhenForwardingIsDisabled"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.security.ApiTokenProxyTlsIntegrationTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "forwardedHttpsStillRequiresTheRequestedScope",
+          "forwardedHttpsStillRequiresAValidToken",
+          "revocationRemainsImmediateBehindAProxy",
+          "plainHttpStillRejectsBearerCredentials",
+          "forwardedHttpStillRejectsBearerCredentials",
+          "rfcForwardedHttpsAcceptsAValidBearerToken",
+          "forwardedHttpsAcceptsAValidBearerToken"
+        ]
+      }
+    ]
+  },
+  "executable_jar": {
+    "manifest_and_packaged_properties": "passed",
+    "runtime_check": {
+      "method": "java -jar with no forwarding property/environment/helper option",
+      "checks": [
+        {
+          "check": "login page",
+          "status": 200,
+          "result": "passed"
+        },
+        {
+          "check": "packaged webhook settings page",
+          "status": 200,
+          "result": "passed"
+        },
+        {
+          "check": "packaged policy blocks metadata despite form opt-in attempt",
+          "status": 302,
+          "result": "passed"
+        },
+        {
+          "check": "packaged policy rejection shown in settings",
+          "status": 200,
+          "result": "passed"
+        },
+        {
+          "check": "token issuance via forwarded HTTPS using packaged default",
+          "status": 201,
+          "result": "passed"
+        },
+        {
+          "check": "X-Forwarded-Proto HTTPS with valid Bearer token",
+          "status": 200,
+          "result": "passed"
+        },
+        {
+          "check": "RFC Forwarded HTTPS with valid Bearer token",
+          "status": 200,
+          "result": "passed"
+        },
+        {
+          "check": "plain HTTP still rejects Bearer token",
+          "status": 403,
+          "result": "passed"
+        },
+        {
+          "check": "forwarded HTTP rejects Bearer token",
+          "status": 403,
+          "result": "passed"
+        },
+        {
+          "check": "invalid token still rejected",
+          "status": 401,
+          "result": "passed"
+        },
+        {
+          "check": "scope enforcement still active",
+          "status": 403,
+          "result": "passed"
+        },
+        {
+          "check": "token revocation",
+          "status": 204,
+          "result": "passed"
+        },
+        {
+          "check": "revoked token still rejected",
+          "status": 401,
+          "result": "passed"
+        },
+        {
+          "check": "packaged process writes application configuration",
+          "result": "passed"
+        }
+      ],
+      "docker_container": false,
+      "non_root_execution": "Unavailable: this environment maps only UID/GID 0; Dockerfile identity and ownership are checked statically"
+    }
+  },
+  "skipped_existing_socket_tests": [
+    {
+      "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+      "test": "multiscanReadsAllNullDelimitedResultsUntilConnectionClose"
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+      "test": "nonResponsiveSocketTimesOutAndClosesWithoutHangingAWorker"
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+      "test": "pingVersionAndStatsUseTheMountedSocketAndCorrectTerminators"
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+      "test": "cleanErrorsAndEmptyRepliesAreDistinct"
+    },
+    {
+      "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+      "test": "instreamSendsLengthPrefixedChunksAndAZeroTerminatorThenReturnsDetections"
+    }
+  ],
+  "optional_deployment_helper": {
+    "method": "Actual Bash helper executed against a simulated Docker CLI; no Docker image/runtime execution",
+    "scenarios": [
+      {
+        "scenario": "existing",
+        "result": "passed"
+      },
+      {
+        "scenario": "fresh",
+        "result": "passed"
+      },
+      {
+        "scenario": "already_owned",
+        "result": "passed"
+      },
+      {
+        "scenario": "build_failure",
+        "result": "passed"
+      },
+      {
+        "scenario": "permission_failure",
+        "result": "passed"
+      },
+      {
+        "scenario": "unmanaged_override",
+        "result": "passed"
+      },
+      {
+        "scenario": "wrong_user",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_enabled",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_retained",
+        "result": "passed"
+      },
+      {
+        "scenario": "proxy_disabled",
+        "result": "passed"
+      }
+    ]
+  },
+  "other_checks": {
+    "shell_syntax": "5 files passed",
+    "compose_and_workflow_yaml": "14 files passed",
+    "phase_1_2_4_static_checks": "passed",
+    "i18n_static_checks": "passed",
+    "javascript_configuration_observer": "5 passed",
+    "release_gate_static_only": "Not completed: unchanged browser smoke requires Playwright, which is unavailable"
+  },
+  "docker_runtime": "Docker is not installed in the preparation environment; image build, non-root container execution, native PTY and EICAR container checks were not run",
+  "current_webhook_validation": "webhook-resilience-validation.json"
+}

@@ -1,0 +1,13 @@
+# Optional tuning; all values below are already packaged application defaults.
+# Change allow-private-addresses to true only for an intentional internal receiver.
+# Combine with your existing deployment Compose and preserve its database/volumes.
+services:
+  clamav-web-client:
+    environment:
+      CLAMAV_WEBHOOK_CONNECT_TIMEOUT: "${CLAMAV_WEBHOOK_CONNECT_TIMEOUT:-5s}"
+      CLAMAV_WEBHOOK_READ_TIMEOUT: "${CLAMAV_WEBHOOK_READ_TIMEOUT:-10s}"
+      CLAMAV_WEBHOOK_DNS_TIMEOUT: "${CLAMAV_WEBHOOK_DNS_TIMEOUT:-5s}"
+      CLAMAV_WEBHOOK_DELIVERY_TIMEOUT: "${CLAMAV_WEBHOOK_DELIVERY_TIMEOUT:-20s}"
+      CLAMAV_WEBHOOK_WORKERS: "${CLAMAV_WEBHOOK_WORKERS:-2}"
+      CLAMAV_WEBHOOK_QUEUE_CAPACITY: "${CLAMAV_WEBHOOK_QUEUE_CAPACITY:-100}"
+      CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES: "${CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES:-false}"

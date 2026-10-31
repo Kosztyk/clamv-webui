@@ -23,7 +23,11 @@ node scripts/test-configuration-observer.js
 printf '\n[4/7] Six-language catalog and browser smoke (if installed)\n'
 python3 scripts/check-i18n.py
 printf '\n[5/7] LDAP/OIDC Save/Test browser routes (if installed)\n'
-python3 scripts/test_authentication_form_routes.py
+if python3 -c 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec("playwright") else 1)'; then
+  python3 scripts/test_authentication_form_routes.py
+else
+  printf 'SKIPPED: LDAP/OIDC Chromium tests (Playwright not installed; CI installs Playwright and Chromium)\n'
+fi
 printf '\n[6/7] Build/test class and executable script checks\n'
 python3 - <<'PY'
 from pathlib import Path

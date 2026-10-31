@@ -100,7 +100,7 @@ OIDC discovery is delayed until first SSO login, so a temporarily offline IdP **
 
 `CLAMAV_IDENTITY_OIDC_LOGOUT_MODE=local` only invalidates the local session; `provider` uses Spring's OIDC RP-initiated logout when supported. Always log out and back in after changing IdP groups.
 
-For NGINX reverse proxy, forward the original public host/protocol **only from a trusted proxy**; sanitize incoming `Forwarded`/`X-Forwarded-*` headers at the edge, and use `SERVER_FORWARD_HEADERS_STRATEGY=framework` only in that deployment. Do not enable blindly for a publicly reachable backend, where spoofed headers can poison redirect URIs. Set a secure session cookie in HTTPS deployments.
+For NGINX reverse proxy, forward the original public host/protocol **only from a trusted proxy**; sanitize incoming `Forwarded`/`X-Forwarded-*` headers at the edge, and restrict backend access to that proxy. The application now defaults to `framework`; explicitly set `SERVER_FORWARD_HEADERS_STRATEGY=none` for direct-access deployments that must ignore forwarded headers. A publicly reachable backend that trusts spoofed headers can poison redirect URIs. Set a secure session cookie in HTTPS deployments.
 
 ### Verification checklist
 

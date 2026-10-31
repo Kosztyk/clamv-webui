@@ -180,6 +180,28 @@ class UiSmokeTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("native-clamdtop-connect")));
     }
 
+    @Test @WithMockUser(roles={"ADMIN"})
+    void privateWebhookCannotBeEnabledByChangingAFormParameter() throws Exception {
+        String original = settings.webhookUrl();
+        boolean enabled = settings.webhookEnabled();
+        try {
+            settings.updateFromMap(Map.of("app.webhook.url", "", "app.webhook.enabled", "false"));
+            for (String url : new String[]{"http://192.168.68.112/hook", "http://169.254.169.254/latest/meta-data", "http://[::1]/hook"}) {
+                mvc.perform(post("/admin/settings").with(csrf())
+                        .param("app.webhook.url", url).param("app.webhook.enabled", "true")
+                        .param("clamav.webhook.allow-private-addresses", "true"))
+                    .andExpect(status().is3xxRedirection()).andExpect(flash().attributeExists("errorMsg"));
+                assertThat(settings.webhookUrl()).isBlank();
+                assertThat(settings.webhookEnabled()).isFalse();
+            }
+            mvc.perform(get("/admin/settings")).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Private and local network destinations are blocked")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Notifications run in the background")));
+        } finally {
+            settings.updateFromMap(Map.of("app.webhook.url", original, "app.webhook.enabled", String.valueOf(enabled)));
+        }
+    }
+
     @Test void authenticationIsRequiredForDashboard() throws Exception {
         mvc.perform(get("/dashboard").accept(MediaType.TEXT_HTML)).andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/login"));

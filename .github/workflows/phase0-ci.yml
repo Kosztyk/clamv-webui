@@ -17,16 +17,33 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser regression dependencies
+        run: |
+          python -m pip install playwright==1.64.1
+          python -m playwright install --with-deps chromium
+          echo "CHROMIUM_PATH=$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')" >> "$GITHUB_ENV"
       - name: Test and package from clean checkout
         run: mvn -B -ntp verify
+      - name: Verify server deployment helper and proxy-mode persistence
+        run: python3 scripts/test-server-deployment-helper.py
       - name: Verify source, six languages, and authentication routes
         run: bash scripts/release-gate.sh --static-only
       - name: Validate Docker Compose
         run: docker compose config --quiet
       - name: Build deployment Docker image (includes Maven verification)
         run: docker compose build --pull
+      - name: Prepare non-root bind mounts on the Linux runner
+        run: |
+          mkdir -p conf data
+          sudo chown -R 10001:10001 conf data
+          sudo chmod -R u+rwX conf data
       - name: Start web UI and ClamAV
         run: docker compose up -d --no-build
+      - name: Verify non-root identity, writable volumes and native PTY
+        run: bash scripts/smoke-non-root.sh
       - name: Verify web login, daemon, native MULTISCAN/EICAR and audit
         run: bash scripts/smoke-eicar.sh
       - name: Check ClamdTop page and native mode configuration
@@ -34,7 +51,7 @@ jobs:
           test "$(docker compose exec -T clamav-web-client printenv CLAMAV_UPLOAD_PATH_SCAN_ENABLED)" = true
           test "$(docker compose exec -T clamav-web-client printenv CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM)" = false
           curl --fail --silent http://127.0.0.1:8080/login | grep -q 'ClamAV Web UI'
-          test -s data/bootstrap-admin-password
+          docker compose exec -T clamav-web-client test -s /app/data/bootstrap-admin-password
       - name: Verify Prometheus is fail-closed without a configured token
         run: |
           actual=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/actuator/prometheus)

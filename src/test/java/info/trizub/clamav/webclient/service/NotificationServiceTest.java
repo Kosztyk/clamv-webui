@@ -6,6 +6,8 @@ import com.sun.net.httpserver.HttpServer;
 import info.trizub.clamav.webclient.model.ScanJob;
 import info.trizub.clamav.webclient.model.ScanJobType;
 import info.trizub.clamav.webclient.model.ScanVerdict;
+import info.trizub.clamav.webclient.config.WebhookNotificationConfiguration;
+import info.trizub.clamav.webclient.config.WebhookNotificationProperties;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
@@ -77,16 +79,23 @@ class NotificationServiceTest {
             }
         });
         server.start();
-        try {
+        var properties = new WebhookNotificationProperties();
+        properties.setAllowPrivateAddresses(true); // This test intentionally hosts an internal receiver.
+        var executor = new WebhookNotificationConfiguration().webhookNotificationExecutor(properties);
+        try (var policy = new WebhookAddressPolicy(properties);
+             var client = new WebhookDeliveryClient(policy, properties)) {
             SettingsService settings = mock(SettingsService.class);
             when(settings.webhookEnabled()).thenReturn(true);
             when(settings.webhookUrl()).thenReturn("http://127.0.0.1:" + server.getAddress().getPort() + "/hook");
-            NotificationService notification = new NotificationService(settings, json);
+            NotificationService notification = new NotificationService(settings, json, client, executor);
             notification.notifyIfNeeded(job(ScanVerdict.OK));
             notification.notifyIfNeeded(job(ScanVerdict.ERROR));
             String first = requests.poll(3, TimeUnit.SECONDS), second = requests.poll(3, TimeUnit.SECONDS);
-            assertThat(first).contains("\"verdict\":\"OK\"");
-            assertThat(second).contains("\"verdict\":\"ERROR\"");
-        } finally { server.stop(0); }
+            // Dedicated workers may complete in either order; both outcomes must still be delivered.
+            assertThat(first).isNotNull();
+            assertThat(second).isNotNull();
+            assertThat(java.util.List.of(json.readTree(first).path("verdict").asText(),
+                json.readTree(second).path("verdict").asText())).containsExactlyInAnyOrder("OK", "ERROR");
+        } finally { executor.shutdownNow(); server.stop(0); }
     }
 }

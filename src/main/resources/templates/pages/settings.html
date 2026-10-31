@@ -39,6 +39,9 @@
         </div>
       </div>
       <label class="webhook-remove"><input type="checkbox" name="app.webhook.clear" value="true" /> Remove the saved webhook URL and disable notifications</label>
+      <p class="muted small mt-2">Notifications run in the background. A slow receiver cannot hold up the scan queue. Connection timeout: <span th:text="${webhookConnectTimeoutMs}">5000</span> ms; response timeout: <span th:text="${webhookReadTimeoutMs}">10000</span> ms.</p>
+      <p class="muted small" th:unless="${webhookPrivateAllowed}">Private and local network destinations are blocked. An operator can enable internal receivers in the server configuration.</p>
+      <p class="muted small" th:if="${webhookPrivateAllowed}">Internal receivers are enabled by server policy. Metadata, link-local and multicast destinations remain blocked.</p>
       <p class="muted small mt-2">This setting notifies on direct GUI scans. For external REST API scans, select a webhook configured on the external API service in API Scan. Discord webhook URLs must use HTTPS.</p>
     </fieldset>
 
