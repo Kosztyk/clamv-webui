@@ -12,7 +12,7 @@ Use a clean source directory separate from your live deployment's `conf`,
 ```bash
 git clone https://github.com/Kosztyk/clamv-webui.git clamv-webui-source
 cd clamv-webui-source
-docker build --pull -t clamav-web-client:2.0.0-local .
+docker build --pull -t clamav-web-client:2.1.0-local .
 ```
 
 If you already have the latest complete source archive, extract it and run the
@@ -26,7 +26,7 @@ deployment's Compose file**, select the tested local image for the Web UI:
 ```yaml
 services:
   clamav-web-client:
-    image: clamav-web-client:2.0.0-local
+    image: clamav-web-client:2.1.0-local
     pull_policy: never
     # Preserve the rest of your existing configuration.
 ```
@@ -117,7 +117,7 @@ Replace the example IP with your own LAN address. This one diagnostic uses only
 a fake token and skips certificate verification:
 
 ```bash
-APP_URL='https://192.168.1.50'
+APP_URL='https://192.0.2.10'
 curl -k -sS -i --max-time 15 \
   -H 'Authorization: Bearer deliberately-invalid' \
   "$APP_URL/api/v1/health/live"
@@ -137,12 +137,12 @@ curl --cacert "$TLS_CA" -sS -i --max-time 15 \
 ```
 
 The IP/hostname in `APP_URL` must match the certificate's SAN. If the certificate
-only contains a local name such as `clamav.home`, you can test that name without
+only contains a local name such as `clamav.example.internal`, you can test that name without
 public DNS or editing `/etc/hosts`:
 
 ```bash
-APP_URL='https://clamav.home'
-curl --cacert "$TLS_CA" --resolve 'clamav.home:443:192.168.1.50' \
+APP_URL='https://clamav.example.internal'
+curl --cacert "$TLS_CA" --resolve 'clamav.example.internal:443:192.0.2.10' \
   -sS -i --max-time 15 \
   -H 'Authorization: Bearer deliberately-invalid' \
   "$APP_URL/api/v1/health/live"

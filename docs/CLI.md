@@ -1,4 +1,4 @@
-# Official CLI — clamctl v2.0.0
+# Official CLI — clamctl v2.1.0
 
 TLS termination at a reverse proxy/Ingress is supported by the Web UI's packaged
 `framework` default. No server helper flag is required. Keep its backend
@@ -33,7 +33,7 @@ precedence, private CA support, credential storage and CI exit-code semantics.
   are absent/null rather than fabricated zeros. Raw commands, filenames and
   arbitrary daemon text are not exposed through this route.
 - The maintained OpenAPI contract is updated to `1.2.0-mcp`; API route prefix
-  remains `/api/v1`, and application/CLI version remains `2.0.0`.
+  remains `/api/v1`; the application and CLI release version is `2.1.0`.
 
 These are response additions and authenticated helper routes. No database schema,
 Maven dependency, endpoint, identity configuration or existing scan engine change

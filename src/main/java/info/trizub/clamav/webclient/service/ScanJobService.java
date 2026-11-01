@@ -88,6 +88,7 @@ public class ScanJobService {
 
     @Transactional
     public List<ScanJob> createUploadJobs(List<MultipartFile> files, ClamdEndpoint endpoint, String username, String transport) {
+        requireEnabled(endpoint);
         List<ScanJob> jobs = new ArrayList<>();
         record PendingUpload(MultipartFile file, String id, String name, Path stored) {}
         List<PendingUpload> pending = new ArrayList<>();
@@ -149,6 +150,7 @@ public class ScanJobService {
 
     @Transactional
     public ScanJob createPathJob(String path, ClamdEndpoint endpoint, String username, String transport) {
+        requireEnabled(endpoint);
         daemonPolicy.requireNotExcluded(PathPolicy.normalize(path),endpoint);
         Path requested = PathPolicy.requireAllowed(PathPolicy.normalize(path), settings.allowedRoots());
         daemonPolicy.requirePath(requested,endpoint);
@@ -170,6 +172,7 @@ public class ScanJobService {
 
     @Transactional
     public ScanJob createWatchFileJob(Path file, ClamdEndpoint endpoint, String username) {
+        requireEnabled(endpoint);
         Path requested = PathPolicy.requireAllowed(file,settings.allowedRoots());
         daemonPolicy.requirePath(requested,endpoint);
         String id = UUID.randomUUID().toString().replace("-", "");
@@ -188,6 +191,10 @@ public class ScanJobService {
     }
 
     
+private static void requireEnabled(ClamdEndpoint endpoint) {
+    if (endpoint == null || !endpoint.isEnabled()) throw new IllegalArgumentException("Endpoint is disabled");
+}
+
 private void enqueueAfterCommit(String jobId) {
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

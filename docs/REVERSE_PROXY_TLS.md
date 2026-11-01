@@ -9,7 +9,7 @@ server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}
 A normal build packages this configuration into the JAR:
 
 ```bash
-docker build --pull -t clamav-web-client:2.0.0-local .
+docker build --pull -t clamav-web-client:2.1.0-local .
 ```
 
 No helper script, `--trusted-proxy` option, custom build argument or environment

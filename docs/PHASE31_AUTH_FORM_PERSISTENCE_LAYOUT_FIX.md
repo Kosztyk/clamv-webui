@@ -1,5 +1,7 @@
 # v2.0.0 — Authentication form persistence and responsive shell fix
 
+> **Current v2.1.0 configuration:** global application fields are edited only in Configuration Center. Former Settings/Authentication bookmarks redirect there; old provider, metrics and observer write routes are retired. Use Test connection, Review changes and Apply; restart provider changes when indicated. Diagnostic/client pages remain read-only. Earlier form behavior described below is historical. See [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [current setup](CONFIGURATION_CENTER.md).
+
 This is a source-preserving maintenance update to the Phase 3.1 application. It does not change Flyway migrations, the PostgreSQL schema, configured provider credentials, scan jobs, the API, or the ClamdTop implementation.
 
 ## What changed

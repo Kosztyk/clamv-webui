@@ -17,7 +17,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * UI settings override startup environment settings, but only after an explicit save.
+ * Deployment settings override Configuration Center, then legacy UI settings.
  * Secrets are AES-256-GCM encrypted at rest; the independent key lives on a mounted
  * Docker secret / persistent conf volume, not in the database. Never echo secrets.
  * This service is per instance; it is NOT a distributed HA config bus.
@@ -25,6 +25,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 @DependsOn("flywayInitializer")
 public class AuthenticationSettingsService {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private org.springframework.core.env.Environment environment;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
     private final IdentityProperties active;
@@ -56,23 +58,25 @@ public class AuthenticationSettingsService {
             apply(provider, options, secret, encrypted!=null);
             lastChangeBy=rs.getString(4);
         });
+        for(String provider:List.of("ldap","oidc")) if(!persisted.containsKey(provider))
+            apply(provider,snapshot(provider),environmentalSecret(provider),true);
         revision.incrementAndGet();
     }
     public long revision() { return revision.get(); }
     public IdentityProperties properties() { return active; }
     public synchronized boolean uiManaged(String name) { return persisted.containsKey(name); }
     public synchronized boolean hasSecret(String name) {
-        if (Boolean.TRUE.equals(secretSaved.get(name))) return true;
-        return !environmentalSecret(name).isBlank();
+        return !effectiveSecret(name).isBlank();
     }
     public synchronized Map<String,String> values(String provider) {
         Map<String,String> values = new LinkedHashMap<>(snapshot(provider));
         values.putAll(persisted.getOrDefault(provider, Map.of()));
-        return Map.copyOf(values);
+        return Map.copyOf(configurationOverrides(provider,values));
     }
     public synchronized void save(String provider, Map<String,String> submitted, String replacementSecret, String operator) {
         checkProvider(provider);
-        Map<String,String> normalized=normalize(provider, submitted);
+        Map<String,String> normalized=draft(provider,submitted);
+        requireEditableSecret(provider,replacementSecret);
         String oldCipher=jdbc.query("SELECT encrypted_secret FROM auth_provider_settings WHERE provider=?", rs -> rs.next() ? rs.getString(1) : null, provider);
         String cipher=replacementSecret!=null && !replacementSecret.isBlank() ? encrypt(replacementSecret) : oldCipher;
         String effectiveSecret=cipher!=null ? decrypt(cipher) : environmentalSecret(provider);
@@ -92,17 +96,23 @@ public class AuthenticationSettingsService {
     public synchronized String effectiveSecret(String provider) {
         checkProvider(provider);
         String cipher=jdbc.query("SELECT encrypted_secret FROM auth_provider_settings WHERE provider=?", rs -> rs.next()?rs.getString(1):null, provider);
-        return cipher!=null?decrypt(cipher):environmentalSecret(provider);
+        return configurationSecret(provider,cipher!=null?decrypt(cipher):environmentalSecret(provider));
     }
     public synchronized Map<String,String> draft(String provider, Map<String,String> submitted) {
-        return normalize(provider,submitted);
+        if (centerManaged(provider)) throw new IllegalArgumentException(provider.toUpperCase(Locale.ROOT)+" is managed by Configuration Center; edit it there and apply the required restart");
+        Map<String,String> normalized=normalize(provider, submitted);
+        if(!configurationOverrides(provider,normalized).equals(normalized))
+            throw new IllegalArgumentException(provider.toUpperCase(Locale.ROOT)+" contains deployment-controlled fields; inspect their source in Configuration Center");
+        return normalized;
     }
     public synchronized void validateDraft(String provider, Map<String,String> fields, String replacement) {
+        requireEditableSecret(provider,replacement);
         validate(provider, normalize(provider,fields), replacement!=null&&!replacement.isBlank()?replacement:effectiveSecret(provider));
     }
     private String environmentalSecret(String provider) {
         checkProvider(provider);
-        return bootstrapSecrets.get(provider).resolve();
+        String configured=configurationSecret(provider,null);
+        return configured!=null?configured:bootstrapSecrets.get(provider).resolve();
     }
     private static void checkProvider(String provider) {
         if (!"ldap".equals(provider) && !"oidc".equals(provider)) throw new IllegalArgumentException("Unsupported provider");
@@ -114,6 +124,9 @@ public class AuthenticationSettingsService {
         target.setViewer(val(settings,"viewer",""));target.setOperator(val(settings,"operator",""));target.setAdmin(val(settings,"admin",""));
     }
     private synchronized void apply(String provider,Map<String,String> m,String secret,boolean encrypted) {
+        m=configurationOverrides(provider,m);
+        String configured=configurationSecret(provider,secret);
+        if(!Objects.equals(configured,secret)) { secret=configured;encrypted=true; }
         if (provider.equals("ldap")) {
             IdentityProperties.Ldap l=active.getLdap();
             l.setEnabled(flag(m,"enabled"));l.setUrl(val(m,"url",""));l.setBaseDn(val(m,"baseDn",""));
@@ -190,8 +203,15 @@ public class AuthenticationSettingsService {
         for(String key:List.of("startTls","nestedGroups","pooled")) if(provider.equals("ldap")) normalized.put(key,Boolean.toString(flag(normalized,key)));
         return normalized;
     }
-    static void validate(String provider, Map<String,String> m,String secret) {
+    public static Set<String> optionKeys(String provider) {
         checkProvider(provider);
+        return provider.equals("ldap")?LDAP_KEYS:OIDC_KEYS;
+    }
+    public static void validate(String provider, Map<String,String> m,String secret) {
+        checkProvider(provider);
+        for (String value:m.values())
+            if(value==null || value.length()>1024 || value.indexOf('\0')>=0 || value.indexOf('\n')>=0 || value.indexOf('\r')>=0)
+                throw new IllegalArgumentException("Invalid identity configuration value");
         if (provider.equals("ldap")) {
             LdapGroupSearchFilter.validate(val(m,"groupSearchFilter",""), val(m,"groupMemberAttribute","member"), flag(m,"nestedGroups"));
             if (number(m,"connectTimeoutMillis",5000)<1000 || number(m,"connectTimeoutMillis",5000)>30000 ||
@@ -231,6 +251,52 @@ public class AuthenticationSettingsService {
     private Map<String,String> parse(String jsonText) {
         try {return json.readValue(jsonText,new TypeReference<LinkedHashMap<String,String>>(){});}
         catch(Exception e){throw new IllegalStateException("Invalid persisted authentication configuration",e);}
+    }
+
+    public boolean centerManaged(String provider) {
+        if(environment==null) return false;
+        return info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment)
+            .map(store->store.snapshot().values().keySet().stream().anyMatch(k->k.startsWith("clamav.identity."+provider+"."))).orElse(false);
+    }
+    private Map<String,String> configurationOverrides(String provider,Map<String,String> input) {
+        Map<String,String> values=new LinkedHashMap<>(input);
+        if(environment==null) return values;
+        for(var field:info.trizub.clamav.webclient.configuration.ConfigurationCatalog.all()) {
+            if(!field.section().equals(provider) || field.secret() || field.legacy().isBlank()) continue;
+            String replacement=configurationValue(field);
+            if(replacement!=null) values.put(field.legacy(),replacement);
+        }
+        return values;
+    }
+    private String configurationValue(info.trizub.clamav.webclient.configuration.ConfigurationSetting field) {
+        if(environment==null) return null;
+        return info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,field)
+            .map(info.trizub.clamav.webclient.configuration.ConfigurationSource.Override::value)
+            .orElseGet(()->info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment)
+                .flatMap(store->store.active(field.key())).orElse(null));
+    }
+    private String configurationSecret(String provider,String fallback) {
+        if(environment==null) return fallback;
+        String base="clamav.identity."+provider+".";
+        String suffix=provider.equals("ldap")?"manager-password":"client-secret";
+        String direct=configurationValue(info.trizub.clamav.webclient.configuration.ConfigurationCatalog.get(base+suffix));
+        if(direct!=null && !direct.isBlank()) return direct;
+        String file=configurationValue(info.trizub.clamav.webclient.configuration.ConfigurationCatalog.get(base+suffix+"-file"));
+        return file==null || file.isBlank()?(direct==null?fallback:direct):SecretResolver.resolve("",file);
+    }
+    public Set<String> lockedFields(String provider) {
+        Set<String> fields=new LinkedHashSet<>();
+        if(environment==null) return fields;
+        boolean managed=centerManaged(provider);
+        for(var field:info.trizub.clamav.webclient.configuration.ConfigurationCatalog.all())
+            if(field.section().equals(provider) && (managed || info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,field).isPresent())) {
+                if(field.secret()) fields.add("secret");else if(!field.legacy().isBlank()) fields.add(field.legacy());
+            }
+        return fields;
+    }
+    public void requireEditableSecret(String provider,String replacement) {
+        if(replacement!=null && !replacement.isBlank() && lockedFields(provider).contains("secret"))
+            throw new IllegalArgumentException(provider.toUpperCase(Locale.ROOT)+" secret is controlled by deployment configuration or Configuration Center");
     }
     private String serialize(Map<String,String> data) {
         try{return json.writeValueAsString(data);}catch(Exception e){throw new IllegalStateException("Could not encode provider configuration",e);}

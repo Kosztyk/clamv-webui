@@ -1,6 +1,8 @@
 # Prometheus / Grafana metric contract (issue #7)
 
-The application remains v2.0.0. The existing LDAP/OIDC changes, database setup and
+> **Current v2.1.0 configuration:** global application fields are edited only in Configuration Center. Former Settings/Authentication bookmarks redirect there; old provider, metrics and observer write routes are retired. Use Test connection, Review changes and Apply; restart provider changes when indicated. Diagnostic/client pages remain read-only. Earlier form behavior described below is historical. See [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [current setup](CONFIGURATION_CENTER.md).
+
+This guide applies to application v2.1.0. The existing LDAP/OIDC changes, database setup and
 mounted configuration/data remain compatible. No database migration is required.
 
 ## Public metrics

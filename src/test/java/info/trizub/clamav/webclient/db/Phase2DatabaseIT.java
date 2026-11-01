@@ -32,7 +32,18 @@ class Phase2DatabaseIT {
     }
     private void run(JdbcDatabaseContainer<?> c,String vendor) throws Exception {
         String url=c.getJdbcUrl(),user=c.getUsername(),pass=c.getPassword();
+        var draft=new java.util.LinkedHashMap<>(info.trizub.clamav.webclient.configuration.ConfigurationCatalog.defaults());
+        draft.put("spring.datasource.url",url);draft.put("spring.datasource.username",user);draft.put("spring.datasource.password",pass);
+        try(var probe=new info.trizub.clamav.webclient.configuration.ConfigurationConnectionTester()) {
+            assertEquals(true,probe.test("database",draft).get("ok"),"Unsaved draft must connect before migrations");
+            var wrong=new java.util.LinkedHashMap<>(draft);wrong.put("spring.datasource.password","synthetic-invalid-probe-password");
+            var rejected=assertThrows(IllegalArgumentException.class,()->probe.test("database",wrong));
+            assertTrue(rejected.getMessage().contains("authentication failed"));assertFalse(rejected.getMessage().contains(pass));
+        }
         Phase2MigrationFixture.fresh(url,user,pass,vendor);
         Phase2MigrationFixture.legacy(url,user,pass,vendor);
+        try(var probe=new info.trizub.clamav.webclient.configuration.ConfigurationConnectionTester()) {
+            assertEquals(true,probe.test("database",draft).get("ok"),"Same draft must work after migration/startup");
+        }
     }
 }

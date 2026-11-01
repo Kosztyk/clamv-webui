@@ -47,9 +47,14 @@
     p.classList.toggle('is-active', !!on);
   }
 
+  function cacheable(path) {
+    // Administrative state and live jobs must be fetched on every visit, also
+    // when the application is deployed under a servlet context prefix.
+    return !/(?:^|\/)(?:admin|jobs)(?:\/|$)/.test(path);
+  }
+
   function getCached(path) {
-    // Never serve a stale Authentication form or secret-configuration status.
-    if (path === '/admin/settings/authentication' || path === '/admin/configuration' || path === '/admin/integrations' || path === '/admin/api-tokens') return null;
+    if (!cacheable(path)) return null;
     const item = cache.get(path);
     if (!item) return null;
     if ((Date.now() - item.ts) > CACHE_TTL_MS) { cache.delete(path); return null; }
@@ -118,8 +123,8 @@
 
     const cached = getCached(targetPath);
     if (cached) {
-      swapIntoMain(main, cached);
       if (push) history.pushState({ pjax: true }, '', url);
+      swapIntoMain(main, cached);
       setLoadingTab(targetPath, false);
       showProgress(false);
       return;
@@ -127,9 +132,9 @@
 
     try {
       const payload = await fetchPage(url, inFlight.signal);
-      if (targetPath !== '/admin/settings/authentication' && targetPath !== '/admin/configuration' && targetPath !== '/admin/integrations' && targetPath !== '/admin/api-tokens') cache.set(targetPath, { ...payload, ts: Date.now() });
-      swapIntoMain(main, payload);
+      if (cacheable(targetPath)) cache.set(targetPath, { ...payload, ts: Date.now() });
       if (push) history.pushState({ pjax: true }, '', url);
+      swapIntoMain(main, payload);
     } catch (e) {
       if (e && e.name === 'AbortError') return;
       window.location.href = url;
@@ -159,7 +164,7 @@
   async function prefetch(href) {
     if (!href || !sameOrigin(href)) return;
     const path = pathOf(href);
-    if (!path || path === '/admin/settings/authentication' || path === '/admin/configuration' || path === '/admin/integrations' || path === '/admin/api-tokens') return;
+    if (!path || !cacheable(path)) return;
     if (getCached(path)) return;
 
     const ac = new AbortController();

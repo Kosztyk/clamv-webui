@@ -48,6 +48,11 @@ class LazyOidcClientRegistrationRepositoryTest {
             assertThat(repository.findByRegistrationId("clamav").getScopes())
                 .containsExactlyInAnyOrder("openid", "email", "custom:read").doesNotContain("groups");
             discovery.verify(() -> ClientRegistrations.fromIssuerLocation(oidc.getIssuer()), times(2));
+            org.springframework.test.util.ReflectionTestUtils.setField(repository,"environment",
+                new org.springframework.mock.env.MockEnvironment().withProperty("clamav.public-url","https://app.example/clamav/"));
+            when(settings.revision()).thenReturn(3L);
+            assertThat(repository.findByRegistrationId("clamav").getRedirectUri())
+                .isEqualTo("https://app.example/clamav/login/oauth2/code/{registrationId}");
         }
     }
 

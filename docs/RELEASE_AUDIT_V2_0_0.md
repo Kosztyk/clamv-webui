@@ -45,7 +45,7 @@ After a clean build, verify on the **existing** application:
 
 ## Important: preserve running configuration
 
-Do **not** overwrite your live `docker-compose.yml`, `.env`, `conf/`, `data/`, LDAP truststore, PostgreSQL database or nginx config when extracting the source. The bundled Compose is only an example. The production installation uses ClamAV UI `192.168.68.112:8081` behind HTTPS NGINX `192.168.68.112:443` and may have different service/environment configuration.
+Do **not** overwrite your live `docker-compose.yml`, `.env`, `conf/`, `data/`, LDAP truststore, PostgreSQL database or nginx config when extracting the source. The bundled Compose is only an example. Use the addresses, ports and mounts belonging to the deployment being upgraded; no production topology is bundled.
 
 ## Release disposition
 

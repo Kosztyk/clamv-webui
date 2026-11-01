@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	version := flag.String("version", "2.0.0", "CLI version")
+	version := flag.String("version", "2.1.0", "CLI version")
 	out := flag.String("out", "dist", "Output directory")
 	targets := flag.String("targets", "linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64", "Comma-separated GOOS/GOARCH pairs")
 	flag.Parse()

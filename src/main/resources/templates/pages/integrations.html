@@ -1,22 +1,17 @@
 <!doctype html><html xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}">
 <section class="admin-page">
-  <header class="admin-page-header"><div class="admin-page-icon"><i class="fas fa-plug" aria-hidden="true"></i></div><div><h1>Monitoring &amp; clients</h1><p class="muted">Configure Prometheus access and connect your terminal or AI assistant.</p></div></header>
-  <div class="admin-callout"><strong>Where does each setting belong?</strong><p>Prometheus access and file observation can change live here. LDAP and OIDC are managed under Authentication. Database connections, mounted files and listener ports are deployment settings. CLI and MCP run on the machine that needs access to the files.</p></div>
+  <header class="admin-page-header"><div class="admin-page-icon"><i class="fas fa-plug" aria-hidden="true"></i></div><div><h1>Monitoring &amp; clients</h1><p class="muted">Inspect monitoring status and connect your terminal or AI assistant.</p></div></header>
+  <div class="admin-callout"><strong>Configuration and connection guidance</strong><p>All application settings are edited in Configuration Center. This page provides monitoring status, client instructions and downloads. Mounts, host ports and image tags stay in deployment configuration. CLI and MCP run on the machine holding their files.</p><a th:href="@{/admin/configuration-center(section='metrics')}">Open monitoring settings</a></div>
+  <p class="alert alert-info" th:if="${publicUrl != null and !#strings.isEmpty(publicUrl)}">Configured HTTPS application URL: <code th:text="${publicUrl}"></code>. Use this base URL for CLI and MCP clients.</p>
   <section class="panel admin-card">
     <div class="admin-card-heading"><h2><i class="fas fa-chart-line" aria-hidden="true"></i> Prometheus &amp; Grafana</h2><span class="admin-status" th:text="${metricsEnabled and metricsConfigured ? 'Scraping enabled' : 'Scraping disabled'}"></span></div>
     <p>Export scan counts, detections, scan duration and ClamD health at <code>/actuator/prometheus</code>. The dashboard in this application continues working when scraping is disabled.</p>
-    <p class="muted" th:text="${metricsManaged ? 'Saved in UI · overrides container defaults' : 'Using container defaults'}"></p>
-    <div th:if="${newScrapeToken}" class="alert alert-warning" role="status"><strong>New scrape token — copy now</strong><code class="admin-secret" th:text="${newScrapeToken}"></code><p>Save it in Prometheus credentials. The previous scrape token has stopped working. This is separate from your API token.</p></div>
-    <form method="post" th:action="@{/admin/integrations/prometheus}" autocomplete="off" class="admin-form">
-      <label class="admin-toggle"><input type="checkbox" name="enabled" value="true" th:checked="${metricsEnabled}"/> Allow Prometheus scrapes</label>
-      <label>Replace scrape token<input class="form-control" type="password" name="token" maxlength="4096" autocomplete="new-password" placeholder="Leave blank to keep the current token"/></label>
-      <p class="muted" th:text="${metricsConfigured ? 'A token is configured. Its value cannot be displayed.' : 'No token configured. Generate one before enabling scraping.'}"></p>
-      <p class="muted">Saving takes effect immediately. Tokens saved here are stored as hashes on the persistent conf volume.</p>
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <div class="admin-actions"><button class="btn btn-primary" name="action" value="save">Save Prometheus settings</button><button class="btn btn-outline-primary" name="action" value="generate">Generate new token &amp; enable</button><button class="btn btn-outline-secondary" name="action" value="reset">Use container defaults</button></div>
-    </form>
+    <p class="muted" th:text="${metricsManaged ? 'Legacy UI settings present · deployment and central values take precedence' : 'Using effective application configuration'}"></p>
+    <p class="muted" th:text="${metricsConfigured ? 'A scrape token is configured; its saved value is private.' : 'No scrape token is configured.'}"></p>
+    <a class="btn btn-primary" th:href="@{/admin/configuration-center(section='metrics')}">Configure Prometheus in Configuration Center</a>
+
     <details class="admin-details"><summary>Connection details and Grafana setup</summary><p>The metrics listener uses port <code th:text="${managementPort}"></code>. ClamD telemetry is sampled every <span th:text="${metricsPollSeconds}"></span> seconds. Use your HTTPS proxy hostname or a protected management listener for the scrape URL.</p>
-      <p>Listener ports and the telemetry sampling interval are container settings: MANAGEMENT_SERVER_PORT and CLAMAV_METRICS_CLAMD_POLL_MS. Recreate the Web UI after changing them. Disabling scraping here does not stop the internal telemetry overview.</p>
+      <p>Listener ports and telemetry sampling are configured in Configuration Center or by authoritative MANAGEMENT_SERVER_PORT and CLAMAV_METRICS_CLAMD_POLL_MS deployment overrides; restart when indicated. Disabling scraping in Configuration Center does not stop the internal telemetry overview.</p>
       <pre data-i18n-ignore>curl --fail --cacert /path/to/lab-ca.crt \
   -H "Authorization: Bearer $CLAMAV_METRICS_TOKEN" \
   https://YOUR_WEB_UI_HOST/actuator/prometheus</pre>
@@ -38,5 +33,5 @@ clamctl scan upload ./sample.txt --wait --json</pre>
       <p class="muted">A server-side toggle cannot start a process on your laptop. HTTP clients that require OAuth need a compatible gateway.</p>
     </section>
   </div>
-  <section class="panel admin-card"><h2><i class="fas fa-vial" aria-hidden="true"></i> Home-lab testing</h2><p>Step-by-step checks for your existing LDAP/PostgreSQL deployment, clean and EICAR scans, Prometheus/Grafana, CLI, MCP, configuration inheritance, permissions and token revocation.</p><a class="btn btn-primary" th:href="@{/admin/integrations/files/testing-guide}" download>Download home-lab testing guide</a><a class="btn btn-outline-primary" th:href="@{/admin/configuration}">Configure file observation</a></section>
+  <section class="panel admin-card"><h2><i class="fas fa-vial" aria-hidden="true"></i> Home-lab testing</h2><p>Step-by-step checks for your existing LDAP/PostgreSQL deployment, clean and EICAR scans, Prometheus/Grafana, CLI, MCP, configuration inheritance, permissions and token revocation.</p><a class="btn btn-primary" th:href="@{/admin/integrations/files/testing-guide}" download>Download home-lab testing guide</a><a class="btn btn-outline-primary" th:href="@{/admin/configuration}">Inspect daemon status and files</a></section>
 </section></html>

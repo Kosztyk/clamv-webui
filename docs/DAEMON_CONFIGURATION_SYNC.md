@@ -1,4 +1,6 @@
-# Mounted ClamAV configuration synchronization — v2.0.0
+# Mounted ClamAV configuration synchronization — v2.1.0
+
+> **Current v2.1.0 configuration:** global application fields are edited only in Configuration Center. Former Settings/Authentication bookmarks redirect there; old provider, metrics and observer write routes are retired. Use Test connection, Review changes and Apply; restart provider changes when indicated. Diagnostic/client pages remain read-only. Earlier form behavior described below is historical. See [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [current setup](CONFIGURATION_CENTER.md).
 
 An explicitly configured `CLAMAV_CONFIG_PATH` enables observation of `clamd.conf`
 and synchronization of the endpoint named `default`. Existing records are updated

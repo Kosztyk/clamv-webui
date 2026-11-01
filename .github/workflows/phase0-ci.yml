@@ -27,6 +27,18 @@ jobs:
           echo "CHROMIUM_PATH=$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')" >> "$GITHUB_ENV"
       - name: Test and package from clean checkout
         run: mvn -B -ntp verify
+      - name: Verify direct HTTP setup and administration in Chromium
+        run: python3 scripts/test_configuration_center_direct.py
+      - name: Verify sole configuration editor, legacy identity upgrade and live job completion
+        run: python3 scripts/test_configuration_center_consolidation.py
+      - name: Audit all configuration fields, runtime settings and self-signed REST TLS
+        run: python3 scripts/test_configuration_center_all_fields.py
+      - name: Verify database tests before startup and after initialization over direct HTTP
+        run: python3 scripts/test_configuration_database_setup.py
+      - name: Verify complete-source GitHub publisher with local Git fixtures
+        run: python3 scripts/test-publish-clamav-webui.py
+      - name: Audit source privacy and runtime-file exclusions
+        run: python3 tools/audit-source-package.py .
       - name: Verify server deployment helper and proxy-mode persistence
         run: python3 scripts/test-server-deployment-helper.py
       - name: Verify source, six languages, and authentication routes
@@ -44,12 +56,12 @@ jobs:
         run: docker compose up -d --no-build
       - name: Verify non-root identity, writable volumes and native PTY
         run: bash scripts/smoke-non-root.sh
+      - name: Complete first-run setup directly over HTTP without a reverse proxy
+        run: python3 scripts/smoke-setup.py
       - name: Verify web login, daemon, native MULTISCAN/EICAR and audit
         run: bash scripts/smoke-eicar.sh
       - name: Check ClamdTop page and native mode configuration
         run: |
-          test "$(docker compose exec -T clamav-web-client printenv CLAMAV_UPLOAD_PATH_SCAN_ENABLED)" = true
-          test "$(docker compose exec -T clamav-web-client printenv CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM)" = false
           curl --fail --silent http://127.0.0.1:8080/login | grep -q 'ClamAV Web UI'
           docker compose exec -T clamav-web-client test -s /app/data/bootstrap-admin-password
       - name: Verify Prometheus is fail-closed without a configured token

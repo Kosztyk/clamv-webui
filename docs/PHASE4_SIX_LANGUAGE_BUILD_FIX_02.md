@@ -3,7 +3,7 @@
 ## Two independent failures fixed
 
 1. Maven Docker build `testCompile`: `SimpleMeterRegistry` is **not** `AutoCloseable`, so `try (var registry = new SimpleMeterRegistry())` fails. Both `ScanMetricsTest` methods now use normal `try/finally` and call `registry.close()` explicitly. The correct `io.micrometer` import from Fix 01 is preserved.
-2. Host `mvn verify`: Maven's `validate`-phase `copy-resources` plugin previously read **every file under `conf`** using `filtering=true`. This attempts to decode the binary `conf/ldap-test-truststore` as text, throwing `MalformedInputException`, and could also copy runtime secrets into `target/conf`. The task now copies **only** `conf/clamav-web-client.properties.example` without filtering. The `.dockerignore` excludes `conf/` entirely to keep mounted credentials/CA/private data out of Docker build context. The runtime container continues to access `/app/conf` via the existing Docker bind mount.
+2. Host `mvn verify`: Maven's `validate`-phase `copy-resources` plugin previously read **every file under `conf`** using `filtering=true`. This attempts to decode the binary `conf/example-truststore.p12` as text, throwing `MalformedInputException`, and could also copy runtime secrets into `target/conf`. The task now copies **only** `conf/clamav-web-client.properties.example` without filtering. The `.dockerignore` excludes `conf/` entirely to keep mounted credentials/CA/private data out of Docker build context. The runtime container continues to access `/app/conf` via the existing Docker bind mount.
 
 ## Deployment — preserve existing settings
 

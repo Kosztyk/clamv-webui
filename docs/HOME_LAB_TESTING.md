@@ -1,5 +1,7 @@
 # ClamAV Web UI: home-lab setup and acceptance tests
 
+> **Current v2.1.0 configuration:** global application fields are edited only in Configuration Center. Former Settings/Authentication bookmarks redirect there; old provider, metrics and observer write routes are retired. Use Test connection, Review changes and Apply; restart provider changes when indicated. Diagnostic/client pages remain read-only. Earlier form behavior described below is historical. See [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [current setup](CONFIGURATION_CENTER.md).
+
 These tests use your existing LDAP login and PostgreSQL deployment. They do not
 replace the database, change Flyway history, delete volumes or require real
 malware. Keep your working Compose file and the existing `conf` and `data`
@@ -49,7 +51,7 @@ saved through this UI. Keep the conf volume private and backed up.
 
    Sign in again and find that same job ID. Its continued presence verifies
    persistence from the application's point of view. For a direct database
-   check, connect to your existing `clamv` database with your usual PostgreSQL
+   check, connect to your existing `appdb` database with your usual PostgreSQL
    client and run only these read-only queries:
 
    ```sql
@@ -123,7 +125,7 @@ clamctl jobs list --limit 5 --json
 clamctl audit list --limit 5
 ```
 
-Expected: version 2.0.0, the authorized endpoint list, connectivity UP, definition
+Expected: version 2.1.0, the authorized endpoint list, connectivity UP, definition
 timestamp/version, thread counts, queue and pool memory when supported by your
 daemon. Unknown values are not evidence of zero use. CLI Basic authentication is
 local account authentication; LDAP/OIDC browser users should use an API token.
@@ -244,7 +246,7 @@ The lab example binds Prometheus at `127.0.0.1:9090` and Grafana at
 `127.0.0.1:3001`. From your Mac, tunnel these ports if Docker is on your server:
 
 ```bash
-ssh -L 9090:127.0.0.1:9090 -L 3001:127.0.0.1:3001 YOUR_SSH_USER@192.168.68.112
+ssh -L 9090:127.0.0.1:9090 -L 3001:127.0.0.1:3001 YOUR_SSH_USER@YOUR_SERVER
 ```
 
 Open http://127.0.0.1:9090/targets: the `clamav-webui` target should be UP. Query:

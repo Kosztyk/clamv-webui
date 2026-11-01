@@ -17,3 +17,8 @@ conf/
 
 # The server image only needs Java sources; standalone CLI binaries are separate.
 cli/dist/
+
+# Exclude populated environment variants and mounted deployment secrets.
+.env.*
+secrets/
+certificates/

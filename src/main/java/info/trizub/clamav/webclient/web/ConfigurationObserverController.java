@@ -71,18 +71,9 @@ public class ConfigurationObserverController {
         model.addAttribute("appOverrides",overrides);
         return "pages/configuration";
     }
-    @PostMapping("/admin/configuration/settings")
-    public String save(@RequestParam(defaultValue="false") boolean enabled,
-            @RequestParam(defaultValue="false") boolean synchronize,@RequestParam(defaultValue="30") long pollSeconds,
-            @RequestParam(defaultValue="save") String action,Authentication auth,HttpServletRequest request,RedirectAttributes redirect) {
-        try {
-            if (action.equals("reset")) integrationSettings.resetObserver();
-            else if (action.equals("save")) integrationSettings.saveObserver(enabled,synchronize,pollSeconds);
-            else throw new IllegalArgumentException("Unknown settings action.");
-            endpoints.pollConfiguration();
-            audit.record(auth,request,"CONFIGURATION_OBSERVER_UPDATE","action="+action,"SUCCESS",null);
-            redirect.addFlashAttribute("successMsg","Configuration observation settings saved. The daemon was not restarted.");
-        } catch (IllegalArgumentException|IllegalStateException ex) { redirect.addFlashAttribute("errorMsg",ex.getMessage()); }
-        return "redirect:/admin/configuration";
+    @PostMapping("/admin/configuration/settings") @ResponseBody
+    public org.springframework.http.ResponseEntity<?> retiredSettings(HttpServletRequest request) {
+        return ConfigurationNavigation.moved(request,"observer");
     }
+
 }

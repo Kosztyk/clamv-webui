@@ -4,9 +4,9 @@ import java.nio.file.Path;
 import java.io.IOException;
 
 /** Secret-file support for Docker/Kubernetes mounted secrets. Never logs contents or paths. */
-final class SecretResolver {
+public final class SecretResolver {
     private SecretResolver() {}
-    static String resolve(String inline, String file) {
+    public static String resolve(String inline, String file) {
         if (file == null || file.isBlank()) return inline == null ? "" : inline;
         if (inline != null && !inline.isBlank())
             throw new IllegalArgumentException("Configure either secret value or secret file, not both");

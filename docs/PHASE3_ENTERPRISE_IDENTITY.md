@@ -16,9 +16,9 @@ Phase 3 extends the working Phase 2 Spring Boot 3.5 / Flyway / PostgreSQL applic
 - Local/LDAP form login failures are throttled at five per account + remote IP per 15-minute window, independent between providers. This is **per-process only**, not a distributed lockout system. Configure perimeter WAF/IdP rate limits if publicly accessible. OIDC lockouts must be enforced by the identity provider.
 - Existing local `admin/admin` credentials are **rejected at startup** instead of silently running a weak emergency account. Rotate those on Phase 2 *before upgrading*. An existing database with no enabled local administrator likewise fails closed; it will not silently promote an unassigned user. New empty DBs generate a cryptographically random one-time local admin password (or require a provided password of at least 12 characters); rotate and securely delete `data/bootstrap-admin-password`.
 
-### Existing PostgreSQL database `clamv`
+### Existing PostgreSQL database `appdb`
 
-1. Stop the web client and take a consistent DB backup before upgrading: `pg_dump -Fc -h 192.168.68.112 -U YOUR_DB_USER -d clamv -f clamv-phase2-before-phase3.dump`. Back up `./conf` and `./data` too. Store the DB dump outside the container and restrict access.
+1. Stop the web client and take a consistent DB backup before upgrading: `pg_dump -Fc -h YOUR_DATABASE_HOST -U YOUR_DB_USER -d appdb -f appdb-phase2-before-phase3.dump`. Back up `./conf` and `./data` too. Store the DB dump outside the container and restrict access.
 2. Confirm `flyway_schema_history` currently reports successful V1 and V2, and that at least one enabled secure local admin exists. **Do not** set `SPRING_FLYWAY_BASELINE_ON_MIGRATE=true`; that flag is only for intentionally baselining old unmanaged databases.
 3. Build the full source: `docker compose build --no-cache clamav-web-client`. Startup should apply V3 automatically. Verify `flyway_schema_history` includes V3, and that `external_identities` exists. Local sign-in and scan history should be unchanged.
 4. Keep OIDC/LDAP disabled until local-login and post-restart scanning tests pass. Enable **one** provider first and verify role mapping before enabling the second.

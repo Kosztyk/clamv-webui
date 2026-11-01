@@ -14,7 +14,7 @@ class LoginAttemptServiceTest {
         for (int i=0;i<5;i++) attempts.fail("local","admin","127.0.0.1");
         assertThat(attempts.locked("local","admin","127.0.0.1")).isTrue();
         assertThat(attempts.locked("ldap","admin","127.0.0.1")).isFalse();
-        assertThat(attempts.locked("local","admin","192.168.68.10")).isFalse();
+        assertThat(attempts.locked("local","admin","198.51.100.20")).isFalse();
         attempts.success("local","admin","127.0.0.1");
         assertThat(attempts.locked("local","admin","127.0.0.1")).isFalse();
         for(int i=0;i<5;i++) attempts.fail("ldap","user","127.0.0.1");

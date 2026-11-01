@@ -1,0 +1,19 @@
+# Build the complete source first:
+#   docker build --pull -t clamav-web-client:2.1.0-local .
+# Start this example from the repository root. Conf/data must be writable by UID 10001.
+services:
+  clamav-web-client:
+    image: clamav-web-client:2.1.0-local
+    pull_policy: never
+    container_name: clamav-web-client
+    ports:
+      # Open http://YOUR_SERVER:8080/setup/ directly. Change the host port as needed.
+      - "8080:8080"
+    volumes:
+      - ./conf:/app/conf
+      - ./data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped

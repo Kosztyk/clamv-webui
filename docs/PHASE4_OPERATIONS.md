@@ -2,7 +2,7 @@
 
 ## Baseline and version
 
-The application remains **v2.0.0** as requested for the seven roadmap items. This is the Phase 4 source implementation, not a claim of production validation. No database migration is necessary. Previous settings and mounted `./data` / `./conf` are preserved.
+The current application release is **v2.1.0**, retaining the seven Phase 4 roadmap items. This operations guide does not claim production validation. No database migration is necessary. Previous settings and mounted `./data` / `./conf` are preserved.
 
 ## Scope
 

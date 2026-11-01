@@ -26,7 +26,7 @@ public class WebUiController {
     @ModelAttribute
     public void addCommonModelAttributes(Model model, Authentication authentication) {
         // Never expose the credential-bearing webhook URL through shared models.
-        // The admin settings page uses a write-only replacement field instead.
+        // Configuration Center uses a write-only replacement field instead.
         try {
             Properties safeSettings = settings.snapshot();
             safeSettings.remove("app.webhook.url");
@@ -34,6 +34,8 @@ public class WebUiController {
         } catch (Exception e) {
             model.addAttribute("settings", Collections.<String, String>emptyMap());
         }
+        model.addAttribute("canRefreshJobs", authentication!=null && authentication.getAuthorities().stream()
+                .anyMatch(role->role.getAuthority().equals("ROLE_ADMIN") || role.getAuthority().equals("ROLE_OPERATOR")));
         model.addAttribute("pingOk", Boolean.FALSE);
         model.addAttribute("versionOk", Boolean.FALSE);
         model.addAttribute("statsOk", Boolean.FALSE);
@@ -211,9 +213,17 @@ public class WebUiController {
     }
 
     @GetMapping("/jobs")
-    public String jobs(Model model) {
+    public String jobs(Model model, jakarta.servlet.http.HttpServletResponse response) {
+        response.setHeader("Cache-Control","no-store");
         model.addAttribute("jobs", jobs.latest());
         return PAGE_JOBS;
+    }
+
+    @GetMapping(value="/jobs/table", produces=org.springframework.http.MediaType.TEXT_HTML_VALUE)
+    public String jobsTable(Model model, jakarta.servlet.http.HttpServletResponse response) {
+        response.setHeader("Cache-Control","no-store");
+        model.addAttribute("jobs", jobs.latest());
+        return "fragments/tables :: jobsTable";
     }
 
     @GetMapping("/jobs/{id}")
@@ -231,95 +241,23 @@ public class WebUiController {
 
     // --- Admin pages ---
 
+    // Old bookmarks stay useful; all application configuration writes require
+    // Configuration Center's shared validation, review and verification.
     @GetMapping("/admin/settings")
-    public String adminSettings(Model model) {
-        Properties safeSettings = settings.snapshot();
-        safeSettings.remove("app.webhook.url");
-        model.addAttribute("settings", safeSettings);
-        model.addAttribute("webhookEnabled", settings.webhookEnabled());
-        model.addAttribute("webhookConfigured", !settings.webhookUrl().isBlank());
-        model.addAttribute("webhookPrivateAllowed", webhookPolicy.allowsPrivateAddresses());
-        model.addAttribute("webhookConnectTimeoutMs", webhookProperties.getConnectTimeout().toMillis());
-        model.addAttribute("webhookReadTimeoutMs", webhookProperties.getReadTimeout().toMillis());
-        model.addAttribute("editableSettingsKeys", List.of(
-            "app.allowedScanRoots", "app.upload.maxBytes", "app.concurrentScans",
-            "app.storage.uploadDir", "app.storage.quarantineDir", "app.quarantine.enabled",
-            "app.watch.enabled", "app.watch.pollSeconds"));
-        model.addAttribute("settingsLabels", Map.of(
-            "app.allowedScanRoots","Allowed server scan roots", "app.upload.maxBytes","Maximum upload size (bytes)",
-            "app.concurrentScans","Concurrent scan workers", "app.storage.uploadDir","Upload storage directory",
-            "app.storage.quarantineDir","Quarantine directory", "app.quarantine.enabled","Enable quarantine",
-            "app.watch.enabled","Enable directory watching", "app.watch.pollSeconds","Watch polling interval (seconds)"));
-        model.addAttribute("settingsHints", Map.of(
-            "app.allowedScanRoots","Comma-separated paths in the Web UI container. Token path roots cannot widen these limits.",
-            "app.upload.maxBytes","1 MiB = 1,048,576 bytes. Effective daemon limits may be lower.",
-            "app.concurrentScans","Restart the Web UI after changing worker concurrency.",
-            "app.storage.uploadDir","Keep this directory on the persistent data volume.",
-            "app.storage.quarantineDir","Keep this directory on the persistent data volume.",
-            "app.quarantine.enabled","Detected server files may be moved into quarantine when enabled.",
-            "app.watch.enabled","This global switch controls the directories listed under Watch Directories.",
-            "app.watch.pollSeconds","The watcher checks eligible directories at this interval."));
-        return PAGE_SETTINGS;
+    public String adminSettings() {
+        return "redirect:/admin/configuration-center?category=scanning";
     }
 
     @PostMapping("/admin/settings")
-    public String adminSettingsSave(@RequestParam Map<String,String> params,
-                                    Authentication auth,
-                                    HttpServletRequest req,
-                                    RedirectAttributes redirect) {
-        // Allow only known keys; keep the existing secret on a blank replacement.
-        Map<String,String> allowed = new HashMap<>();
-        for (String key : List.of(
-                "app.allowedScanRoots", "app.upload.maxBytes", "app.concurrentScans",
-                "app.storage.uploadDir", "app.storage.quarantineDir", "app.quarantine.enabled",
-                "app.watch.enabled", "app.watch.pollSeconds", "app.webhook.enabled")) {
-            if (params.containsKey(key)) allowed.put(key, params.get(key));
-        }
-
-        boolean clearWebhook = "true".equals(params.get("app.webhook.clear"));
-        String replacement = params.getOrDefault("app.webhook.url", "").trim();
-        if (clearWebhook) {
-            allowed.put("app.webhook.url", "");
-            allowed.put("app.webhook.enabled", "false");
-        } else if (!replacement.isBlank()) {
-            // Preserve the legacy HTTP generic-webhook support, while requiring
-            // HTTPS for Discord token-bearing webhook destinations.
-            if (!isValidNotificationUrl(replacement)) {
-                redirect.addFlashAttribute("errorMsg", "Invalid or blocked webhook URL. Use HTTP(S); Discord requires HTTPS. Private addresses require server opt-in; metadata and link-local destinations are blocked.");
-                return "redirect:/admin/settings";
-            }
-            allowed.put("app.webhook.url", replacement);
-        }
-        String finalUrl = allowed.getOrDefault("app.webhook.url", settings.webhookUrl());
-        if ("true".equals(allowed.get("app.webhook.enabled")) && finalUrl.isBlank()) {
-            redirect.addFlashAttribute("errorMsg", "Enter a webhook URL before enabling notifications.");
-            return "redirect:/admin/settings";
-        }
-        if ("true".equals(allowed.get("app.webhook.enabled")) && !isValidNotificationUrl(finalUrl)) {
-            redirect.addFlashAttribute("errorMsg", "Saved webhook destination is blocked by the server address policy. Replace it or disable notifications.");
-            return "redirect:/admin/settings";
-        }
-
-        settings.updateFromMap(allowed);
-        // Audit key names, never log or print the credential-bearing URL.
-        audit.record(auth, req, "ADMIN_SETTINGS_UPDATE", "keys=" + allowed.keySet(), "SUCCESS", null);
-        redirect.addFlashAttribute("successMsg", "Settings saved. Webhook URL is kept private.");
-        return "redirect:/admin/settings";
-    }
-
-    private boolean isValidNotificationUrl(String url) {
-        try {
-            // Numeric destinations are checked now; hostname DNS is checked by the delivery transport.
-            webhookPolicy.validateUrl(url);
-            return true;
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
+    @ResponseBody
+    public org.springframework.http.ResponseEntity<?> adminSettingsSave(HttpServletRequest request) {
+        return ConfigurationNavigation.moved(request,"scanning");
     }
 
     @GetMapping("/admin/endpoints")
     public String adminEndpoints(Model model) {
         model.addAttribute("endpoints", endpoints.all());
+        model.addAttribute("defaultEndpointId", endpoints.defaultEndpointOrEnsure().getId());
         return PAGE_ENDPOINTS;
     }
 
@@ -331,6 +269,10 @@ public class WebUiController {
                                        @RequestParam(defaultValue = "true") boolean enabled,
                                        Authentication auth,
                                        HttpServletRequest req) {
+        var primary=endpoints.defaultEndpointOrEnsure();
+        if ("default".equals(name) || primary.getName().equals(name))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "The default engine is configured in Configuration Center");
         endpoints.create(name, host, port, xyz.capybara.clamav.Platform.valueOf(platform), enabled);
         audit.record(auth, req, "ENDPOINT_CREATE", name + "@" + host + ":" + port, "SUCCESS", null);
         return "redirect:/admin/endpoints";
@@ -344,8 +286,14 @@ public class WebUiController {
                                        @RequestParam String platform,
                                        @RequestParam(defaultValue = "true") boolean enabled,
                                        Authentication auth,
-                                       HttpServletRequest req) {
-        endpoints.update(id, name, host, port, xyz.capybara.clamav.Platform.valueOf(platform), enabled);
+                                       HttpServletRequest req,RedirectAttributes redirect) {
+        if (endpoints.defaultEndpointOrEnsure().getId().equals(id))
+            return "redirect:/admin/configuration-center?section=clamd";
+        if ("default".equals(name))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "The default engine name is reserved for Configuration Center");
+        try { endpoints.update(id, name, host, port, xyz.capybara.clamav.Platform.valueOf(platform), enabled); }
+        catch(IllegalArgumentException e) { redirect.addFlashAttribute("errorMsg",e.getMessage());return "redirect:/admin/endpoints"; }
         audit.record(auth, req, "ENDPOINT_UPDATE", "id=" + id, "SUCCESS", null);
         return "redirect:/admin/endpoints";
     }
@@ -354,6 +302,8 @@ public class WebUiController {
     public String adminEndpointsDelete(@PathVariable Long id,
                                        Authentication auth,
                                        HttpServletRequest req) {
+        if (endpoints.defaultEndpointOrEnsure().getId().equals(id))
+            return "redirect:/admin/configuration-center?section=clamd";
         endpoints.delete(id);
         audit.record(auth, req, "ENDPOINT_DELETE", "id=" + id, "SUCCESS", null);
         return "redirect:/admin/endpoints";

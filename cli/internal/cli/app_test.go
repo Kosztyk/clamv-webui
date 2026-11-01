@@ -45,7 +45,7 @@ func (h *harness) run(args ...string) runResult { return h.input(context.Backgro
 func (h *harness) input(ctx context.Context, input string, args ...string) runResult {
 	h.t.Helper()
 	var out, stderr bytes.Buffer
-	app := New(strings.NewReader(input), &out, &stderr, "2.0.0")
+	app := New(strings.NewReader(input), &out, &stderr, "2.1.0")
 	app.Getenv = func(key string) string { return h.env[key] }
 	all := append([]string{"--config", h.config, "--server", h.server.URL, "--ca-file", h.ca}, args...)
 	code := app.Run(ctx, all)
@@ -456,7 +456,7 @@ func TestHttpFailuresMalformedJsonAndUntrustedCertificates(t *testing.T) {
 		t.Fatal("invalid response body echoed")
 	}
 	var out, stderr bytes.Buffer
-	app := New(strings.NewReader(""), &out, &stderr, "2.0.0")
+	app := New(strings.NewReader(""), &out, &stderr, "2.1.0")
 	app.Getenv = func(key string) string { return h.env[key] }
 	if code := app.Run(context.Background(), []string{"--config", h.config, "--server", h.server.URL, "endpoints", "list"}); code != 1 {
 		t.Fatal("untrusted TLS certificate accepted")
@@ -466,7 +466,7 @@ func TestHttpFailuresMalformedJsonAndUntrustedCertificates(t *testing.T) {
 func TestHelpVersionAndTerminalOutputSafety(t *testing.T) {
 	for _, args := range [][]string{{"--help"}, {"scan", "upload", "--help"}, {"version", "--json"}} {
 		var out, stderr bytes.Buffer
-		app := New(strings.NewReader(""), &out, &stderr, "2.0.0")
+		app := New(strings.NewReader(""), &out, &stderr, "2.1.0")
 		app.Getenv = func(string) string { return "" }
 		if app.Run(context.Background(), args) != 0 {
 			t.Fatal("help/version requires configuration")

@@ -2,7 +2,7 @@
 # Optional deployment helper; non-root and forwarded HTTPS defaults are in the source.
 set -euo pipefail
 source_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd -P)"
-image_tag='clamav-web-client:2.0.0-local'
+image_tag='clamav-web-client:2.1.0-local'
 forwarded_headers=''
 requested_compose=''
 requested_container=''

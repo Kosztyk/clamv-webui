@@ -2,21 +2,26 @@
 
 This archive contains the full application: Java source, templates, static
 assets, database migrations, monitoring dashboards, CLI/MCP source and release
-binaries, documentation and all earlier fixes. Issues #10, #11 and #12 are
+assets, documentation and all earlier fixes. Issues #10, #11 and #12 are
 implemented directly in the Dockerfile, application code and configuration.
+Direct HTTP setup works at the application's published port, with explicit on-page confirmation for credential submission; no reverse proxy or preconfigured URL is required. The Configuration Center is also built in; see [minimal Compose, GUI setup and database-independent recovery](docs/CONFIGURATION_CENTER.md).
 
 The same build works from a Git checkout. See [Update and verify](docs/UPDATE_AND_VERIFY.md)
 for upgrade commands, local/self-signed HTTPS testing and expected results, and
 [update notes](docs/UPDATE_NOTES_2026_10_31.md) for compatibility details.
+
+## Configuration methods
+
+Use [the minimum named-volume Compose](docker-compose.minimal.yaml) for GUI-managed application settings, or [the Compose environment example](docker-compose.environment.yaml) for deployment-managed core connections. Both are explained with first-run recovery-token and login steps in [README](README.md#configure-the-app-with-configuration-center). Existing deployments should retain their original mounts and SQL connection. To publish source, use [the included GitHub script and guide](docs/PUBLISHING.md).
 
 ## Normal Docker build
 
 Extract the full ZIP and build from the extracted application directory:
 
 ```bash
-unzip clamv-webui-v2.0.0-non-root-proxy-tls-full-source.zip
-cd clamv-webui-v2.0.0-non-root-proxy-tls-full-source
-docker build --pull -t clamav-web-client:2.0.0-local .
+unzip clamv-webui-v2.1.0-configuration-center-full-source.zip
+cd clamv-webui-v2.1.0
+docker build --pull -t clamav-web-client:2.1.0-local .
 ```
 
 Docker builds the JAR and runs Maven verification in the build stage. The
@@ -24,6 +29,8 @@ runtime image includes native ClamdTop and its PTY helper. Host Java, Maven,
 Node and Go are not required for this Web UI build.
 
 The resulting image already includes:
+
+- **Configuration Center:** seven categorized tabs, conditional inputs, deployment locks, encrypted persistence, reviewed changes and protected setup/recovery before database initialization.
 
 - **Non-root runtime:** `USER 10001:10001`; writable image-owned `/app/data`
   and `/app/conf`; a root-owned, read-only application JAR.
@@ -52,7 +59,7 @@ local image in that service:
 ```yaml
 services:
   clamav-web-client:
-    image: clamav-web-client:2.0.0-local
+    image: clamav-web-client:2.1.0-local
     pull_policy: never
     # Keep the rest of your existing service configuration here.
 ```
@@ -86,17 +93,28 @@ settings already needed by a v1-to-v2 upgrade.
 
 ## First installation
 
-The root Compose builds the same local image and starts a ClamAV daemon with H2
-storage. Prepare the bind mounts as shown above, then use:
+The root Compose uses the same local image and starts a separate ClamAV daemon.
+Choose built-in H2 or an existing external database during first-run setup. Prepare the bind mounts as shown above, then use:
 
 ```bash
 docker compose up -d --no-build --pull never
 docker compose logs -f clamav-web-client
 ```
 
-The default host port is 8080. Allow ClamAV time to download its signatures.
-The first-install administrator password is generated securely and saved in
-`/app/data/bootstrap-admin-password`; existing accounts are preserved.
+The default host port is 8080. Open `http://YOUR_SERVER:8080/setup/` and read the
+owner credential from this container:
+
+```bash
+docker exec clamav-web-client sh -c 'cat /app/conf/configuration-recovery-token; echo'
+```
+
+Unlock setup. When using HTTP, select **Allow configuration over HTTP on this
+trusted network** before submitting credentials. Enter `clamav-server` and `3310`
+for the bundled scanner, choose the database, review and apply, then select
+**Start application**. Neither nginx nor a domain or certificate is required.
+Allow ClamAV time to download its signatures. The first-install administrator
+password is generated securely and saved in `/app/data/bootstrap-admin-password`;
+existing accounts are preserved.
 
 ## Reverse proxy deployment
 
@@ -116,7 +134,7 @@ It is not used by the Dockerfile and is not required to apply these changes:
 bash build-and-start.sh
 ```
 
-It builds `clamav-web-client:2.0.0-local` before stopping the existing UI, writes
+It builds `clamav-web-client:2.1.0-local` before stopping the existing UI, writes
 an image override beside the existing Compose files, and verifies startup. Its
 legacy `--trusted-proxy` option only writes an explicit runtime `framework`
 setting, which is now the application default. `--direct-access` explicitly
@@ -126,7 +144,8 @@ Compose files for later operations.
 
 ## Verification
 
-See `SERVER_PACKAGE_VALIDATION.json` and
-`docs/security/proxy-tls-validation.json` for results from this source package.
+See [v2.1.0 validation](docs/CONFIGURATION_CENTER_VALIDATION.md) and
+`SERVER_PACKAGE_VALIDATION.json` for current results. Earlier security reports
+retain their original v2.0.0 test scope.
 They distinguish Maven/HTTP checks from Docker image execution. A Docker image
 build and container smoke run require Docker on the target host.

@@ -10,7 +10,6 @@
  */
 package info.trizub.clamav.webclient;
 
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -18,8 +17,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 public class ClamAVWebClientApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(ClamAVWebClientApplication.class, args);
+	public static void main(String[] args) throws Exception {
+		info.trizub.clamav.webclient.configuration.ConfigurationBootstrap.run(ClamAVWebClientApplication.class,args);
 	}
 
 }

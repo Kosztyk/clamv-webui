@@ -27,7 +27,7 @@ Because its source is missing, the REST monitor was reconstructed as a configura
 
 Existing values preserved:
 
-- `CLAMAV_REST_URL` (for example `http://192.168.68.144:3000`)
+- `CLAMAV_REST_URL` (for example `http://rest-scanner:3000`)
 - `CLAMAV_REST_API_KEY` (blank if the API does not require auth)
 - `CLAMAV_REST_FORM_KEY` (default `FILES`)
 - `CLAMAV_REST_TIMEOUT_SECONDS` (default `10`)

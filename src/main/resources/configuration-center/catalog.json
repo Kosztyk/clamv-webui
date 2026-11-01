@@ -1,0 +1,2394 @@
+{
+  "categories": [
+    "Connections",
+    "Scanning",
+    "Identity & API",
+    "Notifications",
+    "Network",
+    "Monitoring",
+    "System"
+  ],
+  "sections": [
+    {
+      "id": "clamd",
+      "category": "Connections",
+      "title": "Managed ClamAV scans",
+      "icon": "shield-alt",
+      "enableKey": "center.clamd.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Configure the default engine here. Manage additional engines on Endpoints. Socket and shared scan paths must already be mounted.",
+      "link": "/admin/endpoints"
+    },
+    {
+      "id": "rest",
+      "category": "Connections",
+      "title": "External REST scanner",
+      "icon": "plug",
+      "enableKey": "clamav.rest.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Separate external scanner for API Scan and API Reports. Its jobs and webhooks are independent.",
+      "link": ""
+    },
+    {
+      "id": "database",
+      "category": "Connections",
+      "title": "Database & persistence",
+      "icon": "database",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Use H2 for a single-instance quickstart, or an existing PostgreSQL, MySQL or MariaDB database. Selecting a different database does not migrate users or jobs.",
+      "link": ""
+    },
+    {
+      "id": "scanning",
+      "category": "Scanning",
+      "title": "Scan policy & upload storage",
+      "icon": "file-upload",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Paths refer to this container. Docker mounts and host permissions remain deployment responsibilities.",
+      "link": ""
+    },
+    {
+      "id": "quarantine",
+      "category": "Scanning",
+      "title": "Quarantine",
+      "icon": "biohazard",
+      "enableKey": "app.quarantine.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Moving original files requires write access to their parent directory. Keep quarantine outside watched roots.",
+      "link": ""
+    },
+    {
+      "id": "watch",
+      "category": "Scanning",
+      "title": "Watched folders",
+      "icon": "folder-open",
+      "enableKey": "app.watch.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Configure individual watched directories on the existing Watch Directories page.",
+      "link": "/admin/watch"
+    },
+    {
+      "id": "local",
+      "category": "Identity & API",
+      "title": "Local recovery administrator",
+      "icon": "user-shield",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "An enabled local administrator is always retained. Manage local accounts and passwords on Users.",
+      "link": "/admin/users"
+    },
+    {
+      "id": "ldap",
+      "category": "Identity & API",
+      "title": "LDAP / Active Directory",
+      "icon": "address-book",
+      "enableKey": "clamav.identity.ldap.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "LDAP / Active Directory uses verified LDAPS or StartTLS. Test connection validates transport and manager bind without saving. Group filters, membership/name attributes, nesting, timeouts, referrals and role maps use the same runtime validation. Changes apply after restart; keep an enabled local recovery administrator.",
+      "link": ""
+    },
+    {
+      "id": "oidc",
+      "category": "Identity & API",
+      "title": "OpenID Connect / SSO",
+      "icon": "key",
+      "enableKey": "clamav.identity.oidc.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "OIDC / SSO requires HTTPS issuer discovery and a confidential client. State, nonce and explicit group-to-role mapping remain enforced. Review and restart to apply saved settings; local login remains available.",
+      "link": ""
+    },
+    {
+      "id": "api",
+      "category": "Identity & API",
+      "title": "API tokens, CLI & MCP",
+      "icon": "terminal",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Manage scoped tokens on API Tokens. CLI/MCP clients run separately and use this application's HTTPS address.",
+      "link": "/admin/api-tokens"
+    },
+    {
+      "id": "webhook",
+      "category": "Notifications",
+      "title": "Webhook notifications",
+      "icon": "bell",
+      "enableKey": "app.webhook.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Managed scan completion notifications for generic HTTP(S) or Discord receivers. Delivery is best effort with no durable retry queue.",
+      "link": ""
+    },
+    {
+      "id": "proxy",
+      "category": "Network",
+      "title": "Reverse proxy & session security",
+      "icon": "network-wired",
+      "enableKey": "server.forward-headers-strategy",
+      "enabledValue": "framework",
+      "disabledValue": "none",
+      "description": "Optional forwarded-header handling for trusted reverse proxies. Direct HTTP configuration works without a proxy; choose none to ignore forwarded headers in a direct-access deployment.",
+      "link": ""
+    },
+    {
+      "id": "trust",
+      "category": "Network",
+      "title": "Private CA trust",
+      "icon": "certificate",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Mount an existing Java truststore first. This page cannot create a host mount or disable certificate verification.",
+      "link": ""
+    },
+    {
+      "id": "metrics",
+      "category": "Monitoring",
+      "title": "Prometheus & Grafana",
+      "icon": "chart-line",
+      "enableKey": "clamav.metrics.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Scraping requires its separate token. Import the supplied Grafana dashboard; its panels consume real daemon and job samples.",
+      "link": "/admin/integrations"
+    },
+    {
+      "id": "observer",
+      "category": "Monitoring",
+      "title": "Mounted daemon configuration",
+      "icon": "sliders-h",
+      "enableKey": "center.observer.enabled",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Inspect mounted clamd.conf/freshclam.conf without writing files or reloading ClamD.",
+      "link": "/admin/configuration"
+    },
+    {
+      "id": "system",
+      "category": "System",
+      "title": "Preferences & recovery",
+      "icon": "cog",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Theme/language defaults apply to browsers without a saved preference. Recovery works independently of the application database.",
+      "link": ""
+    }
+  ],
+  "fields": [
+    {
+      "key": "center.clamd.enabled",
+      "label": "Enable the default engine",
+      "category": "Connections",
+      "section": "clamd",
+      "type": "boolean",
+      "defaultValue": "true",
+      "environment": [],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "center.clamd.name",
+      "label": "Endpoint name",
+      "category": "Connections",
+      "section": "clamd",
+      "type": "text",
+      "defaultValue": "default",
+      "environment": [],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.service.host",
+      "label": "ClamAV host or Unix socket path",
+      "category": "Connections",
+      "section": "clamd",
+      "type": "text",
+      "defaultValue": "localhost",
+      "environment": [
+        "CLAMAV_HOST"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "TCP hostname/IP, or an absolute Unix socket path already mounted in this container.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.service.port",
+      "label": "ClamAV port",
+      "category": "Connections",
+      "section": "clamd",
+      "type": "number",
+      "defaultValue": "3310",
+      "environment": [
+        "CLAMAV_PORT"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 65535,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.service.platform",
+      "label": "Daemon platform",
+      "category": "Connections",
+      "section": "clamd",
+      "type": "select",
+      "defaultValue": "UNIX",
+      "environment": [
+        "CLAMAV_PLATFORM"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [
+        "UNIX",
+        "WINDOWS"
+      ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.rest.enabled",
+      "label": "Enable the external REST scanner",
+      "category": "Connections",
+      "section": "rest",
+      "type": "boolean",
+      "defaultValue": "true",
+      "environment": [
+        "CLAMAV_REST_ENABLED"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_URL",
+      "label": "External REST URL",
+      "category": "Connections",
+      "section": "rest",
+      "type": "url",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_REST_URL"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_API_KEY",
+      "label": "API key",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_REST_API_KEY"
+      ],
+      "apply": "restart",
+      "secret": true,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_AUTH_MODE",
+      "label": "Authentication header",
+      "category": "Connections",
+      "section": "rest",
+      "type": "select",
+      "defaultValue": "x-api-key",
+      "environment": [
+        "CLAMAV_REST_AUTH_MODE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [
+        "x-api-key",
+        "bearer"
+      ],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_FORM_KEY",
+      "label": "Upload form field",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "FILES",
+      "environment": [
+        "CLAMAV_REST_FORM_KEY"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_TIMEOUT_SECONDS",
+      "label": "Request timeout (seconds)",
+      "category": "Connections",
+      "section": "rest",
+      "type": "number",
+      "defaultValue": "10",
+      "environment": [
+        "CLAMAV_REST_TIMEOUT_SECONDS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS",
+      "label": "Upload timeout (seconds)",
+      "category": "Connections",
+      "section": "rest",
+      "type": "number",
+      "defaultValue": "3600",
+      "environment": [
+        "CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 86400,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_REPORT_MAX_JOBS",
+      "label": "Maximum report jobs",
+      "category": "Connections",
+      "section": "rest",
+      "type": "number",
+      "defaultValue": "5000",
+      "environment": [
+        "CLAMAV_REST_REPORT_MAX_JOBS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 100000,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_STATS_PATH",
+      "label": "Statistics path",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "/api/v1/stats",
+      "environment": [
+        "CLAMAV_REST_STATS_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_JOBS_PATH",
+      "label": "Jobs path",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "/api/v1/jobs",
+      "environment": [
+        "CLAMAV_REST_JOBS_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_HISTORY_PATH",
+      "label": "History path",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "/api/v1/history",
+      "environment": [
+        "CLAMAV_REST_HISTORY_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_WEBHOOKS_PATH",
+      "label": "Webhook definitions path",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "/api/v1/webhooks",
+      "environment": [
+        "CLAMAV_REST_WEBHOOKS_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_SCAN_PATH",
+      "label": "Async scan path",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "/api/v1/asyncscan",
+      "environment": [
+        "CLAMAV_REST_SCAN_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_SCAN_HISTORY_PATH",
+      "label": "Scan history path",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "/api/v1/scan-history",
+      "environment": [
+        "CLAMAV_REST_SCAN_HISTORY_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_WEBHOOK_FIELD",
+      "label": "Webhook form field",
+      "category": "Connections",
+      "section": "rest",
+      "type": "text",
+      "defaultValue": "webhookId",
+      "environment": [
+        "CLAMAV_REST_WEBHOOK_FIELD"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 120,
+      "legacy": ""
+    },
+    {
+      "key": "spring.datasource.url",
+      "label": "Database connection URL",
+      "category": "Connections",
+      "section": "database",
+      "type": "jdbc",
+      "defaultValue": "jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+      "environment": [
+        "SPRING_DATASOURCE_URL"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Choose a database type to compose the JDBC URL. Existing data is never copied automatically.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.datasource.username",
+      "label": "Database username",
+      "category": "Connections",
+      "section": "database",
+      "type": "text",
+      "defaultValue": "sa",
+      "environment": [
+        "SPRING_DATASOURCE_USERNAME"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.datasource.password",
+      "label": "Database password",
+      "category": "Connections",
+      "section": "database",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "SPRING_DATASOURCE_PASSWORD"
+      ],
+      "apply": "restart",
+      "secret": true,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.datasource.driver-class-name",
+      "label": "JDBC driver (automatic when blank)",
+      "category": "Connections",
+      "section": "database",
+      "type": "select",
+      "defaultValue": "",
+      "environment": [
+        "SPRING_DATASOURCE_DRIVER_CLASS_NAME"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "",
+      "choices": [
+        "",
+        "org.h2.Driver",
+        "org.postgresql.Driver",
+        "com.mysql.cj.jdbc.Driver",
+        "org.mariadb.jdbc.Driver"
+      ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.datasource.hikari.connection-timeout",
+      "label": "Pool connection timeout (ms)",
+      "category": "Connections",
+      "section": "database",
+      "type": "number",
+      "defaultValue": "10000",
+      "environment": [
+        "SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1000,
+      "maximum": 120000,
+      "legacy": ""
+    },
+    {
+      "key": "spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation",
+      "label": "Non-contextual JDBC LOB creation",
+      "category": "Connections",
+      "section": "database",
+      "type": "boolean",
+      "defaultValue": "true",
+      "environment": [
+        "SPRING_JPA_PROPERTIES_HIBERNATE_JDBC_LOB_NON_CONTEXTUAL_CREATION"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.flyway.baseline-on-migrate",
+      "label": "Baseline a reviewed legacy database",
+      "category": "Connections",
+      "section": "database",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "SPRING_FLYWAY_BASELINE_ON_MIGRATE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Only for a backed-up, compatible legacy schema without Flyway history. Not an upgrade shortcut.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.flyway.baseline-version",
+      "label": "Legacy baseline version",
+      "category": "Connections",
+      "section": "database",
+      "type": "text",
+      "defaultValue": "1",
+      "environment": [
+        "SPRING_FLYWAY_BASELINE_VERSION"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.allowedScanRoots",
+      "label": "Allowed scan roots",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "text",
+      "defaultValue": "/scandir",
+      "environment": [
+        "CLAMAV_ALLOWED_SCAN_ROOTS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.upload.maxBytes",
+      "label": "Maximum upload (bytes)",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "number",
+      "defaultValue": "2147483648",
+      "environment": [
+        "CLAMAV_UPLOAD_MAX_BYTES"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 2147483648,
+      "legacy": ""
+    },
+    {
+      "key": "app.concurrentScans",
+      "label": "Concurrent scan workers",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "number",
+      "defaultValue": "2",
+      "environment": [
+        "CLAMAV_CONCURRENT_SCANS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 32,
+      "legacy": ""
+    },
+    {
+      "key": "app.storage.uploadDir",
+      "label": "Upload storage directory",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "path",
+      "defaultValue": "./data/uploads",
+      "environment": [
+        "CLAMAV_UPLOAD_DIR"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.upload.pathScan.enabled",
+      "label": "Use native uploaded-path scanning",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "boolean",
+      "defaultValue": "true",
+      "environment": [
+        "CLAMAV_UPLOAD_PATH_SCAN_ENABLED"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.upload.pathScan.fallbackToInstream",
+      "label": "Fall back to INSTREAM",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.servlet.multipart.max-file-size",
+      "label": "HTTP file size ceiling",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "text",
+      "defaultValue": "2048MB",
+      "environment": [
+        "SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.servlet.multipart.max-request-size",
+      "label": "HTTP request size ceiling",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "text",
+      "defaultValue": "2048MB",
+      "environment": [
+        "SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.quarantine.enabled",
+      "label": "Enable quarantine",
+      "category": "Scanning",
+      "section": "quarantine",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_QUARANTINE_ENABLED"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.storage.quarantineDir",
+      "label": "Quarantine directory",
+      "category": "Scanning",
+      "section": "quarantine",
+      "type": "path",
+      "defaultValue": "./data/quarantine",
+      "environment": [
+        "CLAMAV_QUARANTINE_DIR"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.watch.enabled",
+      "label": "Enable directory watching",
+      "category": "Scanning",
+      "section": "watch",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_WATCH_ENABLED"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.watch.pollSeconds",
+      "label": "Watch interval (seconds)",
+      "category": "Scanning",
+      "section": "watch",
+      "type": "number",
+      "defaultValue": "30",
+      "environment": [
+        "CLAMAV_WATCH_POLL_SECONDS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "The watcher checks every 30 seconds; longer configured intervals throttle those checks.",
+      "choices": [],
+      "minimum": 30,
+      "maximum": 3600,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.identity.ldap.enabled",
+      "label": "Enable LDAP",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_ENABLED",
+        "SECURITY_LDAP_ENABLED",
+        "security.ldap.enabled"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "enabled"
+    },
+    {
+      "key": "clamav.identity.ldap.url",
+      "label": "LDAP URL",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_URL",
+        "SECURITY_LDAP_URL",
+        "security.ldap.url"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Use ldaps:// or ldap:// with StartTLS. The JVM must trust the directory certificate and its hostname.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "url"
+    },
+    {
+      "key": "clamav.identity.ldap.base-dn",
+      "label": "Base DN",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_BASE_DN",
+        "SECURITY_LDAP_BASE_DN",
+        "security.ldap.base-dn"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Directory naming context, for example dc=example,dc=internal.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "baseDn"
+    },
+    {
+      "key": "clamav.identity.ldap.manager-dn",
+      "label": "Bind / manager DN",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_MANAGER_DN",
+        "SECURITY_LDAP_BIND_DN",
+        "security.ldap.bind-dn"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Service-account DN used to search users and groups; its bind secret is retained when left blank.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "managerDn"
+    },
+    {
+      "key": "clamav.identity.ldap.manager-password",
+      "label": "Bind password",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_MANAGER_PASSWORD",
+        "SECURITY_LDAP_BIND_PASSWORD",
+        "security.ldap.bind-password"
+      ],
+      "apply": "restart",
+      "secret": true,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.identity.ldap.manager-password-file",
+      "label": "Bind password file",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "path",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_MANAGER_PASSWORD_FILE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.identity.ldap.user-search-base",
+      "label": "User search base",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_USER_SEARCH_BASE",
+        "SECURITY_LDAP_USER_SEARCH_BASE",
+        "security.ldap.user-search-base"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Search base relative to the Base DN, for example ou=people.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "userSearchBase"
+    },
+    {
+      "key": "clamav.identity.ldap.user-search-filter",
+      "label": "User search filter",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "(uid={0})",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_USER_SEARCH_FILTER",
+        "SECURITY_LDAP_USER_SEARCH_FILTER",
+        "security.ldap.user-search-filter"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Must contain {0}, replaced by the escaped login name; for example (uid={0}).",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "userSearchFilter"
+    },
+    {
+      "key": "clamav.identity.ldap.group-search-base",
+      "label": "Group search base",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_GROUP_SEARCH_BASE",
+        "SECURITY_LDAP_GROUP_SEARCH_BASE",
+        "security.ldap.group-search-base"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Group search base relative to the Base DN, for example ou=groups.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "groupSearchBase"
+    },
+    {
+      "key": "clamav.identity.ldap.group-search-filter",
+      "label": "Group search filter",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_GROUP_SEARCH_FILTER",
+        "SECURITY_LDAP_GROUP_SEARCH_FILTER",
+        "security.ldap.group-search-filter"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Optional. Blank uses the group member attribute. {0} is the full user DN and {1} is the login name; for example (member={0}) or (memberUid={1}).",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "groupSearchFilter"
+    },
+    {
+      "key": "clamav.identity.ldap.group-member-attribute",
+      "label": "Group member attribute",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "member",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_GROUP_MEMBER_ATTRIBUTE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Attribute holding group membership, commonly member or uniqueMember. Used when the group search filter is blank.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "groupMemberAttribute"
+    },
+    {
+      "key": "clamav.identity.ldap.group-name-attribute",
+      "label": "Group name attribute",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "cn",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_GROUP_NAME_ATTRIBUTE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Attribute used for exact group-to-role mapping, commonly cn.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "groupNameAttribute"
+    },
+    {
+      "key": "clamav.identity.ldap.start-tls",
+      "label": "Use StartTLS",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_START_TLS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Required for ldap:// URLs. Leave disabled for ldaps://, which negotiates TLS immediately.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "startTls"
+    },
+    {
+      "key": "clamav.identity.ldap.pooled",
+      "label": "Pool LDAP connections",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_POOLED"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Optional LDAP connection pooling. Use with LDAPS; StartTLS connections are not pooled.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "pooled"
+    },
+    {
+      "key": "clamav.identity.ldap.nested-groups",
+      "label": "Search nested groups",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_NESTED_GROUPS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Resolve parent group membership. The configured depth bounds recursive searches.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "nestedGroups"
+    },
+    {
+      "key": "clamav.identity.ldap.max-nested-depth",
+      "label": "Maximum nested-group depth",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "number",
+      "defaultValue": "3",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_MAX_NESTED_DEPTH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Maximum recursion depth from 1 to 8; used only when nested groups are enabled.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 8,
+      "legacy": "maxNestedDepth"
+    },
+    {
+      "key": "clamav.identity.ldap.referrals",
+      "label": "LDAP referrals",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "select",
+      "defaultValue": "ignore",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_REFERRALS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Choose whether directory referrals are ignored, followed or reported as errors.",
+      "choices": [
+        "ignore",
+        "follow",
+        "throw"
+      ],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "referrals"
+    },
+    {
+      "key": "clamav.identity.ldap.connect-timeout-millis",
+      "label": "Connect timeout (ms)",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "number",
+      "defaultValue": "5000",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_CONNECT_TIMEOUT_MILLIS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Connection timeout in milliseconds, from 1000 to 30000.",
+      "choices": [],
+      "minimum": 1000,
+      "maximum": 30000,
+      "legacy": "connectTimeoutMillis"
+    },
+    {
+      "key": "clamav.identity.ldap.read-timeout-millis",
+      "label": "Read timeout (ms)",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "number",
+      "defaultValue": "5000",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_READ_TIMEOUT_MILLIS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Read timeout in milliseconds, from 1000 to 30000.",
+      "choices": [],
+      "minimum": 1000,
+      "maximum": 30000,
+      "legacy": "readTimeoutMillis"
+    },
+    {
+      "key": "clamav.identity.ldap.groups.viewer",
+      "label": "Viewer groups",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_GROUPS_VIEWER"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Comma-separated exact group names. Only explicitly mapped groups receive roles; unmapped users are denied.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "viewer"
+    },
+    {
+      "key": "clamav.identity.ldap.groups.operator",
+      "label": "Operator groups",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_GROUPS_OPERATOR"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Comma-separated exact group names. Only explicitly mapped groups receive roles; unmapped users are denied.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "operator"
+    },
+    {
+      "key": "clamav.identity.ldap.groups.admin",
+      "label": "Admin groups",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_GROUPS_ADMIN"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Comma-separated exact group names. Only explicitly mapped groups receive roles; unmapped users are denied.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "admin"
+    },
+    {
+      "key": "clamav.identity.oidc.enabled",
+      "label": "Enable SSO",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_ENABLED"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "enabled"
+    },
+    {
+      "key": "clamav.identity.oidc.issuer",
+      "label": "Issuer URL",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "url",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_ISSUER",
+        "spring.security.oauth2.client.provider.oidc.issuer-uri",
+        "SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "issuer"
+    },
+    {
+      "key": "clamav.identity.oidc.client-id",
+      "label": "Client ID",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_CLIENT_ID",
+        "spring.security.oauth2.client.registration.oidc.client-id",
+        "SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "clientId"
+    },
+    {
+      "key": "clamav.identity.oidc.client-secret",
+      "label": "Client secret",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_CLIENT_SECRET",
+        "spring.security.oauth2.client.registration.oidc.client-secret",
+        "SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET"
+      ],
+      "apply": "restart",
+      "secret": true,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.identity.oidc.client-secret-file",
+      "label": "Client secret file",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "path",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_CLIENT_SECRET_FILE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.identity.oidc.scopes",
+      "label": "Requested scopes",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "text",
+      "defaultValue": "openid,profile,email,groups",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_SCOPES",
+        "spring.security.oauth2.client.registration.oidc.scope",
+        "SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_SCOPE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Separate scopes with commas or spaces. Include openid; request groups only when supported by the provider.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "scopes"
+    },
+    {
+      "key": "clamav.identity.oidc.groups-claim",
+      "label": "Groups claim",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "text",
+      "defaultValue": "groups",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_GROUPS_CLAIM"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Claim containing groups; dot-separated paths are supported, for example realm_access.roles.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "groupsClaim"
+    },
+    {
+      "key": "clamav.identity.oidc.button-label",
+      "label": "Login button label",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "text",
+      "defaultValue": "Sign in with SSO",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_BUTTON_LABEL"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "buttonLabel"
+    },
+    {
+      "key": "clamav.identity.oidc.logout-mode",
+      "label": "Logout mode",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "select",
+      "defaultValue": "local",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_LOGOUT_MODE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Local clears the application session. Provider also requests provider logout when supported.",
+      "choices": [
+        "local",
+        "provider"
+      ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "logoutMode"
+    },
+    {
+      "key": "clamav.identity.oidc.groups.viewer",
+      "label": "Viewer groups",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_GROUPS_VIEWER"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Comma-separated exact group names. Only explicitly mapped groups receive roles; unmapped users are denied.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "viewer"
+    },
+    {
+      "key": "clamav.identity.oidc.groups.operator",
+      "label": "Operator groups",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_GROUPS_OPERATOR"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Comma-separated exact group names. Only explicitly mapped groups receive roles; unmapped users are denied.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "operator"
+    },
+    {
+      "key": "clamav.identity.oidc.groups.admin",
+      "label": "Admin groups",
+      "category": "Identity & API",
+      "section": "oidc",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_OIDC_GROUPS_ADMIN"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Comma-separated exact group names. Only explicitly mapped groups receive roles; unmapped users are denied.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": "admin"
+    },
+    {
+      "key": "api.v1.scan-rate-limit-per-minute",
+      "label": "Scan requests per minute",
+      "category": "Identity & API",
+      "section": "api",
+      "type": "number",
+      "defaultValue": "30",
+      "environment": [
+        "API_V1_SCAN_RATE_LIMIT_PER_MINUTE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 10000,
+      "legacy": ""
+    },
+    {
+      "key": "api.v1.max-page-size",
+      "label": "Maximum API page size",
+      "category": "Identity & API",
+      "section": "api",
+      "type": "number",
+      "defaultValue": "100",
+      "environment": [
+        "API_V1_MAX_PAGE_SIZE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 500,
+      "legacy": ""
+    },
+    {
+      "key": "api.v1.clamd.max-database-age-hours",
+      "label": "Maximum signature age (hours)",
+      "category": "Identity & API",
+      "section": "api",
+      "type": "number",
+      "defaultValue": "168",
+      "environment": [
+        "API_V1_CLAMD_MAX_DATABASE_AGE_HOURS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 8760,
+      "legacy": ""
+    },
+    {
+      "key": "app.webhook.enabled",
+      "label": "Enable notifications",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_WEBHOOK_ENABLED"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.webhook.url",
+      "label": "Webhook URL",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_WEBHOOK_URL"
+      ],
+      "apply": "live",
+      "secret": true,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.webhook.connect-timeout",
+      "label": "Connect timeout",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "duration",
+      "defaultValue": "5s",
+      "environment": [
+        "CLAMAV_WEBHOOK_CONNECT_TIMEOUT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.webhook.read-timeout",
+      "label": "Response timeout",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "duration",
+      "defaultValue": "10s",
+      "environment": [
+        "CLAMAV_WEBHOOK_READ_TIMEOUT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.webhook.dns-timeout",
+      "label": "DNS timeout",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "duration",
+      "defaultValue": "5s",
+      "environment": [
+        "CLAMAV_WEBHOOK_DNS_TIMEOUT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.webhook.delivery-timeout",
+      "label": "Overall active delivery deadline",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "duration",
+      "defaultValue": "20s",
+      "environment": [
+        "CLAMAV_WEBHOOK_DELIVERY_TIMEOUT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.webhook.workers",
+      "label": "Delivery workers",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "number",
+      "defaultValue": "2",
+      "environment": [
+        "CLAMAV_WEBHOOK_WORKERS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 8,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.webhook.queue-capacity",
+      "label": "Pending delivery capacity",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "number",
+      "defaultValue": "100",
+      "environment": [
+        "CLAMAV_WEBHOOK_QUEUE_CAPACITY"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 1000,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.webhook.allow-private-addresses",
+      "label": "Allow internal webhook receivers",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Requires administrator verification and restart. Metadata, link-local and reserved destinations remain blocked.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "server.forward-headers-strategy",
+      "label": "Forwarded-header strategy",
+      "category": "Network",
+      "section": "proxy",
+      "type": "select",
+      "defaultValue": "framework",
+      "environment": [
+        "SERVER_FORWARD_HEADERS_STRATEGY"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [
+        "framework",
+        "none",
+        "native"
+      ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.public-url",
+      "label": "Application HTTPS base URL",
+      "category": "Network",
+      "section": "proxy",
+      "type": "url",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_PUBLIC_URL"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Optional canonical HTTPS URL for OIDC callbacks and client instructions. Leave blank to follow the current application request. Include any context path.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "server.servlet.context-path",
+      "label": "URL prefix",
+      "category": "Network",
+      "section": "proxy",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "SERVER_SERVLET_CONTEXT_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "server.servlet.session.cookie.secure",
+      "label": "Secure session cookies",
+      "category": "Network",
+      "section": "proxy",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "SERVER_SERVLET_SESSION_COOKIE_SECURE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "server.servlet.session.cookie.same-site",
+      "label": "Cookie SameSite policy",
+      "category": "Network",
+      "section": "proxy",
+      "type": "select",
+      "defaultValue": "lax",
+      "environment": [
+        "SERVER_SERVLET_SESSION_COOKIE_SAME_SITE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "",
+      "choices": [
+        "lax",
+        "strict",
+        "none"
+      ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "javax.net.ssl.trustStore",
+      "label": "Java truststore path",
+      "category": "Network",
+      "section": "trust",
+      "type": "path",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_TRUSTSTORE_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "javax.net.ssl.trustStorePassword",
+      "label": "Truststore password",
+      "category": "Network",
+      "section": "trust",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_TRUSTSTORE_PASSWORD"
+      ],
+      "apply": "restart",
+      "secret": true,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "javax.net.ssl.trustStoreType",
+      "label": "Truststore type",
+      "category": "Network",
+      "section": "trust",
+      "type": "select",
+      "defaultValue": "PKCS12",
+      "environment": [
+        "CLAMAV_TRUSTSTORE_TYPE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "",
+      "choices": [
+        "PKCS12",
+        "JKS"
+      ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.metrics.enabled",
+      "label": "Enable Prometheus scraping",
+      "category": "Monitoring",
+      "section": "metrics",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_METRICS_ENABLED"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.metrics.scrape-token",
+      "label": "Scrape token",
+      "category": "Monitoring",
+      "section": "metrics",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_METRICS_SCRAPE_TOKEN"
+      ],
+      "apply": "live",
+      "secret": true,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Use 32–4096 printable characters without spaces.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.metrics.clamd-poll-ms",
+      "label": "ClamD telemetry interval (ms)",
+      "category": "Monitoring",
+      "section": "metrics",
+      "type": "number",
+      "defaultValue": "30000",
+      "environment": [
+        "CLAMAV_METRICS_CLAMD_POLL_MS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1000,
+      "maximum": 3600000,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.metrics.clamd-max-endpoints",
+      "label": "Maximum polled endpoints",
+      "category": "Monitoring",
+      "section": "metrics",
+      "type": "number",
+      "defaultValue": "12",
+      "environment": [
+        "CLAMAV_METRICS_CLAMD_MAX_ENDPOINTS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 12,
+      "legacy": ""
+    },
+    {
+      "key": "management.server.port",
+      "label": "Separate management listener port (optional)",
+      "category": "Monitoring",
+      "section": "metrics",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "MANAGEMENT_SERVER_PORT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Publishing this port remains a Docker/Kubernetes responsibility.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "center.observer.enabled",
+      "label": "Enable configuration observation",
+      "category": "Monitoring",
+      "section": "observer",
+      "type": "boolean",
+      "defaultValue": "true",
+      "environment": [
+        "CLAMAV_CONFIG_OBSERVER_ENABLED"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.config.clamd-path",
+      "label": "Mounted clamd.conf path",
+      "category": "Monitoring",
+      "section": "observer",
+      "type": "path",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_CONFIG_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.config.freshclam-path",
+      "label": "Mounted freshclam.conf path",
+      "category": "Monitoring",
+      "section": "observer",
+      "type": "path",
+      "defaultValue": "",
+      "environment": [
+        "FRESHCLAM_CONFIG_PATH"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.config.discovery-enabled",
+      "label": "Synchronize discovered endpoint and policy",
+      "category": "Monitoring",
+      "section": "observer",
+      "type": "boolean",
+      "defaultValue": "true",
+      "environment": [
+        "CLAMAV_CONFIG_DISCOVERY_ENABLED"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.config.poll-ms",
+      "label": "Configuration interval (ms)",
+      "category": "Monitoring",
+      "section": "observer",
+      "type": "number",
+      "defaultValue": "30000",
+      "environment": [
+        "CLAMAV_CONFIG_POLL_MS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "",
+      "choices": [],
+      "minimum": 5000,
+      "maximum": 3600000,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.ui.default-theme",
+      "label": "Default theme",
+      "category": "System",
+      "section": "system",
+      "type": "select",
+      "defaultValue": "system",
+      "environment": [
+        "CLAMAV_UI_DEFAULT_THEME"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [
+        "system",
+        "light",
+        "dark"
+      ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.ui.default-language",
+      "label": "Default language",
+      "category": "System",
+      "section": "system",
+      "type": "select",
+      "defaultValue": "en",
+      "environment": [
+        "CLAMAV_UI_DEFAULT_LANGUAGE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [
+        "en",
+        "ro",
+        "uk",
+        "fr",
+        "es",
+        "de"
+      ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "api.v1.clamd.database-timezone",
+      "label": "Daemon database timestamp timezone",
+      "category": "System",
+      "section": "system",
+      "type": "timezone",
+      "defaultValue": "UTC",
+      "environment": [
+        "API_V1_CLAMD_DATABASE_TIMEZONE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    }
+  ]
+}

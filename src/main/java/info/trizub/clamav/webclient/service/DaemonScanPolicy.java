@@ -18,14 +18,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DaemonScanPolicy {
     private final ClamdConfigurationObserver observer;
     private final SettingsService settings;
+    private final EndpointService endpoints;
 
     public DaemonScanPolicy(ClamdConfigurationObserver observer, SettingsService settings) {
+        this(observer, settings, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DaemonScanPolicy(ClamdConfigurationObserver observer, SettingsService settings, EndpointService endpoints) {
         this.observer = observer;
         this.settings = settings;
+        this.endpoints = endpoints;
     }
 
     public boolean appliesTo(ClamdEndpoint endpoint) {
-        return observer.discoveryEnabled() && endpoint != null && "default".equals(endpoint.getName());
+        if (!observer.discoveryEnabled() || endpoint == null) return false;
+        if (endpoints == null) return "default".equals(endpoint.getName());
+        ClamdEndpoint primary = endpoints.defaultEndpoint();
+        return primary != null && (primary == endpoint || primary.getId() != null && primary.getId().equals(endpoint.getId()));
     }
 
     private DaemonConfiguration configuration(ClamdEndpoint endpoint) {

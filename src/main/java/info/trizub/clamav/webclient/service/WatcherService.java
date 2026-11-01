@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.*;
+import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
@@ -25,25 +26,36 @@ public class WatcherService {
     private final ProcessedFileRepository processedRepo;
     private final ScanJobService scanJobService;
     private final DaemonScanPolicy daemonPolicy;
+    private final Clock clock;
 
     private final AtomicLong lastRunMs = new AtomicLong(0);
 
+    @org.springframework.beans.factory.annotation.Autowired
     public WatcherService(SettingsService settings,
                           WatchedDirectoryRepository watchRepo,
                           ProcessedFileRepository processedRepo,
                           ScanJobService scanJobService, DaemonScanPolicy daemonPolicy) {
+        this(settings, watchRepo, processedRepo, scanJobService, daemonPolicy, Clock.systemUTC());
+    }
+
+    WatcherService(SettingsService settings, WatchedDirectoryRepository watchRepo,
+                   ProcessedFileRepository processedRepo, ScanJobService scanJobService,
+                   DaemonScanPolicy daemonPolicy, Clock clock) {
         this.settings = settings;
         this.watchRepo = watchRepo;
         this.processedRepo = processedRepo;
         this.scanJobService = scanJobService;
         this.daemonPolicy = daemonPolicy;
+        this.clock = clock;
     }
 
-    @Scheduled(fixedDelay = 30000)
+    // A short tick lets every configured interval (for example 45s) take effect
+    // without rounding it up to the next 30-second scheduler invocation.
+    @Scheduled(fixedDelay = 1000)
     public void poll() {
         if (!settings.watchEnabled()) return;
 
-        long now = System.currentTimeMillis();
+        long now = clock.millis();
         long interval = settings.watchPollSeconds() * 1000L;
         long last = lastRunMs.get();
         if (now - last < interval) return;
@@ -54,6 +66,7 @@ public class WatcherService {
 
         for (WatchedDirectory wd : dirs) {
             try {
+                if (wd.getEndpoint() == null || !wd.getEndpoint().isEnabled()) continue;
                 Path root = PathPolicy.normalize(wd.getPath());
                 if (!Files.isDirectory(root)) continue;
                 if (!PathPolicy.isUnderAllowedRoots(root, settings.allowedRoots())) {
@@ -77,11 +90,12 @@ public class WatcherService {
                                     if (pf.getLastModified() == lm && pf.getSizeBytes() == sz) return;
                                     pf.setLastModified(lm);
                                     pf.setSizeBytes(sz);
+                                    scanJobService.createWatchFileJob(p, wd.getEndpoint(), "watcher");
                                     processedRepo.save(pf);
                                 } else {
+                                    scanJobService.createWatchFileJob(p, wd.getEndpoint(), "watcher");
                                     processedRepo.save(new ProcessedFile(p.toAbsolutePath().normalize().toString(), lm, sz, null));
                                 }
-                                scanJobService.createWatchFileJob(p, wd.getEndpoint(), "watcher");
                             } catch (Exception ignored) {}
                         });
                 }
@@ -106,7 +120,7 @@ public synchronized void start() {
  * This does not toggle the persisted setting; it only affects in-process behavior.
  */
 public synchronized void stop() {
-    lastRunMs.set(System.currentTimeMillis());
+    lastRunMs.set(clock.millis());
     log.info("Watcher stopped (poll loop will no-op unless enabled again).");
 }
 

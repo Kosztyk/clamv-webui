@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}">
+<section class="configuration-center" th:attr="data-endpoint=@{/admin/configuration-center}" data-mode="admin">
+  <header class="cc-heading"><div><p class="cc-eyebrow">Administration / Configuration</p><h1>Configuration center</h1><p class="cc-subtitle">Enable what you need. Keep everything else out of the way.</p></div><span class="cc-mode">Application settings</span></header>
+  <div class="cc-message" role="status" aria-live="polite" hidden></div>
+  <div class="cc-loading">Loading effective configuration…</div>
+  <div class="cc-content" hidden></div>
+  <noscript><p>Enable JavaScript to review and apply Configuration Center changes. Global application settings are edited only here; deployment configuration remains supported.</p></noscript>
+</section>
+</html>

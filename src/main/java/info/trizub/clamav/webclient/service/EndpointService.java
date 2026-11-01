@@ -17,6 +17,7 @@ public class EndpointService {
     private final SettingsService settings;
     private final info.trizub.clamav.webclient.config.ClamdConfigurationObserver configObserver;
     private final Environment environment;
+    private volatile Long primaryId;
 
     public EndpointService(ClamdEndpointRepository repo, SettingsService settings,
                            info.trizub.clamav.webclient.config.ClamdConfigurationObserver configObserver,
@@ -71,7 +72,10 @@ public class EndpointService {
     }
 
     public boolean hasConnectionOverride() {
-        return !environment.getProperty("CLAMAV_HOST","").isBlank() || !environment.getProperty("CLAMAV_PORT","").isBlank();
+        return info.trizub.clamav.webclient.configuration.ConfigurationCatalog.all().stream()
+            .filter(f->f.section().equals("clamd"))
+            .anyMatch(f->info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,f).isPresent()
+                || info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment).flatMap(s->s.saved(f.key())).isPresent());
     }
 
     public List<ClamdEndpoint> all() {
@@ -92,6 +96,18 @@ public class EndpointService {
     @Transactional
     public ClamdEndpoint update(Long id, String name, String host, int port, Platform platform, boolean enabled) {
         ClamdEndpoint ep = repo.findById(id).orElseThrow();
+        ClamdEndpoint primary=defaultEndpoint();
+        if(primary!=null && primary.getId().equals(id)) {
+            java.util.Map<String,String> proposed=java.util.Map.of("center.clamd.name",name,"clamav.service.host",host,
+                    "clamav.service.port",Integer.toString(port),"clamav.service.platform",platform.name(),"center.clamd.enabled",Boolean.toString(enabled));
+            proposed.forEach((key,value)->{
+                var field=info.trizub.clamav.webclient.configuration.ConfigurationCatalog.get(key);
+                String controlled=info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,field)
+                    .map(info.trizub.clamav.webclient.configuration.ConfigurationSource.Override::value)
+                    .orElseGet(()->info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment).flatMap(s->s.active(key)).orElse(null));
+                if(controlled!=null && !controlled.equals(value)) throw new IllegalArgumentException(field.label()+" is managed by deployment configuration or Configuration Center");
+            });
+        }
         ep.setName(name);
         ep.setHost(host);
         ep.setPort(port);
@@ -103,10 +119,27 @@ public class EndpointService {
     @Transactional
     public void delete(Long id) {
         repo.deleteById(id);
+        if (java.util.Objects.equals(primaryId,id)) primaryId=null;
     }
 
     public ClamdEndpoint defaultEndpoint() {
-        return repo.findByName("default").orElseGet(() -> repo.findAll().stream().findFirst().orElse(null));
+        // Keep the selected record stable across renames and unordered SQL reads.
+        Long selectedId=primaryId;
+        if(selectedId!=null) {
+            var selected=repo.findById(selectedId);
+            if(selected.isPresent()) return selected.get();
+            primaryId=null;
+        }
+        var field=info.trizub.clamav.webclient.configuration.ConfigurationCatalog.get("center.clamd.name");
+        String name=info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,field)
+            .map(info.trizub.clamav.webclient.configuration.ConfigurationSource.Override::value)
+            .or(()->info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment).flatMap(store->store.active(field.key())))
+            .orElse("default");
+        ClamdEndpoint selected=repo.findByName(name).or(()->repo.findByName("default"))
+            .orElseGet(()->repo.findAll().stream().min(java.util.Comparator.comparing(ClamdEndpoint::getId,
+                    java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))).orElse(null));
+        if(selected!=null) primaryId=selected.getId();
+        return selected;
     }
 
     /**

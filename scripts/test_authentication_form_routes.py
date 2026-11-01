@@ -1,119 +1,103 @@
 #!/usr/bin/env python3
-"""Actual Chromium regression for LDAP/OIDC Test and Save endpoint routing.
+"""Chromium regression for the sole identity editor and its central Test/Review/Apply routes.
 
-Requires Playwright for Python and a Chromium executable (CHROMIUM_PATH optional).
-Run `python3 scripts/test_authentication_form_routes.py`.
-
-Runs the production authentication-management.js and actual form template markup,
-with Thymeleaf URL attributes materialized and HTTP fetch mocked in the browser.
-Tests both missing formaction fallback and explicit buttons. Does not contact a
-live backend/LDAP server or use real credentials.
+Runs production Configuration Center JS/CSS and the shared catalogue. Network
+responses are controlled fixtures; real Spring persistence is checked by Maven
+and test_configuration_center_consolidation.py. No real credentials or providers.
 """
-from __future__ import annotations
-
-import os
-import re
 from pathlib import Path
-from playwright.sync_api import sync_playwright
+import copy
+import json
+import os
+from playwright.sync_api import sync_playwright, expect
 
-ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "src/main/resources/templates/pages/authentication.html"
-SCRIPT = ROOT / "src/main/resources/static/js/authentication-management.js"
-PAGE = "/admin/settings/authentication"
-BASE = "https://clamav.test"
-
-
-def materialized_html() -> str:
-    template = TEMPLATE.read_text(encoding="utf-8")
-    match = re.search(r'(<section\b[^>]*class="auth-admin-page"[^>]*>.*?</section>)', template, re.S)
-    assert match, "Authentication template section missing"
-    section = match.group(1)
-    section = re.sub(r'th:(formaction|action)="@\{([^}]+)\}"',
-                     lambda m: f'{m.group(1)}="{m.group(2)}"', section)
-    section = section.replace('th:name="${_csrf.parameterName}"', 'name="_csrf"')
-    section = section.replace('th:value="${_csrf.token}"', 'value="test-csrf-token"')
-    section = section.replace('class="panel panel-body mt-4 auth-provider-panel"',
-                              'class="panel panel-body mt-4 auth-provider-panel" hidden')
-    # document.baseURI is HTTPS for realistic resolved form actions. The document
-    # itself stays at about:blank because outbound browser traffic is prohibited.
-    return '<html><head><base href="https://clamav.test/"></head><body>' + section + '</body></html>'
+ROOT=Path(__file__).resolve().parents[1]
+BASE='https://configuration.test'
+CATALOG=json.loads((ROOT/'src/main/resources/configuration-center/catalog.json').read_text())
 
 
 def main():
-    js = SCRIPT.read_text(encoding="utf-8")
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True,
-            executable_path=os.environ.get("CHROMIUM_PATH", "/usr/bin/chromium"),
-            args=["--no-sandbox"])
-        try:
-            page = browser.new_page()
-            page.set_content(materialized_html())
-            # Mock network only; production JS remains unchanged.
-            page.evaluate('''() => {
-                window.__sent = [];
-                window.__fail = false;
-                window.fetch = async (url, options) => {
-                    const entry = { url: String(url), method: options.method,
-                                    body: String(options.body), headers: options.headers };
-                    window.__sent.push(entry);
-                    const valid = entry.url.startsWith("https://clamav.test/admin/settings/authentication/") &&
-                        (entry.url.endsWith("/test") || entry.url.endsWith("/save"));
-                    if (!valid) return new Response('Method Not Allowed', {status: 405, headers: {'Content-Type':'text/plain'}});
-                    if (window.__fail) return new Response(JSON.stringify({ok:false, message:'Provider connection/validation failed; draft preserved'}), {status:400, headers:{'Content-Type':'application/json'}});
-                    const isSave = entry.url.endsWith('/save');
-                    return new Response(JSON.stringify({ok:true, message: isSave?'Saved':'Test OK', saved:isSave,
-                        enabled:'true', secretConfigured: true}), {status:200, headers:{'Content-Type':'application/json'}});
-                };
-            }''')
-            page.add_script_tag(content=js)
-            for provider in ('ldap', 'oidc'):
-                form = page.locator(f'form#{provider}')
-                page.locator(f'button[data-auth-provider="{provider}"]').click()
-                assert form.is_visible(), f'{provider} panel not expanded'
-                save = form.get_by_role('button', name='Save LDAP settings' if provider=='ldap' else 'Save OIDC settings')
-                test = form.get_by_role('button', name='Test LDAP connection' if provider=='ldap' else 'Test OIDC discovery')
-                assert save.get_attribute('formaction') == f'{PAGE}/{provider}/save'
-                assert test.get_attribute('formaction') == f'{PAGE}/{provider}/test'
-                nonsecret = form.locator('input[name="managerDn"]' if provider=='ldap' else 'input[name="clientId"]')
-                nonsecret.fill('keep-this-value')
-                page.evaluate('window.__fail = true')
-                # Exercise the real explicit HTML button override first.
-                save.click()
-                page.wait_for_function("p => document.querySelector(`form#${p} .auth-inline-result`).textContent.includes('draft preserved')", arg=provider)
-                assert page.evaluate('window.__sent.at(-1).url') == f'{BASE}{PAGE}/{provider}/save'
-                # Fallback case reproduces original defect: no override attribute
-                # means button.formAction returns document URL, not form.action.
-                save.evaluate("el => el.removeAttribute('formaction')")
-                assert save.evaluate('el => el.formAction') == 'about:blank'
-                save.click()
-                page.wait_for_function("p => window.__sent.length >= (p === 'ldap' ? 2 : 6)", arg=provider)
-                entry = page.evaluate('window.__sent.at(-1)')
-                assert entry['url'] == f'{BASE}{PAGE}/{provider}/save', entry
-                assert entry['method'] == 'POST'
-                assert '_csrf=test-csrf-token' in entry['body']
-                assert entry['headers']['X-Requested-With'] == 'XMLHttpRequest'
-                assert nonsecret.input_value() == 'keep-this-value'
-                page.evaluate('window.__fail = false')
-                test.click()
-                page.wait_for_function("p => document.querySelector(`form#${p} .auth-inline-result`).textContent.includes('Test OK')", arg=provider)
-                assert page.evaluate('window.__sent.at(-1).url') == f'{BASE}{PAGE}/{provider}/test'
-                save.click()
-                page.wait_for_function("p => document.querySelector(`form#${p} .auth-inline-result`).textContent.includes('Saved')", arg=provider)
-                assert page.evaluate('window.__sent.at(-1).url') == f'{BASE}{PAGE}/{provider}/save'
-                assert form.is_visible(), f'{provider} panel collapsed after Save'
-                print(f'PASS {provider.upper()}: Save fallback, Test override, failed Save retains draft')
-            assert page.evaluate('window.__sent.length') == 8
-            print('PASS: all 8 requests have correct /ldap|oidc/test|save URLs, none POST to GET-only settings page')
-            # Browser on about:blank: new secrets intentionally blocked by HTTPS-only check.
-            form = page.locator('form#ldap')
-            form.locator('input[name="secret"]').fill('synthetic-secret')
-            before = page.evaluate('window.__sent.length')
-            form.get_by_role('button', name='Save LDAP settings').click()
-            assert page.evaluate('window.__sent.length') == before, 'HTTP secret guard bypassed'
-            assert form.locator('input[name="secret"]').input_value() == 'synthetic-secret'
-            print('PASS: new secrets blocked on non-HTTPS page without clearing the draft')
-        finally:
-            browser.close()
+    view={'version':'0','categories':CATALOG['categories'],'sections':CATALOG['sections'],
+          'pendingRestart':[],'databaseChoiceRequired':False,'fields':[]}
+    for definition in CATALOG['fields']:
+        value=definition['defaultValue']
+        if definition['key']=='clamav.identity.ldap.enabled':value='true'
+        view['fields'].append({'definition':definition,'value':'' if definition['secret'] else value,
+            'activeValue':value,'locked':False,'configured':False,'source':'Application default','pendingRestart':False})
+    fields={field['definition']['key']:field for field in view['fields']}
+    sent=[];reviews={};errors=[]
+    with sync_playwright() as runtime:
+        browser=runtime.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),args=['--no-sandbox'])
+        page=browser.new_page()
+        page.on('pageerror',lambda error:errors.append(str(error)))
+        def route(request):
+            path=request.request.url.split(BASE,1)[-1]
+            if path.startswith('/js/'):
+                return request.fulfill(content_type='application/javascript',body=(ROOT/'src/main/resources/static/js/configuration-center.js').read_text())
+            if path.startswith('/css/'):
+                return request.fulfill(content_type='text/css',body=(ROOT/'src/main/resources/static/css/configuration-center.css').read_text())
+            if '/api/' not in path:
+                return request.fulfill(content_type='text/html',body='''<html><head><meta name="_csrf" content="fixture-csrf"><meta name="_csrf_header" content="X-CSRF-TOKEN"><link rel="stylesheet" href="/css/configuration-center.css"><script defer src="/js/configuration-center.js"></script></head><body><section class="configuration-center" data-mode="admin" data-endpoint="/admin/configuration-center"><p class="cc-message" hidden></p><p class="cc-loading">Loading</p><div class="cc-content" hidden></div></section></body></html>''')
+            action=path.rsplit('/',1)[-1]
+            body=request.request.post_data_json if request.request.method=='POST' else {}
+            sent.append((action,body,request.request.headers))
+            status=200
+            if action=='view':response=view
+            elif action=='test':
+                status=400;response={'message':'Provider unavailable; draft retained'}
+            elif action=='review':
+                identifier='review-'+str(len(reviews));reviews[identifier]=copy.deepcopy(body)
+                changes=[]
+                for key,value in body['changes'].items():
+                    definition=fields[key]['definition']
+                    changes.append({'label':definition['label'],'before':'[private]' if definition['secret'] else fields[key]['value'],
+                                    'after':'[replaced]' if definition['secret'] else value,'apply':definition['apply']})
+                response={'reviewId':identifier,'changes':changes,'sensitive':True,'databaseChange':False}
+            elif action=='apply':
+                if body['verificationPassword']!='fixture-admin-password':status=400;response={'message':'Administrator verification failed'}
+                else:
+                    for key,value in reviews[body['reviewId']]['changes'].items():
+                        fields[key]['value']='' if fields[key]['definition']['secret'] else value
+                        fields[key]['configured']=bool(value)
+                    view['version']=str(int(view['version'])+1)
+                    response={'message':'Configuration saved','view':view}
+            else:raise AssertionError('Unexpected action '+action)
+            request.fulfill(status=status,content_type='application/json',body=json.dumps(response))
+        page.route(BASE+'/**',route)
+        page.goto(BASE+'/admin/configuration-center?section=ldap')
+        expect(page.get_by_role('tab',name='Identity & API',exact=True)).to_have_attribute('aria-selected','true')
+        for label in ['Group member attribute','Group name attribute','Connect timeout (ms)','Read timeout (ms)','LDAP referrals','Pool LDAP connections','Search nested groups']:
+            expect(page.get_by_label(label,exact=True)).to_be_visible()
+        page.get_by_label('Search nested groups',exact=True).select_option('true')
+        expect(page.get_by_label('Maximum nested-group depth',exact=True)).to_be_visible()
+        expect(page.get_by_label('Bind password file',exact=True)).not_to_be_visible()
+        print('PASS: complete LDAP options, conditional nesting depth and advanced secret-file controls',flush=True)
+        for provider,field,label in [('ldap','managerDn','Bind / manager DN'),('oidc','clientId','Client ID')]:
+            if provider=='oidc':page.get_by_role('switch',name=next(section['title'] for section in CATALOG['sections'] if section['id']=='oidc'),exact=True).check()
+            page.get_by_label(label,exact=True).fill('retained-draft-'+provider)
+            secret_label='Bind password' if provider=='ldap' else 'Client secret'
+            secret='fixture-private-secret-'+provider
+            page.get_by_label(secret_label,exact=True).fill(secret)
+            page.locator('[data-section="'+provider+'"] button').filter(has_text='Test connection').click()
+            expect(page.locator('[data-section="'+provider+'"] .cc-test-result')).to_contain_text('draft retained')
+            expect(page.get_by_label(label,exact=True)).to_have_value('retained-draft-'+provider)
+            assert sent[-1][0]=='test' and sent[-1][1]['section']==provider
+            assert all(fields[key]['definition']['section']==provider for key in sent[-1][1]['changes'])
+            page.get_by_role('button',name='Review changes',exact=False).click()
+            expect(page.get_by_role('dialog')).to_be_visible()
+            assert secret not in page.get_by_role('dialog').inner_text()
+            page.get_by_label('Local administrator password',exact=True).fill('wrong')
+            page.get_by_role('button',name='Apply reviewed changes',exact=True).click()
+            expect(page.get_by_role('dialog')).to_contain_text('verification failed')
+            page.get_by_label('Local administrator password',exact=True).fill('fixture-admin-password')
+            page.get_by_role('button',name='Apply reviewed changes',exact=True).click()
+            expect(page.get_by_role('dialog')).to_have_count(0)
+            print('PASS '+provider.upper()+': central Test/Review/Apply routes, draft retention, secret masking and verification',flush=True)
+        assert all(action in ['view','test','review','apply'] for action,_,_ in sent)
+        assert all(headers.get('x-csrf-token')=='fixture-csrf' for action,_,headers in sent if action!='view')
+        assert not errors,errors
+        print('PASS: no legacy identity posts; central mutations retain CSRF; no JavaScript exceptions',flush=True)
+        browser.close()
 
-if __name__ == '__main__':
-    main()
+
+if __name__=='__main__':main()

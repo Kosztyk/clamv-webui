@@ -17,7 +17,11 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 public class UiModelAdvice {
     private final IdentityProperties identities;
     public UiModelAdvice(IdentityProperties identities) { this.identities = identities; }
-    @Value("${clamav.app.version:2.0.0}") private String appVersion;
+    @Value("${clamav.app.version:2.1.0}") private String appVersion;
+    @Value("${clamav.ui.default-theme:system}") private String defaultTheme;
+    @Value("${clamav.public-url:}") private String publicUrl;
+    @ModelAttribute("publicUrl") public String publicUrl() { return publicUrl; }
+    @ModelAttribute("defaultTheme") public String defaultTheme() { return defaultTheme; }
     @ModelAttribute("appVersion") public String appVersion(){return appVersion;}
     @ModelAttribute("displayName") public String displayName(Authentication authentication) {
         if (authentication == null) return "";

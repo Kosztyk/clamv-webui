@@ -50,7 +50,7 @@ jobs:
       - run: python3 scripts/test-clamctl-integration.py
       - uses: actions/upload-artifact@v4
         with:
-          name: clamctl-v2.0.0-all-platforms
+          name: clamctl-v2.1.0-all-platforms
           path: |
             cli/dist/
             cli/README.md

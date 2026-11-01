@@ -1,24 +1,15 @@
 <!doctype html>
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}">
 <section class="admin-page">
-  <header class="admin-page-header"><div class="admin-page-icon"><i class="fas fa-sliders-h" aria-hidden="true"></i></div><div><h1>Daemon configuration</h1><p class="muted">See what is on disk, what the Web UI inherits, and what ClamD is doing now.</p></div></header>
-  <div class="admin-callout"><strong>Start here</strong><p>For a remote ClamD server, configuration files can be unavailable and scans can still work normally. First check the live connection and definition age below. File observation is optional.</p><p>Changing a file here does not reload ClamD. Restart or reload the daemon separately after changing its own configuration.</p></div>
-  <form method="post" th:action="@{/admin/configuration/settings}" class="panel admin-card admin-form">
-    <h2>File observation controls</h2><p class="muted" th:text="${observerManaged ? 'Saved in UI · overrides container defaults' : 'Using container defaults'}"></p>
-    <label class="admin-toggle"><input type="checkbox" name="enabled" value="true" th:checked="${observerEnabled}"/> Observe mounted configuration files</label>
-    <label class="admin-toggle"><input type="checkbox" name="synchronize" value="true" th:checked="${synchronizationRequested}"/> Inherit daemon connection, scan limits and exclusions</label>
-    <p class="muted">Leave inheritance off for inspection only. Disabling it removes the additional file-based limits; the normal application scan policy still applies. Only the endpoint named default can be synchronized.</p>
-    <p th:if="${connectionOverride}" class="admin-callout">The container sets CLAMAV_HOST or CLAMAV_PORT, so it keeps control of the connection address. File-based scan limits and exclusions can still be inherited.</p>
-    <div class="admin-grid"><label>Polling interval (seconds)<input class="form-control" type="number" min="5" max="3600" name="pollSeconds" th:value="${pollMillis / 1000}" required/></label><label>clamd.conf path in the Web UI container<input class="form-control" readonly th:value="${clamdPath}" placeholder="Not mounted — optional"/></label><label>freshclam.conf path in the Web UI container<input class="form-control" readonly th:value="${freshclamPath}" placeholder="Not mounted — optional"/></label></div>
-    <p class="muted">File paths are selected by the container environment and read-only mounts. A browser cannot mount files from your server.</p>
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <div class="admin-actions"><button class="btn btn-primary" name="action" value="save">Save observation settings</button><button class="btn btn-outline-secondary" name="action" value="reset">Use container defaults</button><a class="btn btn-outline-primary" th:href="@{/admin/integrations/files/testing-guide}" download>Home-lab testing guide</a></div>
-    <details class="admin-details"><summary>How to mount configuration files</summary><p>Mount the ClamD host's actual configuration directory read-only. These paths are examples; use the directory used by your daemon.</p><pre data-i18n-ignore>environment:
-  CLAMAV_CONFIG_PATH: /daemon-config/clamd.conf
-  FRESHCLAM_CONFIG_PATH: /daemon-config/freshclam.conf
-volumes:
-  - /YOUR/HOST/CLAMAV/CONFIG:/daemon-config:ro</pre><p>Recreate the Web UI container after changing mounts or environment variables. If LocalSocket is configured, its socket must also be mounted at the same absolute path. A config file alone does not grant access to a remote socket.</p></details>
-  </form>
+  <header class="admin-page-header"><div class="admin-page-icon"><i class="fas fa-sliders-h" aria-hidden="true"></i></div><div><h1>Daemon status &amp; files</h1><p class="muted">See what is on disk, what the Web UI inherits, and what ClamD is doing now.</p></div></header>
+  <div class="admin-callout"><strong>Start here</strong><p>For a remote ClamD server, configuration files can be unavailable and scans can still work normally. First check the live connection and definition age below. File observation is optional.</p><p>This read-only view does not edit files or reload ClamD. Restart or reload the daemon separately after changing its own configuration.</p></div>
+  <section class="panel admin-card"><h2>File observation status</h2>
+    <p>This page inspects mounted files and live daemon telemetry. Configure observation, inheritance, paths and polling only in Configuration Center.</p>
+    <p>Observation: <strong th:text="${observerEnabled ? 'Enabled' : 'Disabled'}"></strong> · Inheritance: <strong th:text="${synchronizationRequested ? 'Enabled' : 'Disabled'}"></strong> · Polling: <span th:text="${pollMillis / 1000}"></span> seconds</p>
+    <p>clamd.conf: <code th:text="${#strings.isEmpty(clamdPath) ? 'Not configured' : clamdPath}"></code> · freshclam.conf: <code th:text="${#strings.isEmpty(freshclamPath) ? 'Not configured' : freshclamPath}"></code></p>
+    <a class="btn btn-primary" th:href="@{/admin/configuration-center(section='observer')}">Configure file observation</a>
+    <a class="btn btn-outline-primary" th:href="@{/admin/integrations/files/testing-guide}" download>Testing guide</a>
+  </section>
   <div data-daemon-configuration th:attr="data-poll-ms=${pollMillis}">
   <section class="panel admin-card"><h2>What should I watch?</h2><div class="admin-grid"><p><strong>Connection</strong><br/>Available should be Yes. If No, check the endpoint address, network and daemon service.</p><p><strong>Definition age</strong><br/>Check that definitions are updating. A rising age can mean freshclam cannot reach its update source.</p><p><strong>Queue &amp; busy threads</strong><br/>Short spikes are normal. A queue that keeps growing with all threads busy suggests sustained saturation.</p></div>
     <p th:if="${#lists.isEmpty(daemonMetrics)}" class="muted">Waiting for the first sample, or no enabled endpoint is available. Check Endpoints and refresh after 30 seconds.</p>

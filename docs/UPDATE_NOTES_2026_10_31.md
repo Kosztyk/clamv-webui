@@ -1,6 +1,6 @@
-# 31 October 2026 — runtime, proxy and webhook update
+# 31 October 2026 — Configuration Center, runtime, proxy and webhook update
 
-Application version remains **2.0.0**. This source update includes issues
+The current full-source release is **2.1.0**; see [release notes](RELEASE_NOTES_V2_1_0.md). This source update includes issues
 [#10](https://github.com/Kosztyk/clamv-webui/issues/10),
 [#11](https://github.com/Kosztyk/clamv-webui/issues/11) and
 [#12](https://github.com/Kosztyk/clamv-webui/issues/12), retaining the previous
@@ -9,12 +9,19 @@ application features, migrations, CLI/MCP distribution and security updates.
 Build directly from the repository root:
 
 ```bash
-docker build --pull -t clamav-web-client:2.0.0-local .
+docker build --pull -t clamav-web-client:2.1.0-local .
 ```
 
 No deployment helper, build argument or `--trusted-proxy` flag is required.
-This is a source update; it does not itself publish a registry image or a new
-versioned release.
+This source release does not itself publish a Docker Hub image or GitHub release.
+
+## Configuration Center edition
+
+This full-source edition adds the application Configuration Center, protected database-independent setup/recovery, encrypted persisted credentials, authoritative Compose overrides and live/restart review. Existing identity UI precedence has changed: explicit deployment values now win. See [setup and compatibility](CONFIGURATION_CENTER.md), [every central field](CONFIGURATION_REFERENCE.md) and [new validation](CONFIGURATION_CENTER_VALIDATION.md). Application version is 2.1.0 and the Flyway schema remains V4; no new SQL migration or baseline is required for this feature.
+
+## Direct setup correction
+
+Setup and Configuration Center support direct HTTP on the published application port with explicit GUI confirmation for unencrypted credential submission. Neither nginx nor a homelab address is required. The root Compose no longer preconfigures a REST URL or application environment overrides. Invalid recovery tokens return 401; a temporary retry limit returns 429 with Retry-After. Machine API Bearer authentication still requires HTTPS.
 
 ## Changes
 
@@ -56,8 +63,8 @@ testing procedure. [Field validation](FIELD_VALIDATION.md) records reported
 Kubernetes Prometheus/LLDAP results and local Docker checks without treating
 those reports as coverage of every deployment.
 
-The supplied source reports 307 Maven tests (302 passed, 5 skipped), 14
+Earlier v2.0.0 validation reported 307 Maven tests (302 passed, 5 skipped), 14
 executable-JAR checks and a runtime dependency advisory query. The 82 focused
 webhook tests also passed on the operator's Docker test host. Historical reports
-describe their original test run; current publication checks are recorded in
-`security/repository-update-validation.json`.
+describe their original test run; current v2.1.0 checks are recorded in
+[Configuration Center validation](CONFIGURATION_CENTER_VALIDATION.md).

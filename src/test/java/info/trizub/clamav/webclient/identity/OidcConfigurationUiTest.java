@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:h2:mem:oidc-compatibility-ui;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
     "clamav.bootstrap.admin.password=OidcCompatibilityLocalAdmin456",
-    "spring.task.scheduling.enabled=false"
+    "spring.task.scheduling.enabled=false", "clamav.configuration.file=target/test-config/oidc-ui-${random.uuid}/center.properties"
 })
 @AutoConfigureMockMvc
 @ContextConfiguration(initializers = OidcConfigurationUiTest.StandardEnvironment.class)
@@ -48,9 +48,9 @@ class OidcConfigurationUiTest {
 
     @Autowired MockMvc mvc;
     @Autowired AuthenticationSettingsService settings;
-    @MockitoBean AuthenticationProviderProber prober;
+    @Autowired info.trizub.clamav.webclient.configuration.ConfigurationCenterService center;
 
-    @Test void standardConfigurationShowsSsoPreservesLocalLoginAndPersistsScopedUiOverrides() throws Exception {
+    @Test void standardDeploymentLocksScopesWhileLocalLoginAndUnlockedUiFieldsWork() throws Exception {
         var oidc = settings.properties().getOidc();
         assertThat(oidc.isEnabled()).isTrue();
         assertThat(settings.effectiveSecret("oidc")).isEqualTo("synthetic-standard-ui-secret");
@@ -77,31 +77,18 @@ class OidcConfigurationUiTest {
             assertThat(URLDecoder.decode(query.getFirst("redirect_uri"), StandardCharsets.UTF_8))
                 .endsWith("/login/oauth2/code/clamav");
 
-            String admin = mvc.perform(get("/admin/settings/authentication").session(session))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-            assertThat(admin).contains("name=\"scopes\"", "openid,profile,email,groups", "oidc-scopes-help")
-                .doesNotContain("synthetic-standard-ui-secret");
-            var fields = new LinkedMultiValueMap<String, String>();
-            fields.set("enabled", "true"); fields.set("issuer", oidc.getIssuer());
-            fields.set("clientId", oidc.getClientId()); fields.set("scopes", "openid,email,groups,custom:read");
-            fields.set("groupsClaim", "groups"); fields.set("viewer", "readers");
-            fields.set("buttonLabel", "Sign in with SSO"); fields.set("logoutMode", "local");
-            mvc.perform(post("/admin/settings/authentication/oidc/test").session(session).with(csrf()).secure(true)
-                .header("X-Requested-With", "XMLHttpRequest").accept(MediaType.APPLICATION_JSON).params(fields))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.saved").value(false));
-            assertThat(oidc.getScopes()).containsExactly("openid", "profile", "email", "groups");
-            mvc.perform(post("/admin/settings/authentication/oidc/save").session(session).with(csrf()).secure(true)
-                .header("X-Requested-With", "XMLHttpRequest").accept(MediaType.APPLICATION_JSON).params(fields))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.saved").value(true));
-            settings.load();
-            assertThat(oidc.getScopes()).containsExactly("openid", "email", "groups", "custom:read");
+            mvc.perform(get("/admin/settings/authentication").session(session))
+                .andExpect(redirectedUrl("/admin/configuration-center?category=identity"));
+            mvc.perform(info.trizub.clamav.webclient.configuration.ConfigurationHttpTestSupport.request("review",Map.of(
+                    "version",center.engine().store().snapshot().revision(),"changes",Map.of("clamav.identity.oidc.scopes","openid,profile,custom:read")),session))
+                .andExpect(status().isBadRequest());
+            var reviewed=info.trizub.clamav.webclient.configuration.ConfigurationHttpTestSupport.review(mvc,center,
+                    Map.of("clamav.identity.oidc.groups-claim","roles","clamav.identity.oidc.groups.viewer","readers"),session);
+            info.trizub.clamav.webclient.configuration.ConfigurationHttpTestSupport.apply(mvc,reviewed,session,"OidcCompatibilityLocalAdmin456");
+            assertThat(oidc.getScopes()).containsExactly("openid","profile","email","groups");
+            assertThat(oidc.getGroupsClaim()).isEqualTo("groups");
+            assertThat(center.engine().values(true)).containsEntry("clamav.identity.oidc.groups-claim","roles");
             assertThat(settings.effectiveSecret("oidc")).isEqualTo("synthetic-standard-ui-secret");
-            fields.set("scopes", "profile,email");
-            mvc.perform(post("/admin/settings/authentication/oidc/save").session(session).with(csrf()).secure(true)
-                .header("X-Requested-With", "XMLHttpRequest").accept(MediaType.APPLICATION_JSON).params(fields))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.ok").value(false))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("include openid")));
-            assertThat(oidc.getScopes()).containsExactly("openid", "email", "groups", "custom:read");
         }
     }
 }

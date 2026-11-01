@@ -1,8 +1,12 @@
 # ClamAV Web UI 2.0.0 — Phase 3.1 Authentication Management
 
+> **Current v2.1.0 configuration:** global application fields are edited only in Configuration Center. Former Settings/Authentication bookmarks redirect there; old provider, metrics and observer write routes are retired. Use Test connection, Review changes and Apply; restart provider changes when indicated. Diagnostic/client pages remain read-only. Earlier form behavior described below is historical. See [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [current setup](CONFIGURATION_CENTER.md).
+
+> Historical phase notes. In the Configuration Center edition, explicit deployment values override central and legacy UI settings; central identity changes require restart. Use [current Configuration Center instructions](CONFIGURATION_CENTER.md) for precedence, encrypted configuration and recovery.
+
 ## Migration / safety
 
-1. Back up the existing PostgreSQL `clamv` database using `pg_dump -Fc` and back up mounted `./conf` and `./data`.
+1. Back up the existing PostgreSQL `appdb` database using `pg_dump -Fc` and back up mounted `./conf` and `./data`.
 2. Upgrade on a copy first; Flyway adds `auth_provider_settings` in V4. Existing V1-V3 schemas and rows remain unchanged.
 3. Keep `SPRING_FLYWAY_BASELINE_ON_MIGRATE=false`. Do not force a new baseline on existing migrated databases.
 4. Restart with both providers off or with existing Docker bootstrap defaults; **local login is always available** and requires a strong password. Confirm local login and an end-to-end scan after restart.

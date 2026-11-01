@@ -9,7 +9,7 @@ Extract the full source archive and run from the directory containing
 `Dockerfile`, `pom.xml`, `src/` and `dashboards/`:
 
 ```bash
-docker build --pull -t clamav-web-client:2.0.0-local .
+docker build --pull -t clamav-web-client:2.1.0-local .
 ```
 
 The non-root and proxy fixes are part of this normal build: the Dockerfile declares
@@ -47,8 +47,10 @@ docker compose up -d --build
 docker compose logs -f clamav-web-client
 ```
 
-The included Compose file starts a ClamAV daemon and a Web UI with default H2
-storage. An existing deployment should retain its own Compose environment,
+The included Compose file starts a ClamAV daemon and opens the Web UI first-run
+setup at `http://YOUR_SERVER:8080/setup/`. Choose H2 or an existing external
+database and enter `clamav-server:3310` for the bundled scanner. No nginx is
+required; see [the setup steps](CONFIGURATION_CENTER.md). An existing deployment should retain its own Compose environment,
 external database settings, endpoint configuration, secrets and volume mounts.
 Do not replace runtime settings or delete `conf`/`data` to update application
 source.
@@ -63,7 +65,7 @@ If using an existing deployment Compose, select the locally built image in its
 Web UI service:
 
 ```yaml
-image: clamav-web-client:2.0.0-local
+image: clamav-web-client:2.1.0-local
 pull_policy: never
 ```
 
@@ -77,7 +79,7 @@ docker compose logs -f clamav-web-client
 When building on an ARM Mac for an x86-64 server, select the deployment platform:
 
 ```bash
-docker build --platform linux/amd64 --pull -t clamav-web-client:2.0.0-local .
+docker build --platform linux/amd64 --pull -t clamav-web-client:2.1.0-local .
 ```
 
 The resulting image stays on the build machine until transferred to the server

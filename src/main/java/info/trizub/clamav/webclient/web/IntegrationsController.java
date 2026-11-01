@@ -29,20 +29,9 @@ public class IntegrationsController {
         model.addAttribute("metricsPollSeconds",Math.max(1,env.getProperty("clamav.metrics.clamd-poll-ms",Long.class,30000L)/1000));
         return "pages/integrations";
     }
-    @PostMapping("/admin/integrations/prometheus")
-    public String save(@RequestParam(defaultValue="false") boolean enabled,@RequestParam(defaultValue="") String token,
-            @RequestParam(defaultValue="save") String action,Authentication auth,HttpServletRequest request,RedirectAttributes redirect) {
-        try {
-            switch(action) {
-                case "generate" -> redirect.addFlashAttribute("newScrapeToken",settings.generateMetricsToken());
-                case "reset" -> settings.resetMetrics();
-                case "save" -> settings.saveMetrics(enabled,token);
-                default -> throw new IllegalArgumentException("Unknown settings action.");
-            }
-            audit.record(auth,request,"MONITORING_SETTINGS_UPDATE","action="+action,"SUCCESS",null);
-            redirect.addFlashAttribute("successMsg",action.equals("generate") ? "Prometheus enabled. Copy the new scrape token now; it will not be shown again." : "Monitoring settings saved. Changes are active now.");
-        } catch (IllegalArgumentException|IllegalStateException ex) { redirect.addFlashAttribute("errorMsg",ex.getMessage()); }
-        return "redirect:/admin/integrations";
+    @PostMapping("/admin/integrations/prometheus") @ResponseBody
+    public org.springframework.http.ResponseEntity<?> retiredSettings(HttpServletRequest request) {
+        return ConfigurationNavigation.moved(request,"metrics");
     }
     @GetMapping("/admin/integrations/files/{name}")
     public ResponseEntity<Resource> download(@PathVariable String name) {

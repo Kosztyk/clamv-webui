@@ -1,5 +1,7 @@
 # v2.0.0 Phase 3.1 — Authentication Save HTTP 405 root-cause fix
 
+> **Current v2.1.0 configuration:** global application fields are edited only in Configuration Center. Former Settings/Authentication bookmarks redirect there; old provider, metrics and observer write routes are retired. Use Test connection, Review changes and Apply; restart provider changes when indicated. Diagnostic/client pages remain read-only. Earlier form behavior described below is historical. See [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [current setup](CONFIGURATION_CENTER.md).
+
 ## Root cause (reproduced in Chromium)
 
 The Authentication page's JavaScript used:
@@ -60,7 +62,7 @@ docker compose build --no-cache clamav-web-client
 docker compose up -d --no-deps --no-build --force-recreate clamav-web-client
 ```
 
-Browse to `https://192.168.68.112/login`, sign in as local admin and open
+Browse to `https://YOUR_SERVER/login`, sign in as local admin and open
 Administration > Authentication. Saving and testing should now send requests
 ending with `/ldap/save` or `/ldap/test`, respectively (similarly for OIDC).
 Use browser DevTools Network to verify the exact request URL and JSON response.

@@ -59,11 +59,11 @@ class ViewerSidebarAuthorizationTest {
 
     @Test
     @WithMockUser(username="local-admin", roles={"VIEWER", "OPERATOR", "ADMIN"})
-    void administratorRetainsScanAndAuthenticationNavigation() throws Exception {
+    void administratorRetainsScanAndCentralConfigurationNavigation() throws Exception {
         mvc.perform(get("/dashboard"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("href=\"/scan\"")))
             .andExpect(content().string(containsString("href=\"/jobs\"")))
-            .andExpect(content().string(containsString("href=\"/admin/settings/authentication\"")));
+            .andExpect(content().string(containsString("href=\"/admin/configuration-center\"")));
     }
 }

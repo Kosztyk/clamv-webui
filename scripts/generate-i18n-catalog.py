@@ -45,5 +45,5 @@ for original,vals in supplement.items():
 # Correct a term in the Ukrainian dictionary.
 dicts['uk']['External API is not configured. Set CLAMAV_REST_URL in Docker Compose.']='Зовнішній API не налаштовано. Встановіть CLAMAV_REST_URL у Docker Compose.'
 # Do not translate proper names, usernames, protocols or terminal output.
-out=B/'src/main/resources/static/js/i18n-catalog.js';out.write_text('/* ClamAV Web UI v2.0.0: static UI translations; never send data to external translation services. */\nwindow.ClamavTranslationCatalog = '+json.dumps(dicts,ensure_ascii=False,sort_keys=True,separators=(',',':'))+';\n')
+out=B/'src/main/resources/static/js/i18n-catalog.js';out.write_text('/* ClamAV Web UI v2.1.0: static UI translations; never send data to external translation services. */\nwindow.ClamavTranslationCatalog = '+json.dumps(dicts,ensure_ascii=False,sort_keys=True,separators=(',',':'))+';\n')
 print('catalog',len(dicts['ro']),'keys for',','.join(langs),'size',out.stat().st_size)

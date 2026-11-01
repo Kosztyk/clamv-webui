@@ -6,7 +6,7 @@ backend access to that trusted proxy. See [proxy TLS setup](REVERSE_PROXY_TLS.md
 if MCP requests return `403 tls_required`. Keep the public HTTPS URL in the
 MCP/`clamctl` configuration.
 
-The official MCP server is included in `clamctl` v2.0.0. It bridges the Web UI's
+The official MCP server is included in `clamctl` v2.1.0. It bridges the Web UI's
 `/api/v1` REST API using the official Go MCP SDK, pinned to v1.8.0. No Python,
 Node.js, Go installation or additional runtime is needed to run the distributed
 binary. Deploy the updated Web UI server to obtain the new job diagnostics and

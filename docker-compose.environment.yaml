@@ -1,0 +1,25 @@
+# Core connections managed by Compose; remaining fields remain GUI-editable.
+# Copy examples/compose/.env.example to a private .env and fill your own values.
+# Example placeholders do not name a real deployment. This creates no ClamD or SQL service.
+services:
+  clamav-web-client:
+    image: clamav-web-client:2.1.0-local
+    pull_policy: never
+    container_name: clamav-web-client
+    ports:
+      - "8080:8080"
+    environment:
+      CLAMAV_HOST: "${CLAMAV_HOST:?Set the ClamD host in your private .env}"
+      CLAMAV_PORT: "${CLAMAV_PORT:-3310}"
+      CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"
+      SPRING_DATASOURCE_URL: "${SPRING_DATASOURCE_URL:?Set the JDBC URL in your private .env}"
+      SPRING_DATASOURCE_USERNAME: "${SPRING_DATASOURCE_USERNAME:?Set the database user in your private .env}"
+      SPRING_DATASOURCE_PASSWORD: "${SPRING_DATASOURCE_PASSWORD:?Set the database password in your private .env}"
+    volumes:
+      - clamav-conf:/app/conf
+      - clamav-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  clamav-conf:
+  clamav-data:

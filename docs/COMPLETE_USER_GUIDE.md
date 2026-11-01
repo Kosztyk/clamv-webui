@@ -1,21 +1,38 @@
-# ClamAV Web UI 2.0.0 — Complete User, Administrator & Deployment Guide
+# ClamAV Web UI 2.1.0 — Complete User, Administrator & Deployment Guide
 
-**Documentation edition:** 31 October 2026
+**Documentation edition:** 1 November 2026
 
-**Source edition:** application 2.0.0 with the security dependency updates and issues #10, #11 and #12
+**Source edition:** application 2.1.0 with Configuration Center, the security dependency updates and issues #10, #11 and #12
 
 **Example registry image:** `kosztyk/clamav-web-client:v2`  
-**Current local build tag:** `clamav-web-client:2.0.0-local`
+**Current local build tag:** `clamav-web-client:2.1.0-local`
 
 This is the **single, consolidated how-to** for people deploying, administering or using ClamAV Web UI. It covers all available browser pages and fields, deployment alternatives, environment variables and persisted settings, authentication, database and scan modes, native ClamdTop, the *separate* REST bridge, machine APIs, CLI, MCP, monitoring, upgrade and troubleshooting. Where the source explicitly leaves a feature unsupported, the limitation is documented rather than presented as an option.
 
-> **Image provenance:** The current source includes Spring Boot 4.0.9, dependency security updates, the non-root runtime, default reverse-proxy HTTPS recognition and webhook resilience. Updating this repository does not publish a Docker Hub image. Verify the image digest before assuming the example `v2` tag includes these changes, or build the current source normally with `docker build --pull -t clamav-web-client:2.0.0-local .`.
+> **Image provenance:** The current source includes Spring Boot 4.0.9, dependency security updates, the non-root runtime, default reverse-proxy HTTPS recognition and webhook resilience. Updating this repository does not publish a Docker Hub image. Verify the image digest before assuming the example `v2` tag includes these changes, or build the current source normally with `docker build --pull -t clamav-web-client:2.1.0-local .`.
+
+**Configuration Center:** `/admin/configuration-center` provides categorized, conditional fields with deployment locks, review and live/restart tracking. Fresh installs and failed startup use protected `/setup/` before the database initializes. Direct HTTP setup works on the published application port; confirm HTTP configuration on the page before submitting credentials. A reverse proxy is optional. Start with [Configuration Center and minimal Compose](CONFIGURATION_CENTER.md); use the [full field reference](CONFIGURATION_REFERENCE.md). Existing Compose configuration remains supported.
 
 For the current upgrade procedure and expected runtime test results, including
 LAN access with a self-signed certificate, see [Update and verify](UPDATE_AND_VERIFY.md).
 The [update notes](UPDATE_NOTES_2026_10_31.md) summarize defaults and compatibility;
 [field validation](FIELD_VALIDATION.md) distinguishes reported deployments from
 automated test coverage.
+
+**Database Test connection:** see [the corrected database probe](DATABASE_CONNECTION_TESTS.md) for PostgreSQL/MySQL/MariaDB timeout budgets, safe diagnostics and the informational first-run H2 result. Testing remains separate from saving or migrations.
+
+## Two supported configuration methods
+
+- **GUI-managed setup:** use [the minimum Compose example](../docker-compose.minimal.yaml). It requires no application environment variables. Follow [README: Configuration Center](../README.md#configure-the-app-with-configuration-center).
+- **Compose-managed or hybrid setup:** declare the selected fields in `environment`, using your own private connection values. They remain authoritative/read-only in the GUI; omitted settings stay editable there. See [README: docker-compose.yaml](../README.md#configure-the-app-with-docker-composeyaml) and [the complete environment example](../docker-compose.environment.yaml).
+
+Both use the same built-in application code and standard Docker build. First-run `/setup/` uses this separately generated owner credential:
+
+```bash
+docker exec clamav-web-client sh -c 'cat /app/conf/configuration-recovery-token; echo'
+```
+
+Run it on the Docker host for the correct container. The name matches the minimum example; substitute an existing container name or use `docker compose exec -T clamav-web-client` for a differently named container. Complete review/apply and select **Start application** before trying `/login`. The generated `/app/data/bootstrap-admin-password` is a different credential, created only when initializing a new application's local administrator.
 
 ## Table of contents
 
@@ -31,7 +48,7 @@ automated test coverage.
 9. [8. Dashboard, Main and native ClamdTop](#8-dashboard-main-and-native-clamdtop)
 10. [9. Scan page — every field and job behavior](#9-scan-page-every-field-and-job-behavior)
 11. [10. Jobs, history, verdicts, retention and quarantine](#10-jobs-history-verdicts-retention-and-quarantine)
-12. [11. Administration → Settings — complete field reference](#11-administration-settings-complete-field-reference)
+12. [11. Configuration Center — scan policy and notification fields](#11-configuration-center-scan-policy-and-notification-fields)
 13. [12. Administration → Endpoints — field-by-field](#12-administration-endpoints-field-by-field)
 14. [13. API Scan and API Reports — optional **external** REST scanner](#13-api-scan-and-api-reports-optional-external-rest-scanner)
 15. [14. Watch Directories — setup, controls and operating limits](#14-watch-directories-setup-controls-and-operating-limits)
@@ -86,13 +103,14 @@ Grafana -------------- queries Prometheus (not the Web UI directly)
 | `/scan` | OPERATOR+ | Multi-file upload and approved server-path scan |
 | `/jobs`, `/jobs/{id}` | OPERATOR+ | Job list, status, verdict and details |
 | `/api-scan`, `/api-reports` | OPERATOR+ | Separate upstream REST scanner upload, live jobs, analytics/export |
-| `/admin/settings` | ADMIN | Scan policy, storage, workers, quarantine, watchers, direct webhook |
-| `/admin/endpoints` | ADMIN | ClamD endpoint creation/update/delete/enable |
+| `/admin/configuration-center` | ADMIN | Sole global settings editor; validated review, encrypted secrets and live/restart activation |
+| `/admin/settings` | ADMIN | Compatibility redirect to Configuration Center → Scanning |
+| `/admin/endpoints` | ADMIN | Additional named ClamD engines; the default engine links to Configuration Center |
 | `/admin/users` | ADMIN | Local user create/delete/password reset/role |
 | `/admin/watch` | ADMIN | Watched directories and endpoint assignment |
 | `/admin/api-tokens` | ADMIN | Scoped machine token issue/list/revoke |
-| `/admin/settings/authentication` | ADMIN | LDAP and OIDC Test/Save, group-to-role mapping |
-| `/admin/integrations` | ADMIN | Prometheus token, monitoring files, CLI/MCP instructions |
+| `/admin/settings/authentication` | ADMIN | Compatibility redirect to Configuration Center → Identity & API |
+| `/admin/integrations` | ADMIN | Read-only Prometheus status, monitoring files and CLI/MCP instructions |
 | `/admin/configuration` | ADMIN | clamd/freshclam observer and effective policy; live samples |
 | `/admin/audit` | ADMIN | Security and administration audit events |
 
@@ -100,7 +118,7 @@ Grafana -------------- queries Prometheus (not the Web UI directly)
 
 ## 2. Installation choices and prerequisites
 
-Required: Docker Engine with Compose plugin (or Java 17+/Maven for source compilation); a reachable and properly configured ClamD daemon; persistent writable directories for `conf` and `data`; a browser. ClamD needs current signature data. Reserve at least the space required by uploaded files, quarantine, databases and signature downloads. A non-local UI requires HTTPS through a reverse proxy.
+Required: Docker Engine with Compose plugin (or Java 17+/Maven for source compilation); a reachable and properly configured ClamD daemon; persistent writable directories for `conf` and `data`; a browser. ClamD needs current signature data. Reserve at least the space required by uploaded files, quarantine, databases and signature downloads. Direct HTTP GUI setup and administration work on a trusted network with explicit on-page confirmation before configuration credentials are sent. HTTPS is optional for the GUI and required separately for API Bearer authentication; no reverse proxy is required for setup.
 
 The container runs as **UID/GID `10001:10001`**. Prepare bind-mount ownership before first boot or upgrading a root-owned installation. See [non-root deployment and permission migration](NON_ROOT_CONTAINER.md) for Linux, Docker Desktop/named volumes, Kubernetes and native path/socket permissions.
 
@@ -117,16 +135,17 @@ Never expose ClamD TCP 3310 on the public internet: its protocol does not provid
 
 | Kind | Where to configure | Data location | When changes take effect |
 |---|---|---|---|
-| Container/image/ports/mounts/`TZ`/JDBC/proxy/Java trust | Compose / deployment | Host Compose, environment, secrets | Recreate/restart container |
-| New endpoint seed, upload mode | `CLAMAV_HOST`/`PORT`, `CLAMAV_UPLOAD_PATH_SCAN_*` in Compose | Environment overrides selected persisted values on startup | Recreate; endpoint seed does not overwrite every existing DB endpoint |
-| Scan roots/size/storage/worker count/quarantine/watch/webhook | **Admin → Settings** or `conf/clamav-web-client.properties` | `./conf` | Most live; concurrency changes need restart |
+| Container/image/host ports/mounts/`TZ` | Compose / deployment | Host Compose, environment, secrets | Recreate container |
+| JDBC, proxy, context path, Java trust, central identity/REST clients | Configuration Center or deployment overrides | Encrypted central settings and matching key under `conf`; deployment remains authoritative | Restart; deployment changes require recreation |
+| Default endpoint, upload mode | Configuration Center or `CLAMAV_HOST`/`PORT`, `CLAMAV_UPLOAD_PATH_SCAN_*` | Central settings / authoritative deployment fields | Central endpoint/policy live; deployment changes require recreation |
+| Scan roots/size/storage/workers/quarantine/watch/webhook | Configuration Center only; deployment overrides remain supported | Central `./conf` file, with legacy settings as fallback | Policies live; workers/storage and webhook transport policy restart |
 | Users, roles, endpoints, job history, audit, watches, API tokens | Respective Admin pages | SQL (H2 or external DB) | Live; persists across reboots |
-| LDAP/OIDC providers | Authentication → Test/Save or bootstrap properties | SQL secrets encrypted using key in `./conf` | New logins updated live when saved; existing sessions may survive |
-| Metrics enable/token | Monitoring & clients / bootstrap token | `./conf/integrations.properties` for UI overrides | Live; moving listener port requires restart |
-| Daemon config observation/inheritance | Configuration page + read-only file mounts | Docker mounts + persisted observer preferences | File paths require restart; mode/polling live |
+| LDAP/OIDC providers | Configuration Center or authoritative deployment properties | Central encrypted file or legacy SQL settings with their matching keys | Restart; legacy saved provider values are preserved on upgrade |
+| Metrics enable/token | Configuration Center / authoritative deployment | Central encrypted token or legacy `./conf/integrations.properties` hash | Gate/token live; moving listener port requires restart |
+| Daemon config observation/inheritance | Configuration Center controls + read-only file mounts; status on Daemon status & files | Docker mounts + persisted observer preferences | File paths require restart; mode/polling live |
 | CLI/MCP settings | `clamctl` config or its environment | On client machine | Separate process; unaffected by Java container restarts |
 
-**Back up SQL + `conf` + `data` together.** Specifically, losing `conf/auth-settings.key` (or the explicit matching key) may make saved directory/SSO secrets unreadable even while their rows remain in SQL.
+**Back up SQL + `conf` + `data` together.** Retain both `conf/configuration-center.key` and `conf/auth-settings.key` (or their explicit matching keys), central settings, recovery credential and database selection records. Lost keys make their corresponding saved credentials unreadable.
 
 ## 3. Complete Compose A — new install, H2 and bundled ClamD
 
@@ -144,7 +163,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      TZ: Europe/Bucharest
+      TZ: UTC
       CLAMAV_HOST: clamav-server
       CLAMAV_PORT: "3310"
       CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"
@@ -181,7 +200,13 @@ docker compose logs --tail=100 clamav-web-client
 docker compose logs --tail=100 clamav-server
 ```
 
-Wait for ClamD to acquire usable signatures and become ready; daemon startup order alone does **not** guarantee readiness. Navigate to `http://127.0.0.1:8080/login` **on that host**. Get the generated administrator password after first startup:
+Wait for ClamD to acquire usable signatures and become ready; daemon startup order alone does **not** guarantee readiness. Open `http://127.0.0.1:8080/setup/` on that host. Obtain the owner credential, unlock setup, review the database and ClamD connection, apply, and select **Start application**:
+
+```bash
+docker exec clamav-web-client sh -c 'cat /app/conf/configuration-recovery-token; echo'
+```
+
+After the main application initializes, open `/login` and obtain the generated administrator password for the new database:
 
 ```bash
 docker compose exec -T clamav-web-client cat /app/data/bootstrap-admin-password
@@ -201,7 +226,7 @@ Use this when ClamD already runs on another server, including a home-lab setup w
 services:
   clamav-web-client:
     image: kosztyk/clamav-web-client:v2
-    container_name: clamav-gui
+    container_name: clamav-web-client
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -209,7 +234,7 @@ services:
     ports:
       - "${CLAMAV_WEB_BIND:-127.0.0.1}:8082:8080"
     environment:
-      TZ: Europe/Bucharest
+      TZ: UTC
       CLAMAV_HOST: "${CLAMAV_HOST:?Set CLAMAV_HOST in .env}"
       CLAMAV_PORT: "${CLAMAV_PORT:-3310}"
       CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"
@@ -237,9 +262,9 @@ services:
 
 ```dotenv
 CLAMAV_WEB_BIND=127.0.0.1
-CLAMAV_HOST=192.168.68.73
+CLAMAV_HOST=scanner.example.internal
 CLAMAV_PORT=3310
-SPRING_DATASOURCE_URL=jdbc:postgresql://192.168.68.152:5432/clamav
+SPRING_DATASOURCE_URL=jdbc:postgresql://database.example.internal:5432/clamav
 SPRING_DATASOURCE_USERNAME=clamav
 SPRING_DATASOURCE_PASSWORD=YOUR_PRIVATE_PASSWORD
 CLAMAV_REST_URL=
@@ -300,7 +325,7 @@ docker compose -f docker-compose.yaml -f examples/compose/shared-paths.override.
 docker compose -f docker-compose.yaml -f examples/compose/shared-paths.override.yaml up -d
 ```
 
-When composing volumes, inspect the merged configuration carefully; Compose merges mounts by target and multiple files can override existing entries. Prefer a single fully assembled Compose file for production. Path scans require `/scandir` to be an **allowed scan root**, configured under **Admin → Settings → `app.allowedScanRoots`** (default `/scandir`). Both **physical mount visibility** and **policy permission** are required. A file accessible only in the user's browser or only on the host will not be scannable by the Java container. If ClamD is remote, arrange compatible shared storage or use INSTREAM.
+When composing volumes, inspect the merged configuration carefully; Compose merges mounts by target and multiple files can override existing entries. Prefer a single fully assembled Compose file for production. Path scans require `/scandir` to be an **allowed scan root**, configured under **Configuration Center → Scanning → `app.allowedScanRoots`** (default `/scandir`). Both **physical mount visibility** and **policy permission** are required. A file accessible only in the user's browser or only on the host will not be scannable by the Java container. If ClamD is remote, arrange compatible shared storage or use INSTREAM.
 
 **Quarantine write implications:** `:ro` `/scandir` permits scans but prevents moving original server files into quarantine. An infected **uploaded copy** can be quarantined in the Web UI's writable `/app/data`. If you deliberately want infected original PATH/WATCH files moved, permit the necessary controlled writes on the source and quarantine filesystem and test permissions. Keep quarantine **outside all watched roots**. Do not silently grant broad host filesystem write access to achieve this.
 
@@ -312,9 +337,9 @@ Run in the extracted application source folder or Git checkout (containing `pom.
 
 ```bash
 mvn -B -ntp verify  # optional when host has Maven and JDK installed
-docker build --pull -t clamav-web-client:2.0.0-local .
+docker build --pull -t clamav-web-client:2.1.0-local .
 # Optional: scan local image if Docker Scout is installed:
-docker scout cves local://clamav-web-client:2.0.0-local
+docker scout cves local://clamav-web-client:2.1.0-local
 ```
 
 The Dockerfile builds the application using Maven/Java 21, runs Maven verification, and places native `clamdtop`, `script` and ncurses runtime components in a Java 21 runtime image. To deploy **this locally built image** use:
@@ -322,14 +347,19 @@ The Dockerfile builds the application using Maven/Java 21, runs Maven verificati
 ```yaml
 services:
   clamav-web-client:
-    image: clamav-web-client:2.0.0-local
+    image: clamav-web-client:2.1.0-local
     pull_policy: never
     # Keep all the rest of your production ports/env/volumes as they were.
 ```
 
 If you later publish your verified image as `kosztyk/clamav-web-client:v2`, that is a separate `docker login`, `docker tag` and `docker push` operation with permission to publish. Updating documentation on GitHub does **not** build or update Docker Hub images. The source security revision adjusts Spring Boot 4 and dependencies; see [`docs/SECURITY_DEPENDENCY_UPDATE.md`](SECURITY_DEPENDENCY_UPDATE.md) for the precise dependency list, limitations and verification report. Test against your database, LDAP/OIDC and ClamD before replacing a working deployment.
 
+The full-source archive includes `publish-clamav-webui.sh` and `SOURCE_MANIFEST.sha256`. Use [the publishing guide](PUBLISHING.md) to validate and push this snapshot from macOS or Linux. It uses an isolated checkout, preserves Git history, disables pagers and supports protected-branch pull requests. It does not publish a container image.
+
 ## 7. First login, session and local user management
+
+For a fresh installation, complete `/setup/` and select **Start application** first. Recover the setup owner credential with the command above; it is not the local `admin` password. Existing configured installations can proceed directly to `/login`.
+
 
 1. Open `/login` through the appropriate origin, preferably HTTPS (e.g. `https://clamav.example.com/login`). Login form fields are **Username** and **Password**.
 2. On the first empty database, retrieve `/app/data/bootstrap-admin-password` as in Section 3; sign in as `admin`.
@@ -367,16 +397,15 @@ Uploads are limited by the minimum of proxy body-size, Spring servlet multipart 
 
 ## 10. Jobs, history, verdicts, retention and quarantine
 
-At `/jobs` browse the managed job history. Open `/jobs/{id}` to see the type (`UPLOAD`, `PATH`, `WATCH`), requested target, selected endpoint, submitter, submission/start/finish timestamps, status, verdict, detections and error details. A positive signature is different from an actual quarantine move. The app persists data in SQL; there is no claim of indefinite automated purging or a built-in legal hold/archive workflow.
+At `/jobs` browse the managed job history. The table refreshes automatically every two seconds while listed jobs are queued/running and every five seconds otherwise. Final statuses/verdicts appear without navigation; the last table is retained during transient errors. Polling pauses in background tabs and stops when leaving the page. Returning through the sidebar fetches a fresh page. Open `/jobs/{id}` to see the type (`UPLOAD`, `PATH`, `WATCH`), requested target, selected endpoint, submitter, submission/start/finish timestamps, status, verdict, detections and error details. A positive signature is different from an actual quarantine move. The app persists data in SQL; there is no claim of indefinite automated purging or a built-in legal hold/archive workflow.
 
-**Quarantine setup:** Go to **Admin → Settings**. Set `app.quarantine.enabled=true` and `app.storage.quarantineDir=./data/quarantine` (or another **writable persisted path**) then Save. Protect host access to this folder. The operation may move a saved upload or writable server-side source on positive detection. An original file sitting on the uploading user's Mac is **not** moved. Read-only server path mounts cannot move their original files. No supported browser quarantine restore/download screen is provided; any restore must follow an operator-controlled filesystem/forensics procedure.
+**Quarantine setup:** Go to **Configuration Center → Scanning → Quarantine**. Set `app.quarantine.enabled=true` and `app.storage.quarantineDir=./data/quarantine` (or another **writable persisted path**), review and apply; restart when indicated. Protect host access to this folder. The operation may move a saved upload or writable server-side source on positive detection. An original file sitting on the uploading user's Mac is **not** moved. Read-only server path mounts cannot move their original files. No supported browser quarantine restore/download screen is provided; any restore must follow an operator-controlled filesystem/forensics procedure.
 
 In the v1 API/MCP diagnostics, quarantine evidence may be `PENDING`, `RECORDED`, `NOT_RECORDED`, `NOT_APPLICABLE` or `UNKNOWN`. `RECORDED` means a path was recorded in job evidence, **not** that the file was independently reverified as present. Older PATH/WATCH jobs can have incomplete evidence. A `VIRUS_FOUND` verdict does **not** guarantee successful quarantine.
 
-## 11. Administration → Settings — complete field reference
+## 11. Configuration Center — scan policy and notification fields
 
-The page presents editable settings and a direct webhook panel. Values are persisted to **`/app/conf/clamav-web-client.properties`** (host `./conf/clamav-web-client.properties`). Do not mix application keys up with Spring environment variables.
-
+Use **Administration → Configuration center**. Scan policy, storage, workers, quarantine and watcher policy are under Scanning; direct webhooks are under Notifications. This is their sole editor. Changes use masked review, encrypted secret persistence and live/restart status in `conf/configuration-center.properties`; older properties remain a read-only compatibility source. `/admin/settings` redirects here.
 | Exact settings key / UI field | Default | Purpose / guidance |
 |---|---|---|
 | `app.allowedScanRoots` | `/scandir` | Comma-separated absolute server roots allowed for PATH/WATCH scans. Docker mounts must independently expose them |
@@ -389,13 +418,12 @@ The page presents editable settings and a direct webhook panel. Values are persi
 | `app.watch.pollSeconds` | `30` | Requested polling interval, while the scheduler wakes on a 30-second cadence |
 | `app.webhook.enabled` | `false` | Direct managed scan completion notification on/off |
 | `app.webhook.url` / **Webhook URL** | Empty | Write-only receiver URL; blank edit retains previously saved value |
-| **Remove saved webhook URL** | Unchecked | Explicitly clears secret and disables webhook; Save to apply |
+| **Clear the saved credential** | Unchecked | Explicitly clears the webhook URL and disables delivery after review/apply |
 | `app.upload.pathScan.enabled` | `true` application default | Native upload path scanning; Docker `CLAMAV_UPLOAD_PATH_SCAN_ENABLED` overrides on startup |
 | `app.upload.pathScan.fallbackToInstream` | `false` | Optional upload fallback; Docker `CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM` overrides |
-| `clamav.service.host` / `port` / `platform` | `localhost` / `3310` / `UNIX` | Compatibility seed for initial endpoint; do not use as a live switch for existing DB endpoints |
+| `clamav.service.host` / `port` / `platform` | `localhost` / `3310` / `UNIX` | Default engine under Connections; central changes apply live to its existing record |
 
-Click **Save settings** after changes. The dynamic webhook form includes **Enable webhook notifications** (Enabled/Disabled), **Webhook URL** (new or replacement, write-only), and **Remove** checkbox. Saving a blank URL does *not* erase an existing credential. Enabling with no URL is invalid. The URL is stored in `conf`, not displayed in plaintext on subsequent visits.
-
+Use **Review changes**, inspect the masked summary and apply. New credentials and sensitive configuration require local administrator verification. On HTTP, confirm trusted-network credential submission first. Blank secret inputs retain saved credentials; explicit clearing is reviewed. Enabling a webhook without a valid receiver is rejected. All connection, DNS, private-address and metadata safeguards remain enforced.
 ### 11.1 Direct webhooks
 
 Direct scan notifications may include job ID, type, target, endpoint, submitter, final verdict, found signatures, error and available quarantine path. Compatible generic endpoints receive JSON; Discord endpoints receive adapted content with mentions disabled. Delivery failures do not erase scan results. There is **no durable local retry queue or delivery-history UI**. Upstream REST service webhooks (Section 13) are configured on the **external** REST scanner; these are distinct from direct managed job notifications.
@@ -417,31 +445,37 @@ policy. All behavior is built into normal Docker/JAR builds; no helper is needed
 Full configuration table, Compose/Kubernetes guidance, payload behavior and
 best-effort delivery limits: [Webhook resilience](WEBHOOK_RESILIENCE.md).
 
-### 11.2 Safely edit the file directly
+### 11.2 Recovery and legacy files
 
-If no UI is available, stop the app, back up `./conf`, edit `./conf/clamav-web-client.properties`, and recreate the app. Application-provided defaults are created if missing. Do **not** replace an existing file with `conf/clamav-web-client.properties.example` on an upgrade: it could overwrite allowlists, webhook URL and other persisted policy. Keep its permissions private.
+If the normal UI is unavailable, use the protected `/setup/` recovery page with its separate owner credential. It does not depend on the application database. Prefer reviewed configuration over hand-editing encrypted central files.
+
+The older `conf/clamav-web-client.properties` is retained as a compatibility fallback. Before editing it, stop the app and back up the complete `conf` directory; deployment and centrally saved values still take precedence. Never replace existing runtime files with archive examples or edit encrypted credentials without their matching key. Use Configuration Center or protected recovery to change centrally managed values.
 
 ## 12. Administration → Endpoints — field-by-field
 
-At `/admin/endpoints` **Add endpoint** asks for:
+The default engine has one editor: **Configuration Center → Connections**. Its row here is read-only and links there. The forms below manage **additional named engines**, which are separate scan resources. Their names cannot take the reserved `default` name. Existing records remain in SQL; no engine or connection is recreated merely because the global fields moved.
+
+At `/admin/endpoints` **Add additional endpoint** asks for:
 
 | Field | Meaning |
 |---|---|
-| **Name** | Unique descriptive backend identifier, e.g. `default` or `av-secondary` |
+| **Name** | Unique descriptive additional-engine name, e.g. `av-secondary` or `av-office`; `default` is reserved |
 | **Host or socket** | TCP hostname/IP reachable from UI container, or supported Unix socket *absolute path* |
 | **Port** | TCP port (usually `3310`); `0` for supported Unix socket endpoints |
 | **Platform** | `UNIX` or `WINDOWS` path convention, **not** a TLS selection |
 | **Enabled** | Whether endpoint can be selected for scans |
 
-Click **Create**; existing rows expose **Update**, **Delete** and **Enabled**. The app stores endpoint records in SQL. `CLAMAV_HOST`/`CLAMAV_PORT` seed initial `default`; changing them later is **not a guarantee** of overwriting an existing database endpoint. Edit it in the UI when necessary. Configuration inheritance (Section 19) can optionally synchronize `default`, but explicit host/port deployment overrides prevent connection replacement. A container's `localhost` means itself; use a Docker service name or remote reachable IP for ClamD in another container.
+Click **Create**; additional-engine rows expose **Update**, **Delete** and **Enabled**. The app stores endpoint records in SQL. Explicit `CLAMAV_HOST`/`CLAMAV_PORT` now control the default endpoint across restarts. Configuration Center can manage it when the deployment fields are absent; additional endpoints remain editable in Endpoints. Configuration inheritance (Section 19) can optionally synchronize `default`, but explicit host/port deployment overrides prevent connection replacement. A container's `localhost` means itself; use a Docker service name or remote reachable IP for ClamD in another container.
 
 A Unix socket requires mounting the containing directory at the same path and granting read/write socket access to the Java process. Socket configuration discovery and actual Unix operations depend on the runtime/Linux host. Avoid public/native ClamD TCP access and firewall between services.
 
 ## 13. API Scan and API Reports — optional **external** REST scanner
 
+For the complete external REST Compose example, both GUI and environment setup, built-in API usage and upload-limit units, see [Web UI API and REST deployment](REST_API_DEPLOYMENT.md).
+
 These two pages become meaningful when a **separate compatible REST scanning service** exists and `CLAMAV_REST_URL` is configured. They are **not** alternate views of local `/api/v1` managed jobs. Their backend processes jobs, statistics and webhook delivery independently.
 
-**To enable:** set the upstream host and credentials in the Web UI container (Section 20.5), recreate the Web UI, then open:
+**To enable:** configure the upstream host and credentials in **Configuration Center → Connections → External REST scanner**, review/apply and restart when indicated. Authoritative deployment overrides remain an alternative (Section 20.5). Then open:
 
 - **API Scan** `/api-scan`: **Files** multi-upload, **Webhook** (choose upstream default/available hook), **Queue API scan**; view **API service status**, **Most recent external API jobs**, Prev/Next pagination and individual live progress/results.
 - **API Reports** `/api-reports`: **API activity**, **Jobs & history**; select **All jobs (live)** vs **Finished history**, **Status** (All/queued/running/completed/failed), **Mode** (All/Sync/Async), **Detection** (All/Detected/Clean), **From**, **To**, **Request ID** (correlation), **Apply filters**, **Previous/Next**, **Generate analytics**, **Export CSV**, **Export JSON**. Upstream webhook status/retry is displayed if supported by that external server.
@@ -450,7 +484,7 @@ Most integrations use `CLAMAV_REST_FORM_KEY=FILES`, API key header mode `x-api-k
 
 ## 14. Watch Directories — setup, controls and operating limits
 
-Use when incoming files already land **inside the Web UI's server-side filesystem**. First mount an approved path at the same absolute location in both UI and ClamD (Section 5), then set `app.allowedScanRoots`, and in **Admin → Settings** enable **`app.watch.enabled`**. Go to **Admin → Watch Directories** `/admin/watch`:
+Use when incoming files already land **inside the Web UI's server-side filesystem**. First mount an approved path at the same absolute location in both UI and ClamD (Section 5), then set `app.allowedScanRoots`, and in **Configuration Center → Scanning** enable **`app.watch.enabled`**. Go to **Admin → Watch Directories** `/admin/watch`:
 
 | Control | Action |
 |---|---|
@@ -464,16 +498,15 @@ The implementation uses periodic file inspection (not OS inotify). It remembers 
 
 ## 15. Authentication Management — provider tests, saves and recovery
 
-Open **Admin → Settings → Authentication** or `/admin/settings/authentication`. Local authentication remains available for recovery. Both provider forms implement **Test** and **Save** independently: **Test** checks an unsaved draft; **Save** persists settings for subsequent logins without navigating away or discarding entered form values. Browser UI saved settings take precedence over bootstrap Docker variables. Existing saved secret values are masked/write-only; leave a secret field blank to retain the saved secret.
+Open **Configuration Center → Identity & API**. The former Authentication page redirects here and no longer has a separate writer. **Test connection** checks an unsaved draft; it never saves. **Review changes → Apply** saves configuration, followed by restart to activate provider changes. Explicit deployment values remain authoritative and locked. Keep an enabled local recovery administrator; local authentication is independent of external provider availability.
 
-Directory and OIDC client secrets saved through this UI are **encrypted before being stored in SQL**, using the persistent symmetric key (default `./conf/auth-settings.key`, mounted as host `./conf/auth-settings.key`). Use `CLAMAV_AUTH_SETTINGS_KEY_FILE` for an alternate key path or `CLAMAV_AUTH_SETTINGS_KEY` for a base64-encoded 32-byte key. Supply one stable key source and back it up with SQL. Do not casually rotate/delete the key: it is required to decrypt existing saved secrets.
-
+New central identity credentials use `conf/configuration-center.key` and encrypted central storage. Existing encrypted SQL provider rows are preserved and read with their matching `conf/auth-settings.key` (or configured legacy key). An untouched bind/client secret is retained, including during a partial central edit. Back up both keys and the database; no credential migration or rotation is required merely to upgrade. All provider options use the same runtime validation.
 ### 15.1 LDAP / Active Directory — every UI field
 
-| Authentication → LDAP field | Example / meaning |
+| Configuration Center → LDAP field | Example / meaning |
 |---|---|
 | **Enable LDAP login** | Toggle to show/allow directory sign-in |
-| **LDAP server URL** | `ldaps://ldap.example.com:636`; or `ldap://...` with StartTLS enabled |
+| **LDAP URL** | `ldaps://ldap.example.com:636`; or `ldap://...` with StartTLS enabled |
 | **Base DN** | `dc=example,dc=com` |
 | **Bind / manager DN** | `cn=svc-clamav,ou=services,dc=example,dc=com` |
 | **User search base** | `ou=users` (relative to base) |
@@ -488,13 +521,14 @@ Directory and OIDC client secrets saved through this UI are **encrypted before b
 | **Maximum nested-group depth** | Bounded nested lookup, normally `3`, UI 1–8 |
 | **Connect timeout (ms)** | Normally `5000`, UI 1000–30000 |
 | **Read timeout (ms)** | Normally `5000`, UI 1000–30000 |
-| **Referral policy** | Ignore / Follow / Throw; directory-specific |
+| **LDAP referrals** | Ignore / Follow / Throw; directory-specific |
 | **Bind password** | Write-only; blank preserves saved value |
 | **StartTLS** | Required when using plain `ldap://` URL without LDAPS |
-| **Resolve nested groups** | Use if roles are inherited through nested memberships |
-| **Connection pooling** | Optional; restrict to appropriate LDAPS configuration |
-| **Test LDAP connection** | Validate draft connection/filter/bind/TLS without saving |
-| **Save LDAP settings** | Persist validated settings and activate for new sign-ins |
+| **Search nested groups** | Use if roles are inherited through nested memberships |
+| **Pool LDAP connections** | Optional; restrict to appropriate LDAPS configuration |
+| **Test connection** | Validate the current draft and LDAP transport/manager bind without saving; verify real user/group access separately |
+| **Review changes → Apply** | Persist reviewed settings and restart to activate |
+| **Bind password file** (Advanced) | Use an already mounted readable secret file instead of an inline bind credential |
 
 **LDAP security:** Java's truststore must trust the LDAPS/StartTLS certificate **and its hostname must match**. Trusting a CA does not fix a mismatched SAN. The application rejects insecure plain LDAP without TLS. Login is by a distinct **Sign in with LDAP** form; successful bind alone is not proof group mapping is correct. Test a member of each role and a member of no role before deploying broadly. Explicit role mapping and nested-group resolution are essential. Existing local accounts remain independent from directory principals.
 
@@ -538,7 +572,7 @@ This illustrates **Compose secret mounting** for the application's explicit LDAP
 
 Register an **OIDC confidential authorization-code** application in your identity provider. Set the callback/redirect URI to the exact public HTTPS origin followed by `/login/oauth2/code/clamav` (for example `https://clamav.example.com/login/oauth2/code/clamav`). The issuer is the actual provider's **issuer URL**, not its administrative webpage. The user must reach the same HTTPS public origin during the redirect.
 
-| Authentication → OIDC field | Purpose |
+| Configuration Center → OIDC field | Purpose |
 |---|---|
 | **Enable OIDC login** | Display/enable the SSO option |
 | **HTTPS issuer URL** | E.g. `https://auth.example.com/application/o/clamav/` (provider-specific) |
@@ -551,8 +585,8 @@ Register an **OIDC confidential authorization-code** application in your identit
 | **Admin groups** | Claim values mapped to ADMIN; keep tightly controlled |
 | **Login button label** | E.g. `Sign in with Authentik` |
 | **Logout behavior** | Local application logout or IdP provider logout (if supported) |
-| **Test OIDC discovery** | Test issuer metadata/client setup draft, no save |
-| **Save OIDC settings** | Persist and activate for new logins |
+| **Test connection** | Test issuer metadata/client setup draft, no save |
+| **Review changes → Apply** | Save reviewed settings; restart to activate |
 
 **OIDC Compose bootstrap** using standard Spring security registration support:
 
@@ -571,7 +605,7 @@ Or use application namespace `CLAMAV_IDENTITY_OIDC_*` including `CLIENT_SECRET_F
 
 ### 15.3 Provider precedence, identity separation, recovery
 
-- Authentication's saved UI configuration overrides Docker bootstrap identity fields for subsequent logins; **Test** never saves.
+- Deployment identity fields take precedence over Configuration Center, then legacy saved authentication settings. All central identity changes are staged for restart; legacy saved rows remain a compatibility source and no longer have a separate UI writer. **Test connection** never saves.
 - Explicit `CLAMAV_IDENTITY_LDAP_*` bootstrap variables override `SECURITY_LDAP_*` compatibility aliases. The OIDC compatibility bridge supports standard Spring client settings.
 - A successful LDAP bind/OIDC discovery is **not** an authorization-mapping validation; login and group claims must still be exercised end-to-end.
 - The system keeps local accounts for break-glass access and stores external identities separately; it does not store LDAP/OIDC passwords as local password hashes.
@@ -654,11 +688,11 @@ Open **Admin → Monitoring & clients** `/admin/integrations`:
 
 | UI control | Purpose |
 |---|---|
-| **Allow Prometheus scrapes** | Live enable/disable independent from browser/API auth |
-| **Replace scrape token** | Write-only replacement; blank leaves prior token |
-| **Save Prometheus settings** | Apply current on/off/token without container restart |
-| **Generate new token & enable** | Create random token, show **once**, activate immediately |
-| **Use container defaults** | Remove UI-managed settings and use environment/bootstrap behavior |
+| **Enable Prometheus scraping** (Configuration Center → Monitoring) | Live gate independent from browser/API auth |
+| **Scrape token** (Configuration Center) | Write-only replacement; blank retains the existing token |
+| **Generate scrape token** (Configuration Center) | Generate a local draft token; copy it, then review/apply to activate |
+| **Review changes → Apply** (Configuration Center) | Apply enabled/token values live after required verification |
+| **Stage application defaults** (Configuration Center) | Stage built-in defaults and credential clearing for review; retain deployment locks |
 | **Grafana dashboard** download | Retrieve packaged `grafana-clamav-webui.json` |
 | **Alert rules** download | Retrieve packaged `clamav-alerts.yml` |
 | **Home-lab testing guide** download | Retrieve packaged lab markdown |
@@ -740,17 +774,17 @@ services:
 
 Mount the *directory*, not just a single file, so bounded relative `Include` files can be read. Omit `FRESHCLAM_CONFIG_PATH` if absent. The UI does **not** edit files or reload ClamD/FreshClam; it reports the disk configuration and the sampled running state as **different sources**.
 
-**Configuration page fields:**
+**Configuration Center → Monitoring → Mounted daemon configuration controls; read-only diagnostics remain on Daemon status & files:**
 
 | Field/control | Purpose |
 |---|---|
 | **Observe mounted configuration files** | Enable or pause observation |
 | **Inherit daemon connection, scan limits and exclusions** | Synchronize eligible `default` endpoint and inherited policy when valid files mounted |
-| **Polling interval (seconds)** | UI range **5–3600**; saved overrides take effect live |
-| **clamd.conf path in Web UI container** | Read-only deployment path; change Docker mount/env to change it |
-| **freshclam.conf path in Web UI container** | Optional read-only deployment path |
-| **Save observation settings** | Persist controls (not file content) |
-| **Use container defaults** | Discard saved observer overrides, use env/bootstrap |
+| **Observation interval (ms)** | Central catalogue range is displayed beside the field; mode and polling apply live |
+| **clamd.conf path** | Select an already mounted readable file in Configuration Center; restart required |
+| **freshclam.conf path** | Optional already mounted readable file; restart required |
+| **Review changes → Apply** | Persist controls and refresh the active observation snapshot, without editing file content |
+| **Stage application defaults** | Stage defaults for review; deployment values retain precedence |
 | **Connections used for scans / Application connection defaults** | Effective connection and precedence |
 | **Effective daemon scan policy** | Effective `StreamMaxLength`, `MaxScanSize`, `MaxFileSize`, exclusions |
 | **Live ClamD telemetry · Cached snapshot** | VERSION/STATS sample with age and last status |
@@ -758,20 +792,20 @@ Mount the *directory*, not just a single file, so bounded relative `Include` fil
 | **freshclam.conf · Desired configuration** | Parsed optional definitions |
 | **Discovery and precedence** | Explanation of who owns default endpoint and scan restrictions |
 
-**Key precedence:** `CLAMAV_CONFIG_PATH` must exist and be valid to activate observation. `CLAMAV_CONFIG_DISCOVERY_ENABLED=false` leaves this in **inspection-only** mode unless overridden in UI. Enabling inheritance updates only the endpoint named `default`, preserving the endpoint record ID and enabled state; other endpoint records remain untouched. If `CLAMAV_HOST` or `CLAMAV_PORT` is explicitly set, file-driven **connection** replacement is blocked, although inherited restrictive daemon policy may still apply. When a `LocalSocket` directive is discovered it takes precedence over TCP settings, but a socket must truly exist at the accessible path inside the Java container. Explicit Docker endpoints are generally simpler when ClamD is remote.
+**Key precedence:** `CLAMAV_CONFIG_PATH` must exist and be valid to activate observation. `CLAMAV_CONFIG_DISCOVERY_ENABLED=false` leaves this in **inspection-only** mode and is read-only while the deployment override exists. Enabling inheritance updates only the endpoint named `default`, preserving the endpoint record ID and enabled state; other endpoint records remain untouched. If `CLAMAV_HOST` or `CLAMAV_PORT` is explicitly set, file-driven **connection** replacement is blocked, although inherited restrictive daemon policy may still apply. When a `LocalSocket` directive is discovered it takes precedence over TCP settings, but a socket must truly exist at the accessible path inside the Java container. Explicit Docker endpoints are generally simpler when ClamD is remote.
 
 **Scope of inheritance:** size constraints `StreamMaxLength`, `MaxScanSize`, `MaxFileSize` and `ExcludePath` can further **restrict** scan/watch/upload targets; they cannot expand allowed scan roots or relax application limits. Changed disk files do not imply the ClamD process has actually reloaded them. Parser errors retain last valid observation in memory and surface a warning; invalid first configuration can block managed scans through `default` until valid. The observer refuses unbounded include traversal outside the mounted configuration directory, and sensitive directives are redacted. The live snapshot may be temporarily older than on-disk settings; use timestamps when investigating apparent mismatches.
 
 ## 20. Exhaustive deployment & configuration variable reference
 
-The reference below distinguishes **actual Docker environment variables** from `conf` property keys, JVM properties and client-specific settings. There is no magic environment variable for every UI control. Use Docker `environment:` for startup configuration and Administration UI for persisted admin settings.
+The reference below distinguishes Docker environment variables from property keys, JVM settings and client-specific options. Configuration Center now exposes the supported application catalogue with additional documented aliases; see [all central fields](CONFIGURATION_REFERENCE.md). Deployment values remain authoritative and read-only in the GUI.
 
 ### 20.1 Core server, upload and storage
 
 | Variable | Default / recommended usage |
 |---|---|
-| `CLAMAV_HOST` | `localhost` fallback; override to Docker service name or reachable remote IP for initial default endpoint |
-| `CLAMAV_PORT` | `3310`; initial daemon TCP port |
+| `CLAMAV_HOST` | `localhost` fallback; authoritative default endpoint host when explicitly deployed |
+| `CLAMAV_PORT` | `3310`; authoritative default endpoint TCP port when explicitly deployed |
 | `CLAMAV_UPLOAD_PATH_SCAN_ENABLED` | `true` default; set `false` for INSTREAM, `true` only when ClamD sees saved uploads by same absolute path |
 | `CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM` | `false`; optional fallback for upload path mode |
 | `CLAMAV_BOOTSTRAP_ADMIN_PASSWORD` | Unset generates password file; first-run-only, minimum 12 chars |
@@ -783,7 +817,7 @@ The reference below distinguishes **actual Docker environment variables** from `
 | `SERVER_TOMCAT_MAX_SWALLOW_SIZE` | `2048MB` default |
 | `JAVA_TOOL_OPTIONS` | JVM flags such as Java CA truststore or advanced `-D...` properties; preserve other flags |
 
-Scan roots, storage/quarantine paths, scan concurrency and webhook URL/enable belong to `conf/clamav-web-client.properties` as listed in Section 11. Webhook timeout/queue/address policy instead uses startup `CLAMAV_WEBHOOK_*` environment variables; see [Webhook resilience](WEBHOOK_RESILIENCE.md). If you set `/scandir` but the Web UI container has no matching mount, scanning will fail. Docker service `image:`, `pull_policy:`, `ports:`, `volumes:`, `depends_on:` are Compose instructions, **not Java environment settings**.
+Configuration Center saves application settings into `conf/configuration-center.properties`; credential-bearing fields are encrypted using its matching key. Existing settings in `conf/clamav-web-client.properties` remain fallbacks until explicitly changed. Startup webhook policy can be configured centrally or with `CLAMAV_WEBHOOK_*`; see [Webhook resilience](WEBHOOK_RESILIENCE.md). If you set `/scandir` but the Web UI container has no matching mount, scanning will fail. Docker service `image:`, `pull_policy:`, `ports:`, `volumes:`, `depends_on:` are Compose instructions, **not Java environment settings**.
 
 ### 20.2 SQL and Flyway
 
@@ -815,7 +849,7 @@ LDAP defaults: disabled, `(uid={0})` user filter, `member` member attribute, `cn
 
 OIDC variables: `CLAMAV_IDENTITY_OIDC_ENABLED`, `CLAMAV_IDENTITY_OIDC_ISSUER`, `CLAMAV_IDENTITY_OIDC_CLIENT_ID`, `CLAMAV_IDENTITY_OIDC_CLIENT_SECRET`, `CLAMAV_IDENTITY_OIDC_CLIENT_SECRET_FILE`, `CLAMAV_IDENTITY_OIDC_SCOPES`, `CLAMAV_IDENTITY_OIDC_GROUPS_CLAIM`, `CLAMAV_IDENTITY_OIDC_GROUPS_VIEWER`, `CLAMAV_IDENTITY_OIDC_GROUPS_OPERATOR`, `CLAMAV_IDENTITY_OIDC_GROUPS_ADMIN`, `CLAMAV_IDENTITY_OIDC_BUTTON_LABEL`, `CLAMAV_IDENTITY_OIDC_LOGOUT_MODE`. Standard Spring aliases: `SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI`, `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID`, `_CLIENT_SECRET`, `_SCOPE` with their complete full prefix. The callback remains `/login/oauth2/code/clamav`.
 
-Secret encryption bootstrap: `CLAMAV_AUTH_SETTINGS_KEY_FILE` (persistent raw key path) **or** `CLAMAV_AUTH_SETTINGS_KEY` (base64 of exactly 32 bytes). The app otherwise keeps `conf/auth-settings.key`. UI-managed providers override bootstrap after being saved. Clear the saved provider appropriately through UI rather than expecting an environment edit to override it.
+Secret encryption bootstrap: `CLAMAV_AUTH_SETTINGS_KEY_FILE` (persistent raw key path) **or** `CLAMAV_AUTH_SETTINGS_KEY` (base64 of exactly 32 bytes). The app otherwise keeps `conf/auth-settings.key`. Deployment fields now override saved provider settings. Configuration Center credentials use the separate persistent `configuration-center.key`; retain both keys and their matching stored configuration. See [precedence and backups](CONFIGURATION_CENTER.md).
 
 ### 20.4 Metrics, Actuator, API behavior, daemon observer
 
@@ -858,7 +892,7 @@ Do not blindly replace `JAVA_TOOL_OPTIONS` if it already contains LDAP CA trusts
 
 | Environment variable | Default | Purpose |
 |---|---|---|
-| `CLAMAV_REST_URL` | Empty | Origin of **external compatible** REST scanner, e.g. `http://192.168.68.144:3000` |
+| `CLAMAV_REST_URL` | Empty | Origin of **external compatible** REST scanner, e.g. `http://rest-scanner.example.internal:3000` |
 | `CLAMAV_REST_API_KEY` | Empty | Upstream secret (when used) |
 | `CLAMAV_REST_AUTH_MODE` | `x-api-key` | Upstream auth mode |
 | `CLAMAV_REST_FORM_KEY` | `FILES` | Multipart field for REST uploads |
@@ -933,7 +967,7 @@ A normal Docker build enables HTTPS recognition for TLS-terminating reverse
 proxies and Kubernetes Ingress:
 
 ```bash
-docker build --pull -t clamav-web-client:2.0.0-local .
+docker build --pull -t clamav-web-client:2.1.0-local .
 ```
 
 The image also runs as UID/GID `10001:10001`. Both fixes are in the source;

@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.*;
 class WebhookAddressPolicyTest {
     @ParameterizedTest
     @ValueSource(strings = {"127.0.0.1", "127.1", "2130706433", "10.1.2.3", "172.16.1.1",
-        "172.31.255.254", "192.168.68.112", "100.64.0.1", "100.127.255.254", "0.0.0.0", "0.1.2.3",
+        "172.31.255.254", "192.168.10.20", "100.64.0.1", "100.127.255.254", "0.0.0.0", "0.1.2.3",
         "169.254.169.254", "169.254.170.2", "168.63.129.16", "100.100.100.200", "224.0.0.1", "255.255.255.255",
         "192.0.2.1", "198.18.0.1", "203.0.113.1", "[::]", "[::1]", "[::ffff:127.0.0.1]",
         "[fd12:3456::1]", "[fd00:ec2::254]", "[fe80::1]", "[ff02::1]", "[64:ff9b::a00:1]",
@@ -51,7 +51,7 @@ class WebhookAddressPolicyTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"127.0.0.1", "10.1.2.3", "172.16.1.1", "192.168.68.112", "100.64.0.1", "[::1]", "[fd12:3456::1]"})
+    @ValueSource(strings = {"127.0.0.1", "10.1.2.3", "172.16.1.1", "192.168.10.20", "100.64.0.1", "[::1]", "[fd12:3456::1]"})
     void internalReceiversRequireExplicitServerOptIn(String host) {
         var properties = new WebhookNotificationProperties();
         properties.setAllowPrivateAddresses(true);

@@ -133,6 +133,9 @@ public class ScanExecutionService {
             }
             log.debug("Job {} atomically claimed RUNNING", jobId);
 
+            if (job.getEndpoint() == null || !job.getEndpoint().isEnabled())
+                throw new IllegalArgumentException("Endpoint is disabled");
+
             ClamdClient client = clientProvider.clientFor(job.getEndpoint());
 
             if (job.getType() == ScanJobType.UPLOAD) {

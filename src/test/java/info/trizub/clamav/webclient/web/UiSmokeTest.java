@@ -35,7 +35,7 @@ class UiSmokeTest {
 
     @Test @WithMockUser(roles={"ADMIN", "OPERATOR", "VIEWER"})
     void pagesActuallyRender() throws Exception {
-        for (String url : new String[]{"/dashboard", "/scan", "/jobs", "/admin/settings", "/clamdtop", "/admin/audit"}) {
+        for (String url : new String[]{"/dashboard", "/scan", "/jobs", "/admin/configuration-center", "/clamdtop", "/admin/audit"}) {
             mvc.perform(get(url)).andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("app-main")));
         }
@@ -80,14 +80,13 @@ class UiSmokeTest {
     }
 
     @Test @WithMockUser(roles={"ADMIN", "OPERATOR", "VIEWER"})
-    void adminUpdatePersistsAnAuditEvent() throws Exception {
-        long before = audits.count();
-        mvc.perform(post("/admin/settings").with(csrf())
-            .param("app.watch.pollSeconds", "30"))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/admin/settings"));
-        assertThat(audits.count()).isGreaterThan(before);
-        assertThat(audits.findTop200ByOrderByAtDesc()).anyMatch(e -> "ADMIN_SETTINGS_UPDATE".equals(e.getAction()));
+    void retiredSettingsCannotBypassReviewOrProduceASuccessfulUpdate() throws Exception {
+        var before=settings.snapshot();long events=audits.count();
+        mvc.perform(post("/admin/settings").with(csrf()).param("app.watch.pollSeconds","37"))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.saved").value(false));
+        assertThat(settings.snapshot()).isEqualTo(before);
+        assertThat(audits.count()).isEqualTo(events);
+        mvc.perform(get("/admin/settings")).andExpect(redirectedUrl("/admin/configuration-center?category=scanning"));
     }
 
     @Test @WithMockUser(roles={"OPERATOR"})
@@ -102,74 +101,15 @@ class UiSmokeTest {
     }
 
     @Test @WithMockUser(roles={"ADMIN"})
-    void webhookConfigurationHasMaskedWriteOnlyFieldAndPreservesSavedUrl() throws Exception {
-        String original = settings.webhookUrl();
-        boolean wasEnabled = settings.webhookEnabled();
-        String sentinel = "https://discord.com/api/webhooks/999999999999/testing-nonfunctional-token";
-        try {
-            settings.updateFromMap(Map.of("app.webhook.url", sentinel, "app.webhook.enabled", "true"));
-            mvc.perform(get("/admin/settings"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Webhook URL")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("A webhook URL is already saved")))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(sentinel))))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"app.webhook.url\"")));
-            // Posting blank must not overwrite the original URL.
-            mvc.perform(post("/admin/settings").with(csrf())
-                    .param("app.webhook.url", "")
-                    .param("app.webhook.enabled", "true"))
-                .andExpect(status().is3xxRedirection());
-            assertThat(settings.webhookUrl()).isEqualTo(sentinel);
-            assertThat(settings.webhookEnabled()).isTrue();
-            mvc.perform(get("/dashboard"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(sentinel))));
-        } finally {
-            settings.updateFromMap(Map.of("app.webhook.url", original,
-                                          "app.webhook.enabled", String.valueOf(wasEnabled)));
+    void retiredWebhookFormsCannotRevealOrReplaceSavedSecrets() throws Exception {
+        String original=settings.webhookUrl();boolean enabled=settings.webhookEnabled();
+        for (var params:java.util.List.of(Map.of("app.webhook.url","do-not-echo-this-secret","app.webhook.enabled","true"),
+                Map.of("app.webhook.clear","true"),Map.of("app.webhook.url",""))) {
+            var builder=post("/admin/settings").with(csrf());params.forEach(builder::param);
+            mvc.perform(builder).andExpect(status().isConflict())
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("do-not-echo-this-secret"))));
         }
-    }
-
-    @Test @WithMockUser(roles={"ADMIN"})
-    void deletingWebhookClearsSavedSecretAndDisablesNotifications() throws Exception {
-        String original = settings.webhookUrl();
-        boolean wasEnabled = settings.webhookEnabled();
-        try {
-            settings.updateFromMap(Map.of("app.webhook.url", "https://example.org/webhook/sentinel", "app.webhook.enabled", "true"));
-            mvc.perform(post("/admin/settings").with(csrf())
-                    .param("app.webhook.clear", "true")
-                    .param("app.webhook.enabled", "true"))
-                .andExpect(status().is3xxRedirection());
-            assertThat(settings.webhookUrl()).isBlank();
-            assertThat(settings.webhookEnabled()).isFalse();
-        } finally {
-            settings.updateFromMap(Map.of("app.webhook.url", original,
-                                          "app.webhook.enabled", String.valueOf(wasEnabled)));
-        }
-    }
-
-    @Test @WithMockUser(roles={"ADMIN"})
-    void webhookValidationRejectsInvalidUrlAndIncompleteConfiguration() throws Exception {
-        String original = settings.webhookUrl();
-        boolean wasEnabled = settings.webhookEnabled();
-        try {
-            settings.updateFromMap(Map.of("app.webhook.url", "", "app.webhook.enabled", "false"));
-            mvc.perform(post("/admin/settings").with(csrf())
-                    .param("app.webhook.enabled", "true")
-                    .param("app.webhook.url", ""))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attributeExists("errorMsg"));
-            assertThat(settings.webhookEnabled()).isFalse();
-            mvc.perform(post("/admin/settings").with(csrf())
-                    .param("app.webhook.enabled", "true")
-                    .param("app.webhook.url", "http://discord.com/api/webhooks/123/should-be-https"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attributeExists("errorMsg"));
-            assertThat(settings.webhookUrl()).isBlank();
-        } finally {
-            settings.updateFromMap(Map.of("app.webhook.url", original,
-                                          "app.webhook.enabled", String.valueOf(wasEnabled)));
-        }
+        assertThat(settings.webhookUrl()).isEqualTo(original);assertThat(settings.webhookEnabled()).isEqualTo(enabled);
     }
 
     @Test @WithMockUser(roles={"ADMIN"})
@@ -181,24 +121,13 @@ class UiSmokeTest {
     }
 
     @Test @WithMockUser(roles={"ADMIN"})
-    void privateWebhookCannotBeEnabledByChangingAFormParameter() throws Exception {
-        String original = settings.webhookUrl();
-        boolean enabled = settings.webhookEnabled();
-        try {
-            settings.updateFromMap(Map.of("app.webhook.url", "", "app.webhook.enabled", "false"));
-            for (String url : new String[]{"http://192.168.68.112/hook", "http://169.254.169.254/latest/meta-data", "http://[::1]/hook"}) {
-                mvc.perform(post("/admin/settings").with(csrf())
-                        .param("app.webhook.url", url).param("app.webhook.enabled", "true")
-                        .param("clamav.webhook.allow-private-addresses", "true"))
-                    .andExpect(status().is3xxRedirection()).andExpect(flash().attributeExists("errorMsg"));
-                assertThat(settings.webhookUrl()).isBlank();
-                assertThat(settings.webhookEnabled()).isFalse();
-            }
-            mvc.perform(get("/admin/settings")).andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Private and local network destinations are blocked")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Notifications run in the background")));
-        } finally {
-            settings.updateFromMap(Map.of("app.webhook.url", original, "app.webhook.enabled", String.valueOf(enabled)));
+    void centralWebhookPolicyRejectsPrivateAndMetadataTargetsWithoutNetworkAccess() throws Exception {
+        var values=info.trizub.clamav.webclient.configuration.ConfigurationCatalog.defaults();
+        values.put("app.webhook.enabled","true");
+        for(String url:java.util.List.of("http://192.168.1.10/hook","http://169.254.169.254/latest/meta-data","http://[::1]/hook")) {
+            values.put("app.webhook.url",url);
+            org.assertj.core.api.Assertions.assertThatThrownBy(()->info.trizub.clamav.webclient.configuration.ConfigurationCatalog.validateCombination(values,java.util.Set.of("app.webhook.url")))
+                .isInstanceOf(IllegalArgumentException.class);
         }
     }
 

@@ -5,15 +5,19 @@ on:
     paths:
       - 'pom.xml'
       - 'src/main/java/info/trizub/clamav/webclient/db/**'
+      - 'src/main/java/info/trizub/clamav/webclient/configuration/**'
       - 'src/main/resources/db/migration/**'
       - 'src/test/java/info/trizub/clamav/webclient/db/**'
+      - 'src/test/java/info/trizub/clamav/webclient/configuration/**'
       - '.github/workflows/phase2-db-integration.yml'
   pull_request:
     paths:
       - 'pom.xml'
       - 'src/main/java/info/trizub/clamav/webclient/db/**'
+      - 'src/main/java/info/trizub/clamav/webclient/configuration/**'
       - 'src/main/resources/db/migration/**'
       - 'src/test/java/info/trizub/clamav/webclient/db/**'
+      - 'src/test/java/info/trizub/clamav/webclient/configuration/**'
       - '.github/workflows/phase2-db-integration.yml'
 jobs:
   database-migrations:
@@ -26,5 +30,5 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Verify H2 and PostgreSQL/MySQL/MariaDB Testcontainers
+      - name: Verify H2 and PostgreSQL/MySQL/MariaDB probes and migrations
         run: mvn -B -Pdb-integration verify

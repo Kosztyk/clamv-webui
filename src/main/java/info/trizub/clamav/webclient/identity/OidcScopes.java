@@ -5,10 +5,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 /** Shared validation for environment scopes, admin saves and authorization requests. */
-final class OidcScopes {
+public final class OidcScopes {
     private OidcScopes() { }
 
-    static List<String> parse(String value) {
+    public static List<String> parse(String value) {
         return normalize(value == null ? List.of() : List.of(value));
     }
 

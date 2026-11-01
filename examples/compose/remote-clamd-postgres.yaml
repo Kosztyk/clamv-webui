@@ -13,7 +13,7 @@ services:
     ports:
       - "${CLAMAV_WEB_BIND:-127.0.0.1}:8082:8080"
     environment:
-      TZ: Europe/Bucharest
+      TZ: UTC
       CLAMAV_HOST: "${CLAMAV_HOST:?Set CLAMAV_HOST in .env}"
       CLAMAV_PORT: "${CLAMAV_PORT:-3310}"
       CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "false"    # remote ClamD without identical filesystem

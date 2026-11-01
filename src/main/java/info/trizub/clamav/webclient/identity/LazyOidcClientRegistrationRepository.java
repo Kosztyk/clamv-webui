@@ -8,6 +8,8 @@ import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 
 /** Dynamic, lazy issuer discovery; no external IdP network dependency at startup. */
 public class LazyOidcClientRegistrationRepository implements ClientRegistrationRepository {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private org.springframework.core.env.Environment environment;
     private final IdentityProperties.Oidc config;
     private final AuthenticationSettingsService settings;
     private volatile ClientRegistration registration;
@@ -32,11 +34,20 @@ public class LazyOidcClientRegistrationRepository implements ClientRegistrationR
                 .registrationId("clamav").clientId(config.getClientId()).clientSecret(secret)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                .redirectUri(redirectUri())
                 .scope(scopes)
                 .clientName(config.getButtonLabel()).build();
             registration=resolved;registrationRevision=revision;
             return resolved;
         }
+    }
+    private String redirectUri() {
+        String base=environment==null?"":environment.getProperty("clamav.public-url","").replaceAll("/+$","");
+        if(!base.isBlank()) {
+            info.trizub.clamav.webclient.configuration.ConfigurationCatalog.validate(
+                    info.trizub.clamav.webclient.configuration.ConfigurationCatalog.get("clamav.public-url"),base);
+            return base+"/login/oauth2/code/{registrationId}";
+        }
+        return "{baseUrl}/login/oauth2/code/{registrationId}";
     }
 }

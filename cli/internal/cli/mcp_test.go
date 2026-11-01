@@ -153,7 +153,7 @@ func TestMCPDiscoveryToolsAndResources(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	})
-	session := mcpSession(t, b.server("2.0.0"))
+	session := mcpSession(t, b.server("2.1.0"))
 	tools, err := session.ListTools(context.Background(), nil)
 	if err != nil || len(tools.Tools) != 5 {
 		t.Fatal("tool discovery", err)
@@ -213,7 +213,7 @@ func TestMCPRejectsInvalidArgumentsAndKeepsAPIAuthorization(t *testing.T) {
 		w.WriteHeader(403)
 		writeJSON(w, map[string]string{"error": "forbidden", "message": "private server path"})
 	})
-	session := mcpSession(t, b.server("2.0.0"))
+	session := mcpSession(t, b.server("2.1.0"))
 	for _, test := range []struct {
 		name string
 		args any
@@ -306,7 +306,7 @@ func TestMCPWaitErrorsAndConcurrency(t *testing.T) {
 	}, "--timeout=25ms")
 	file := filepath.Join(root, "sample")
 	_ = os.WriteFile(file, []byte("sample"), 0600)
-	session := mcpSession(t, b.server("2.0.0"))
+	session := mcpSession(t, b.server("2.1.0"))
 	result := mcpCall(t, session, "clamav_scan_file", map[string]any{"file_path": file}, true)
 	if text := result.Content[0].(*mcp.TextContent).Text; !strings.Contains(text, "timed out") || !strings.Contains(text, "pending-1") {
 		t.Fatal("cannot resume timed-out job", text)
@@ -340,7 +340,7 @@ func (tr mcpAuthTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 func TestMCPStreamableHTTPAuthenticationOriginsAndProtocol(t *testing.T) {
 	b, _ := testMCPBridge(t, func(w http.ResponseWriter, r *http.Request) { writeJSON(w, []endpoint{{7, "Primary", true}}) })
 	token := strings.Repeat("m", 40)
-	handler, err := mcpHTTPHandler(b.server("2.0.0"), token, []string{"https://assistant.example"})
+	handler, err := mcpHTTPHandler(b.server("2.1.0"), token, []string{"https://assistant.example"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +402,7 @@ func TestMCPStreamableHTTPAuthenticationOriginsAndProtocol(t *testing.T) {
 		t.Fatal("unbounded HTTP frame", response.StatusCode)
 	}
 	for _, origin := range []string{"*", "http://assistant.example", "https://assistant.example/path", "https://user:password@assistant.example"} {
-		if _, err := mcpHTTPHandler(b.server("2.0.0"), token, []string{origin}); err == nil {
+		if _, err := mcpHTTPHandler(b.server("2.1.0"), token, []string{origin}); err == nil {
 			t.Fatal("invalid Origin accepted", origin)
 		}
 	}
@@ -452,7 +452,7 @@ func TestMCPHTTPApplicationLifecycle(t *testing.T) {
 	token := strings.Repeat("l", 40)
 	h.env["CLAMAV_MCP_HTTP_TOKEN"] = token
 	ready := make(mcpNoticeWriter, 1)
-	a := New(strings.NewReader(""), io.Discard, ready, "2.0.0")
+	a := New(strings.NewReader(""), io.Discard, ready, "2.1.0")
 	a.Getenv = func(key string) string { return h.env[key] }
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

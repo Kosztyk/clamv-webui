@@ -35,10 +35,10 @@ class ClamdConfigurationObserverTest {
         } finally {Files.deleteIfExists(privateFile);}
     }
     @Test void discoveryRequiresOptInAndUnambiguousTcpAddress() throws Exception {
-        Files.writeString(dir.resolve("clamd.conf"),"TCPAddr 192.168.68.112\nTCPSocket 3310\n");
+        Files.writeString(dir.resolve("clamd.conf"),"TCPAddr 192.0.2.20\nTCPSocket 3310\n");
         assertTrue(new ClamdConfigurationObserver(dir.resolve("clamd.conf").toString(),"",false).tcpCandidate().isEmpty());
         var candidate=new ClamdConfigurationObserver(dir.resolve("clamd.conf").toString(),"",true).tcpCandidate().orElseThrow();
-        assertEquals("192.168.68.112",candidate.host()); assertEquals(3310,candidate.port());
+        assertEquals("192.0.2.20",candidate.host()); assertEquals(3310,candidate.port());
         Files.writeString(dir.resolve("clamd.conf"),"LocalSocket /run/clamd.sock\n");
         assertTrue(new ClamdConfigurationObserver(dir.resolve("clamd.conf").toString(),"",true).tcpCandidate().isEmpty());
     }

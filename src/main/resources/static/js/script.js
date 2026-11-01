@@ -15,7 +15,8 @@
     if (!saved) {
       // default to dark, but respect user's system preference
       const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      saved = prefersDark ? 'dark' : 'light';
+      const configured = document.documentElement.getAttribute('data-default-theme');
+      saved = configured === 'light' || configured === 'dark' ? configured : prefersDark ? 'dark' : 'light';
     }
     setTheme(saved);
 

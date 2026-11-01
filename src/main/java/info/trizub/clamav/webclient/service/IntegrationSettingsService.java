@@ -26,18 +26,29 @@ public class IntegrationSettingsService {
     public ScrapeGate scrapeGate() {
         Properties p=saved;
         String bootstrap=environment.getProperty("clamav.metrics.scrape-token","").trim();
-        String hash=p.getProperty("metrics.tokenHash",bootstrap.length()>=24 ? hash(bootstrap) : "");
-        boolean enabled=Boolean.parseBoolean(p.getProperty("metrics.enabled",
-            environment.getProperty("clamav.metrics.enabled",String.valueOf(!hash.isBlank()))));
+        var configuredToken=configured("clamav.metrics.scrape-token");
+        String hash=configuredToken.isPresent()?(configuredToken.get().length()>=24?hash(configuredToken.get()):""):
+            p.getProperty("metrics.tokenHash",bootstrap.length()>=24 ? hash(bootstrap) : "");
+        boolean enabled=Boolean.parseBoolean(configured("clamav.metrics.enabled").orElseGet(()->p.getProperty("metrics.enabled",
+            environment.getProperty("clamav.metrics.enabled",String.valueOf(!hash.isBlank())))));
         return new ScrapeGate(enabled,hash);
     }
     public boolean metricsManaged() { return saved.containsKey("metrics.enabled") || saved.containsKey("metrics.tokenHash"); }
-    public boolean observationEnabled() { return Boolean.parseBoolean(saved.getProperty("observer.enabled","true")); }
-    public boolean synchronizationEnabled(boolean bootstrap) { return Boolean.parseBoolean(saved.getProperty("observer.synchronize",String.valueOf(bootstrap))); }
+    public boolean observationEnabled() { return Boolean.parseBoolean(configured("center.observer.enabled").orElseGet(()->saved.getProperty("observer.enabled","true"))); }
+    public boolean synchronizationEnabled(boolean bootstrap) { return Boolean.parseBoolean(configured("clamav.config.discovery-enabled").orElseGet(()->saved.getProperty("observer.synchronize",String.valueOf(bootstrap)))); }
     public boolean observerManaged() { return saved.containsKey("observer.enabled"); }
-    public long observerPollMillis(long bootstrap) { return Long.parseLong(saved.getProperty("observer.pollMillis",String.valueOf(Math.max(1000,bootstrap)))); }
+    public long observerPollMillis(long bootstrap) { return Long.parseLong(configured("clamav.config.poll-ms").orElseGet(()->saved.getProperty("observer.pollMillis",String.valueOf(Math.max(1000,bootstrap))))); }
+
+    private Optional<String> configured(String key) {
+        var definition=info.trizub.clamav.webclient.configuration.ConfigurationCatalog.get(key);
+        return info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,definition)
+            .map(info.trizub.clamav.webclient.configuration.ConfigurationSource.Override::value)
+            .or(()->info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment).flatMap(store->store.active(key)));
+    }
 
     public synchronized void saveMetrics(boolean enabled,String replacement) {
+        if(configured("clamav.metrics.enabled").isPresent() || configured("clamav.metrics.scrape-token").isPresent())
+            throw new IllegalArgumentException("Prometheus access is controlled by deployment settings or Configuration Center; change it at its source.");
         Properties next=copy();String token=replacement==null ? "" : replacement.trim();
         if (!token.isEmpty()) {
             if (token.length()<32 || token.length()>4096 || !token.matches("[\\x21-\\x7e]+"))
@@ -57,6 +68,8 @@ public class IntegrationSettingsService {
         Properties next=copy();next.remove("metrics.enabled");next.remove("metrics.tokenHash");persist(next);
     }
     public synchronized void saveObserver(boolean enabled,boolean synchronize,long seconds) {
+        if(configured("center.observer.enabled").isPresent() || configured("clamav.config.discovery-enabled").isPresent() || configured("clamav.config.poll-ms").isPresent())
+            throw new IllegalArgumentException("Configuration observation is controlled by deployment settings or Configuration Center; change it at its source.");
         if (seconds<5 || seconds>3600) throw new IllegalArgumentException("Choose a configuration polling interval from 5 to 3600 seconds.");
         Properties next=copy();next.setProperty("observer.enabled",String.valueOf(enabled));
         next.setProperty("observer.synchronize",String.valueOf(synchronize));next.setProperty("observer.pollMillis",String.valueOf(seconds*1000));

@@ -74,7 +74,7 @@ class ClamdServer(socketserver.ThreadingTCPServer):
 
 
 def main():
-    jar = ROOT / "target/clamav-web-client-2.0.0.jar"
+    jar = ROOT / "target/clamav-web-client-2.1.0.jar"
     binary = ROOT / "cli/dist/linux_amd64/clamctl"
     if not jar.is_file() or not binary.is_file():
         raise SystemExit("Build the JAR and CLI binaries before running this integration check.")

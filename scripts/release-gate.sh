@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A reproducible release check for ClamAV Web UI v2.0.0.
+# A reproducible release check for ClamAV Web UI v2.1.0.
 # Use: bash scripts/release-gate.sh [--static-only] [--docker-build]
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -22,11 +22,11 @@ python3 scripts/phase4-static-check.py
 node scripts/test-configuration-observer.js
 printf '\n[4/7] Six-language catalog and browser smoke (if installed)\n'
 python3 scripts/check-i18n.py
-printf '\n[5/7] LDAP/OIDC Save/Test browser routes (if installed)\n'
+printf '\n[5/7] Central identity Test/Review/Apply browser routes (if installed)\n'
 if python3 -c 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec("playwright") else 1)'; then
   python3 scripts/test_authentication_form_routes.py
 else
-  printf 'SKIPPED: LDAP/OIDC Chromium tests (Playwright not installed; CI installs Playwright and Chromium)\n'
+  printf 'SKIPPED: Central identity Chromium tests (Playwright not installed; CI installs Playwright and Chromium)\n'
 fi
 printf '\n[6/7] Build/test class and executable script checks\n'
 python3 - <<'PY'
@@ -35,7 +35,7 @@ import xml.etree.ElementTree as ET
 import re
 pom=Path('pom.xml')
 root=ET.parse(pom).getroot()
-assert root.find('{http://maven.apache.org/POM/4.0.0}version').text=='2.0.0'
+assert root.find('{http://maven.apache.org/POM/4.0.0}version').text=='2.1.0'
 for source in Path('src/test/java').rglob('*.java'):
     s=source.read_text()
     assert 'info.micrometer.core.instrument.simple' not in s, f'incorrect Micrometer import: {source}'

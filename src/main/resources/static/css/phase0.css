@@ -107,7 +107,7 @@ h1{font-size:1.65rem;margin:0 0 .7rem}h2{font-size:1.15rem;margin:1.4rem 0 .75re
 }
 .auth-admin-page .auth-provider-panel[hidden]{display:none!important}
 
-/* v2.0.0: keep the full-height navigation background and a true bottom footer.
+/* v2.1.0: keep the full-height navigation background and a true bottom footer.
    The sidebar stretches to the taller of the menu and page; neither a short page
    nor an expanded Authentication form should leave the menu on the body backdrop. */
 body {min-height:100vh;height:auto;background-attachment:fixed}

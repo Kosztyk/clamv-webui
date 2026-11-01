@@ -1,4 +1,6 @@
-# OIDC configuration compatibility (v2.0.0)
+# OIDC configuration compatibility (v2.1.0)
+
+> **Current v2.1.0 configuration:** global application fields are edited only in Configuration Center. Former Settings/Authentication bookmarks redirect there; old provider, metrics and observer write routes are retired. Use Test connection, Review changes and Apply; restart provider changes when indicated. Diagnostic/client pages remain read-only. Earlier form behavior described below is historical. See [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [current setup](CONFIGURATION_CENTER.md).
 
 Issue #4 now supports the requested standard Spring configuration in the existing
 native OIDC authorization-code flow. The OAuth2 client dependency, login button,

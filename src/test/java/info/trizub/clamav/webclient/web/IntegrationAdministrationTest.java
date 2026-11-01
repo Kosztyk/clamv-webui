@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties={"spring.datasource.url=jdbc:h2:mem:integration-admin;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
     "clamav.bootstrap.admin.password=IntegrationAdminLocal456789", "clamav.metrics.clamd-initial-delay-ms=3600000",
-    "clamav.config.initial-delay-ms=3600000","clamav.metrics.scrape-token=bootstrap-metrics-secret-0123456789"})
+    "clamav.config.initial-delay-ms=3600000","clamav.configuration.file=target/test-config/integration-admin-${random.uuid}/center.properties"})
 @AutoConfigureMockMvc @AutoConfigureMetrics
 class IntegrationAdministrationTest {
     static final Path folder;
@@ -28,6 +28,7 @@ class IntegrationAdministrationTest {
     @DynamicPropertySource static void paths(DynamicPropertyRegistry r) {r.add("clamav.integrations.settings-file",()->folder.resolve("integrations.properties").toString());}
     @Autowired MockMvc mvc;
     @Autowired IntegrationSettingsService settings;
+    @Autowired info.trizub.clamav.webclient.service.EndpointService endpoints;
 
     @Test void pagesAndWritesAreAdminOnlyAndRequireCsrf() throws Exception {
         for (String path:List.of("/admin/integrations","/admin/configuration","/admin/integrations/files/testing-guide","/admin/integrations/files/grafana-dashboard")) {
@@ -46,7 +47,9 @@ class IntegrationAdministrationTest {
             String html=mvc.perform(get("/admin/integrations").with(user("admin").roles("ADMIN"))).andReturn().getResponse().getContentAsString();
             assertThat(html).doesNotContain(first,settings.scrapeGate().hash());
             mvc.perform(post("/admin/integrations/prometheus").with(csrf()).with(user("admin").roles("ADMIN"))
-                .param("enabled","true").param("token",second)).andExpect(status().is3xxRedirection());
+                .param("enabled","true").param("token",second)).andExpect(status().isConflict());
+            mvc.perform(get("/actuator/prometheus").header("Authorization","Bearer "+first)).andExpect(status().isOk());
+            settings.saveMetrics(true,second);
             mvc.perform(get("/actuator/prometheus").header("Authorization","Bearer "+first)).andExpect(status().isForbidden());
             mvc.perform(get("/actuator/prometheus").header("Authorization","Bearer "+second)).andExpect(status().isOk());
             var restored=new IntegrationSettingsService(new MockEnvironment(),folder.resolve("integrations.properties").toString());
@@ -59,31 +62,32 @@ class IntegrationAdministrationTest {
             mvc.perform(get("/actuator/prometheus").header("Authorization","Bearer "+second)).andExpect(status().isOk());
         } finally { settings.resetMetrics(); }
     }
-    @Test void generatedTokenIsReturnedOnceAndValidationKeepsPreviousSettings() throws Exception {
+    @Test void retiredTokenGenerationDoesNotRotateAConfiguredLegacyToken() throws Exception {
         try {
-            var response=mvc.perform(post("/admin/integrations/prometheus").with(csrf()).with(user("admin").roles("ADMIN"))
-                .param("action","generate")).andExpect(status().is3xxRedirection()).andReturn();
-            String secret=(String)response.getFlashMap().get("newScrapeToken");assertThat(secret).hasSize(43);
-            mvc.perform(get("/actuator/prometheus").header("Authorization","Bearer "+secret)).andExpect(status().isOk());
+            String secret=settings.generateMetricsToken();assertThat(secret).hasSize(43);
             var before=settings.scrapeGate();
             mvc.perform(post("/admin/integrations/prometheus").with(csrf()).with(user("admin").roles("ADMIN"))
-                .param("enabled","true").param("token","short")).andExpect(flash().attributeExists("errorMsg"));
+                .param("action","generate")).andExpect(status().isConflict()).andExpect(jsonPath("$.saved").value(false));
             assertThat(settings.scrapeGate()).isEqualTo(before);
+            mvc.perform(get("/actuator/prometheus").header("Authorization","Bearer "+secret)).andExpect(status().isOk());
             String html=mvc.perform(get("/admin/integrations").with(user("admin").roles("ADMIN"))).andReturn().getResponse().getContentAsString();
-            assertThat(html).doesNotContain(secret);
+            assertThat(html).doesNotContain(secret,"name=\"token\"","name=\"enabled\"");
         } finally { settings.resetMetrics(); }
     }
     @Test void observerSettingsCanBePausedAndRestoredWithoutChangingMountPaths() throws Exception {
         try {
             mvc.perform(post("/admin/configuration/settings").with(csrf()).with(user("admin").roles("ADMIN"))
-                .param("pollSeconds","5")).andExpect(status().is3xxRedirection());
+                .param("pollSeconds","5")).andExpect(status().isConflict());
+            settings.saveObserver(false,false,5);
             assertThat(settings.observationEnabled()).isFalse();
             String html=mvc.perform(get("/admin/configuration").with(user("admin").roles("ADMIN"))).andReturn().getResponse().getContentAsString();
-            assertThat(html).contains("What should I watch?","PAUSED","File observation controls").doesNotContain("value=\"secret\"");
+            assertThat(html).contains("What should I watch?","<strong>Disabled</strong>","File observation status").doesNotContain("value=\"secret\"");
             assertThatThrownBy(()->settings.saveObserver(true,true,0)).isInstanceOf(IllegalArgumentException.class);
             assertThat(settings.observationEnabled()).isFalse();
             mvc.perform(post("/admin/configuration/settings").with(csrf()).with(user("admin").roles("ADMIN"))
-                .param("action","reset")).andExpect(status().is3xxRedirection());
+                .param("action","reset")).andExpect(status().isConflict());
+            assertThat(settings.observationEnabled()).isFalse();
+            settings.resetObserver();
             assertThat(settings.observationEnabled()).isTrue();
         } finally { settings.resetObserver(); }
     }
@@ -95,7 +99,7 @@ class IntegrationAdministrationTest {
         String sidebar=html.substring(html.indexOf("<aside"),html.indexOf("</aside>"));
         var links=java.util.regex.Pattern.compile("<a[^>]*href=\"/admin/[^\"]+\"[^>]*>(.*?)</a>",java.util.regex.Pattern.DOTALL).matcher(sidebar);
         int count=0;while(links.find()) {assertThat(links.group(1)).contains("<i class=\"fas fa-");count++;}
-        assertThat(count).isEqualTo(9);
+        assertThat(count).isEqualTo(8);
         var selected=java.util.regex.Pattern.compile("<a[^>]*href=\"/admin/integrations\"[^>]*>").matcher(sidebar);
         assertThat(selected.find()).isTrue();assertThat(selected.group()).contains("aria-current=\"page\"");
     }
@@ -114,4 +118,22 @@ class IntegrationAdministrationTest {
         var restored=new IntegrationSettingsService(new MockEnvironment(),dir.resolve("settings.properties").toString());
         assertThat(restored.observationEnabled()).isTrue();assertThat(restored.synchronizationEnabled(false)).isTrue();
     }
+    @Test void defaultEngineHasOnlyOneEditorWhileAdditionalEnginesRemainManageable() throws Exception {
+        var primary=endpoints.defaultEndpointOrEnsure();String host=primary.getHost();
+        mvc.perform(post("/admin/endpoints/"+primary.getId()+"/update").with(csrf()).with(user("admin").roles("ADMIN"))
+                .param("name","attempted-default-change").param("host","invalid.example").param("port","3311").param("platform","UNIX"))
+            .andExpect(redirectedUrl("/admin/configuration-center?section=clamd"));
+        mvc.perform(post("/admin/endpoints/"+primary.getId()+"/delete").with(csrf()).with(user("admin").roles("ADMIN")))
+            .andExpect(redirectedUrl("/admin/configuration-center?section=clamd"));
+        assertThat(endpoints.get(primary.getId()).getHost()).isEqualTo(host);
+        mvc.perform(get("/admin/endpoints").with(user("admin").roles("ADMIN")))
+            .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Configure default engine")));
+    }
+    @Test void retiredWriteResponseRetainsContextAndDoesNotReflectSubmittedCredentials() throws Exception {
+        mvc.perform(post("/clamav/admin/settings").contextPath("/clamav").with(csrf()).with(user("admin").roles("ADMIN"))
+                .param("app.webhook.url","private-retired-payload"))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.configurationCenter").value("/clamav/admin/configuration-center?section=scanning"))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private-retired-payload"))));
+    }
+
 }

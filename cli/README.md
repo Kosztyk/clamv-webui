@@ -1,4 +1,4 @@
-# clamctl — ClamAV Web UI CLI v2.0.0
+# clamctl — ClamAV Web UI CLI v2.1.0
 
 `clamctl` talks to the Web UI's `/api/v1` API. Each platform uses one executable;
 Python, Java, Go, Docker and ClamAV are not required on the CLI machine. The Web UI

@@ -23,9 +23,9 @@ import java.time.Duration;
 public class ClamAVWebClientAppConfig implements WebMvcConfigurer {
 
 	@Bean
-	CookieLocaleResolver localeResolver() {
+	CookieLocaleResolver localeResolver(@org.springframework.beans.factory.annotation.Value("${clamav.ui.default-language:en}") String language) {
 		CookieLocaleResolver slr = new CookieLocaleResolver("clamav_lang");
-		slr.setDefaultLocale(Locale.ENGLISH);
+		slr.setDefaultLocale(Locale.forLanguageTag(language));
 		slr.setCookieMaxAge(Duration.ofDays(365));
 		return slr;
 	}

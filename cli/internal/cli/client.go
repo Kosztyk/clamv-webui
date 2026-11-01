@@ -83,7 +83,7 @@ func (c *apiClient) request(ctx context.Context, method, path string, query url.
 		return fmt.Errorf("cannot construct API request")
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "clamctl/2.0.0")
+	req.Header.Set("User-Agent", "clamctl/2.1.0")
 	if c.auth.mode() == "token" {
 		req.Header.Set("Authorization", "Bearer "+c.auth.Token)
 	} else {

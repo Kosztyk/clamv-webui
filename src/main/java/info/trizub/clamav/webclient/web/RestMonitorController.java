@@ -57,7 +57,7 @@ public class RestMonitorController {
         if (!api.configured()) {
             ObjectNode value = mapper.createObjectNode();
             value.put("configured", false);
-            value.put("message", "Set CLAMAV_REST_URL in the container environment");
+            value.put("message", "Configure the external REST scanner in Configuration Center or deployment configuration");
             return secured(value, HttpStatus.OK.value());
         }
         RestApiBridge.ApiResponse response = api.read("summary", Map.of());

@@ -35,6 +35,20 @@ class DaemonScanPolicyTest {
         assertThat(policy.uploadMaxBytes(new ClamdEndpoint("remote","remote",3310,Platform.UNIX))).isEqualTo(512);
     }
 
+    @Test void renamingThePrimaryEngineDoesNotBypassItsDaemonLimitsOrExclusions() throws Exception {
+        policy("StreamMaxLength 32\nExcludePath \\.skip$\n");
+        endpoint.setName("Production engine");
+        org.springframework.test.util.ReflectionTestUtils.setField(endpoint,"id",41L);
+        var endpoints=mock(EndpointService.class);when(endpoints.defaultEndpoint()).thenReturn(endpoint);
+        var renamed=new DaemonScanPolicy(observer,settings,endpoints);
+        assertThat(renamed.appliesTo(endpoint)).isTrue();
+        assertThat(renamed.uploadMaxBytes(endpoint)).isEqualTo(32);
+        assertThat(renamed.isExcluded(dir.resolve("private.skip"),endpoint)).isTrue();
+        var additional=new ClamdEndpoint("default","other-host",3310,Platform.UNIX);
+        org.springframework.test.util.ReflectionTestUtils.setField(additional,"id",42L);
+        assertThat(renamed.appliesTo(additional)).isFalse();
+    }
+
     @Test void zeroScanLimitsDoNotRemoveTheApplicationUploadCeilingButZeroStreamLimitForbidsData() throws Exception {
         var policy=policy("MaxScanSize 0\nMaxFileSize 0\n");
         assertThat(policy.uploadMaxBytes(endpoint)).isEqualTo(2L*1024*1024*1024);

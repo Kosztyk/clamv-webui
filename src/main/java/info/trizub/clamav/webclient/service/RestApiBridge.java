@@ -38,6 +38,8 @@ public class RestApiBridge {
     private final Duration timeout;
     private final Duration uploadTimeout;
     private final Map<String, String> paths;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private org.springframework.core.env.Environment environment;
 
     public RestApiBridge(ObjectMapper mapper,
                          @Value("${CLAMAV_REST_URL:}") String baseUrl,
@@ -82,10 +84,11 @@ public class RestApiBridge {
             value.contains("..") || value.contains("?") || value.contains("#") || value.contains(":") || value.contains("\\")) {
             throw new IllegalArgumentException("REST API paths must be absolute server paths without traversal/query");
         }
+        URI.create(value); // Reject spaces and malformed percent escapes before serving requests.
         return value;
     }
 
-    public boolean configured() { return !baseUrl.isBlank(); }
+    public boolean configured() { return !baseUrl.isBlank() && (environment==null || environment.getProperty("clamav.rest.enabled",Boolean.class,true)); }
     public int reportMaxJobs() { return reportMaxJobs; }
 
     private URI url(String path, Map<String, String> params) {

@@ -1,16 +1,18 @@
 <!doctype html>
-<html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:fragment="shell(content)">
+<html lang="en" th:lang="${#locale.language}" th:attr="data-default-theme=${defaultTheme}" xmlns:th="http://www.thymeleaf.org" th:fragment="shell(content)">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ClamAV Web UI</title>
 <meta name="_csrf" th:content="${_csrf.token}"/><meta name="_csrf_header" th:content="${_csrf.headerName}"/>
 <link rel="icon" href="/favicon.ico"/>
 <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}"/><link rel="stylesheet" th:href="@{/css/all.css}"/>
-<link rel="stylesheet" th:href="@{/css/style.css}"/><link rel="stylesheet" th:href="@{/css/phase0.css(v='2.0.0-admin-ui01')}"/>
-<script defer th:src="@{/js/i18n-catalog.js(v='2.0.0-admin-ui01')}"></script><script defer th:src="@{/js/i18n.js(v='2.0.0-i18n01')}"></script><script defer th:src="@{/js/script.js}"></script><script defer th:src="@{/js/clamdtop.js}"></script>
-<script defer th:src="@{/js/tabs-pjax.js(v='2.0.0-admin-ui01')}"></script>
-<script defer th:src="@{/js/authentication-management.js(v='2.0.0-auth-save405-fix02')}"></script>
+<link rel="stylesheet" th:href="@{/css/style.css}"/><link rel="stylesheet" th:href="@{/css/phase0.css(v='2.1.0-consolidated02')}"/>
+<script defer th:src="@{/js/i18n-catalog.js(v='2.1.0-consolidated02')}"></script><script defer th:src="@{/js/i18n.js(v='2.1.0-i18n01')}"></script><script defer th:src="@{/js/script.js}"></script><script defer th:src="@{/js/clamdtop.js}"></script>
+<script defer th:src="@{/js/tabs-pjax.js(v='2.1.0-consolidated02')}"></script>
 <script defer th:src="@{/js/rest-api.js}"></script>
-<script defer th:src="@{/js/configuration-observer.js(v='2.0.0-admin-ui01')}"></script>
+<script defer th:src="@{/js/jobs-refresh.js(v='2.1.0-jobs01')}"></script>
+<script defer th:src="@{/js/configuration-observer.js(v='2.1.0-consolidated02')}"></script>
+<link rel="stylesheet" th:href="@{/css/configuration-center.css(v='2.1.0-center02')}"/>
+<script defer th:src="@{/js/configuration-center.js(v='2.1.0-center02')}"></script>
 <link rel="stylesheet" th:href="@{/css/xterm-vendored.css}"/><script defer th:src="@{/js/xterm-vendored.js}"></script><script defer th:src="@{/js/native-clamdtop.js}"></script><link rel="stylesheet" th:href="@{/css/rest-api.css}"/>
 </head><body><div class="app-shell">
 <aside id="app-sidebar" class="app-sidebar"><div class="sidebar-header"><img class="sidebar-logo" alt="ClamAV" th:src="@{/images/logo.jpg}"/>
@@ -27,9 +29,8 @@
 <a class="nav-btn tab-link" th:classappend="${currentUri == '/api-reports' ? ' active' : ''}" th:href="@{/api-reports}"><i class="fa fa-chart-bar"></i>API Reports</a></div></div>
 <div class="sidebar-divider"></div><div class="sidebar-section tabs" sec:authorize="hasRole('ADMIN')" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <div class="sidebar-section__title">Administration</div>
-<a class="nav-btn tab-link" th:classappend="${currentUri == '/admin/settings' ? ' active' : ''}" th:attr="aria-current=${currentUri == '/admin/settings' ? 'page' : null}" th:href="@{/admin/settings}"><i class="fas fa-cog" aria-hidden="true"></i><span>Settings</span></a>
-<a class="nav-btn tab-link" th:classappend="${currentUri == '/admin/configuration' ? ' active' : ''}" th:attr="aria-current=${currentUri == '/admin/configuration' ? 'page' : null}" th:href="@{/admin/configuration}"><i class="fas fa-sliders-h" aria-hidden="true"></i><span>Configuration</span></a>
-<a class="nav-btn tab-link" th:classappend="${currentUri == '/admin/settings/authentication' ? ' active' : ''}" th:attr="aria-current=${currentUri == '/admin/settings/authentication' ? 'page' : null}" th:href="@{/admin/settings/authentication}"><i class="fas fa-user-shield" aria-hidden="true"></i><span>Authentication</span></a>
+<a class="nav-btn tab-link" th:classappend="${currentUri == '/admin/configuration-center' ? ' active' : ''}" th:attr="aria-current=${currentUri == '/admin/configuration-center' ? 'page' : null}" th:href="@{/admin/configuration-center}"><i class="fas fa-sliders-h" aria-hidden="true"></i><span>Configuration center</span></a>
+<a class="nav-btn tab-link" th:classappend="${currentUri == '/admin/configuration' ? ' active' : ''}" th:attr="aria-current=${currentUri == '/admin/configuration' ? 'page' : null}" th:href="@{/admin/configuration}"><i class="fas fa-sliders-h" aria-hidden="true"></i><span>Daemon status &amp; files</span></a>
 <a class="nav-btn tab-link" th:classappend="${currentUri == '/admin/integrations' ? ' active' : ''}" th:attr="aria-current=${currentUri == '/admin/integrations' ? 'page' : null}" th:href="@{/admin/integrations}"><i class="fas fa-plug" aria-hidden="true"></i><span>Monitoring &amp; clients</span></a>
 <a class="nav-btn tab-link" th:classappend="${currentUri == '/admin/endpoints' ? ' active' : ''}" th:attr="aria-current=${currentUri == '/admin/endpoints' ? 'page' : null}" th:href="@{/admin/endpoints}"><i class="fas fa-network-wired" aria-hidden="true"></i><span>Endpoints</span></a>
 <a class="nav-btn tab-link" th:classappend="${currentUri == '/admin/users' ? ' active' : ''}" th:attr="aria-current=${currentUri == '/admin/users' ? 'page' : null}" th:href="@{/admin/users}"><i class="fas fa-users" aria-hidden="true"></i><span>Users</span></a>
@@ -62,5 +63,5 @@
 </div></header>
 <div class="app-content"><div th:if="${errorMsg}" class="alert alert-danger" th:text="${errorMsg}"></div>
 <div th:if="${successMsg}" class="alert alert-success" th:text="${successMsg}"></div>
-<div th:replace="${content}">Content</div></div><footer class="app-footer muted">ClamAV Web UI <span>v<strong th:text="${appVersion}">2.0.0</strong></span> · managed scan jobs and live clamd metrics</footer></main>
+<div th:replace="${content}">Content</div></div><footer class="app-footer muted">ClamAV Web UI <span>v<strong th:text="${appVersion}">2.1.0</strong></span> · managed scan jobs and live clamd metrics</footer></main>
 </div></body></html>

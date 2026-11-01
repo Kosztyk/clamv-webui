@@ -1,0 +1,30 @@
+# Optional REST service for an existing ClamD. This does not start a daemon.
+# Set CLAMAV_HOST in a private .env; CLAMAV_PORT defaults to 3310.
+# For a fresh Web UI + REST stack, combine with docker-compose.minimal.yaml.
+services:
+  clamav-rest-api:
+    image: kosztyk/clamav-rest-api:renovate
+    container_name: clamav-rest-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: "production"
+      APP_PORT: "3000"
+      APP_FORM_KEY: "FILES"
+      CLAMD_IP: "${CLAMAV_HOST:?Set the existing ClamD host in your private .env}"
+      CLAMD_PORT: "${CLAMAV_PORT:-3310}"
+      # Bytes per file: 262144000 = 250 MiB.
+      APP_MAX_FILE_SIZE: "262144000"
+      APP_MAX_FILES_NUMBER: "5"
+      APP_TEMP_FILE_DIR: "/tmp/clamav-uploads"
+      APP_UPLOAD_TIMEOUT: "0"
+      APP_MAX_CONCURRENT_SCANS: "1"
+      # Milliseconds: 3600000 = one hour.
+      CLAMD_TIMEOUT: "3600000"
+      APP_MORGAN_LOG_FORMAT: "combined"
+    ports:
+      - "${REST_API_BIND:-127.0.0.1}:3000:3000"
+    volumes:
+      - rest-api-uploads:/tmp/clamav-uploads
+
+volumes:
+  rest-api-uploads:

@@ -1,0 +1,18 @@
+# Fresh GUI-managed installation. Build the local image from the full source first.
+# This starts the Web UI only; configure an existing ClamD in /setup/.
+# For an existing installation, retain its original persistent volumes/database.
+services:
+  clamav-web-client:
+    image: clamav-web-client:2.1.0-local
+    pull_policy: never
+    container_name: clamav-web-client
+    ports:
+      - "8080:8080"
+    volumes:
+      - clamav-conf:/app/conf
+      - clamav-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  clamav-conf:
+  clamav-data:

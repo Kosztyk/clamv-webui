@@ -45,6 +45,8 @@ public class SettingsService {
     private static final String CLAMAV_SERVICE_PLATFORM_PROPERTY = "clamav.service.platform";
 
     private Properties props;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private org.springframework.core.env.Environment environment;
 
     @PostConstruct
     public void init() {
@@ -63,6 +65,12 @@ public class SettingsService {
             props.putIfAbsent(WATCH_ENABLED, "false");
             props.putIfAbsent(WATCH_POLL_SECONDS, "30");
             props.putIfAbsent(CLAMAV_SERVICE_PLATFORM_PROPERTY, "UNIX");
+            if(environment!=null) info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment).ifPresent(store->{
+                String previous=props.getProperty(WEBHOOK_URL,"");
+                if(!previous.isBlank() && store.saved(WEBHOOK_URL).isEmpty())
+                    store.save(store.snapshot().revision(),Map.of(WEBHOOK_URL,previous),Set.of(),false,"legacy-secret-migration");
+                if(store.saved(WEBHOOK_URL).isPresent()) props.remove(WEBHOOK_URL);
+            });
 
             /*
              * Container environment variables must override values that may already
@@ -111,12 +119,9 @@ public class SettingsService {
      * environment variable -> persisted property -> application default.
      */
     private void applyEnvironmentOverride(String propertyKey, String environmentVariable, String defaultValue) {
-        String resolved = resolveEnvironmentOverride(
-                System.getenv(environmentVariable),
-                props.getProperty(propertyKey),
-                defaultValue
-        );
-        props.setProperty(propertyKey, resolved);
+        // Keep the saved GUI value underneath an override. Resolve deployments at read
+        // time, rather than persisting their values into the operator's settings.
+        props.putIfAbsent(propertyKey,defaultValue);
     }
 
     // Package-private for focused regression tests.
@@ -141,19 +146,91 @@ public class SettingsService {
     public synchronized Properties snapshot() {
         Properties p = new Properties();
         p.putAll(props);
+        for(var field:info.trizub.clamav.webclient.configuration.ConfigurationCatalog.all())
+            if(field.policy() || field.key().startsWith("clamav.service."))
+                p.setProperty(field.key(),resolved(field.key(),field.defaultValue()));
         return p;
     }
 
     public synchronized void updateFromMap(Map<String, String> updates) {
+        Map<String,String> centralized=new LinkedHashMap<>();Set<String> clear=new LinkedHashSet<>();
+        var store=environment==null?Optional.<info.trizub.clamav.webclient.configuration.ConfigurationStore>empty():
+            info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment);
+        // Validate the entire request before changing either persistence layer.
+        for(var e:updates.entrySet()) {
+            if(e.getValue()==null) continue;
+            var field=info.trizub.clamav.webclient.configuration.ConfigurationCatalog.find(e.getKey());
+            if(field.isPresent()) {
+                info.trizub.clamav.webclient.configuration.ConfigurationCatalog.validate(field.get(),e.getValue());
+                if(environment!=null) {
+                    var controlled=info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,field.get());
+                    if(controlled.isPresent() && !controlled.get().value().equals(e.getValue().trim()))
+                        throw new IllegalArgumentException(field.get().label()+" is controlled by deployment configuration");
+                }
+            }
+        }
+        Properties next=new Properties();next.putAll(props);
         for (var e : updates.entrySet()) {
             if (e.getValue() == null) continue;
-            props.setProperty(e.getKey(), e.getValue().trim());
+            var field=info.trizub.clamav.webclient.configuration.ConfigurationCatalog.find(e.getKey());
+            if(environment!=null && field.isPresent()) {
+                var controlled=info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,field.get());
+                if(controlled.isPresent()) {
+                    if(!controlled.get().value().equals(e.getValue().trim())) throw new IllegalArgumentException(field.get().label()+" is controlled by deployment configuration");
+                    continue;
+                }
+            }
+            if(store.isPresent() && field.isPresent() && !field.get().live() && store.get().saved(e.getKey()).isPresent()) {
+                if(!resolved(e.getKey(),field.get().defaultValue()).equals(e.getValue().trim())) throw new IllegalArgumentException(field.get().label()+" is managed in Configuration Center");
+                continue; // Do not erase a staged startup value with the running legacy form.
+            }
+            if(store.isPresent() && field.isPresent() && (field.get().secret() || store.get().saved(e.getKey()).isPresent())) {
+                if(field.get().secret() && e.getValue().isBlank()) clear.add(e.getKey());
+                else centralized.put(e.getKey(),e.getValue());
+                next.remove(e.getKey());continue;
+            }
+            next.setProperty(e.getKey(), e.getValue().trim());
         }
+        if(store.isPresent() && (!centralized.isEmpty() || !clear.isEmpty()))
+            store.get().save(store.get().snapshot().revision(),centralized,clear,false,"legacy-settings");
+        props=next;
         persist();
+    }
+    public Set<String> readOnlyKeys() {
+        Set<String> keys=new LinkedHashSet<>();
+        if(environment==null) return keys;
+        var store=info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment);
+        for(var field:info.trizub.clamav.webclient.configuration.ConfigurationCatalog.all())
+            if(info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,field).isPresent()
+                    || !field.live() && store.flatMap(s->s.saved(field.key())).isPresent()) keys.add(field.key());
+        return keys;
+    }
+
+    private String resolved(String key,String fallback) {
+        if(environment!=null) {
+            var field=info.trizub.clamav.webclient.configuration.ConfigurationCatalog.find(key);
+            if(field.isPresent()) {
+                var controlled=info.trizub.clamav.webclient.configuration.ConfigurationSource.override(environment,field.get());
+                if(controlled.isPresent()) return controlled.get().value();
+                var stored=info.trizub.clamav.webclient.configuration.ConfigurationSource.store(environment).flatMap(store->store.active(key));
+                if(stored.isPresent()) return stored.get();
+            }
+        } else {
+            String alias=switch(key) {
+                case "app.upload.pathScan.enabled" -> ENV_UPLOAD_PATH_SCAN_ENABLED;
+                case "app.upload.pathScan.fallbackToInstream" -> ENV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM;
+                case "clamav.service.host" -> ENV_CLAMAV_HOST;
+                case "clamav.service.port" -> ENV_CLAMAV_PORT;
+                default -> "";
+            };
+            String value=alias.isBlank()?null:System.getenv(alias);
+            if(value!=null && !value.isBlank()) return value;
+        }
+        return props.getProperty(key,fallback);
     }
 
     public List<Path> allowedRoots() {
-        String raw = props.getProperty(ALLOWED_SCAN_ROOTS, "/scandir");
+        String raw = resolved(ALLOWED_SCAN_ROOTS, "/scandir");
         return Arrays.stream(raw.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
@@ -164,51 +241,51 @@ public class SettingsService {
     }
 
     public long uploadMaxBytes() {
-        try { return Long.parseLong(props.getProperty(UPLOAD_MAX_BYTES)); } catch (Exception e) { return 2L * 1024 * 1024 * 1024; }
+        try { return Long.parseLong(resolved(UPLOAD_MAX_BYTES,"2147483648")); } catch (Exception e) { return 2L * 1024 * 1024 * 1024; }
     }
 
     public int concurrentScans() {
-        try { return Integer.parseInt(props.getProperty(CONCURRENT_SCANS)); } catch (Exception e) { return 2; }
+        try { return Integer.parseInt(resolved(CONCURRENT_SCANS,"2")); } catch (Exception e) { return 2; }
     }
 
     public Path uploadDir() {
-        return Paths.get(props.getProperty(UPLOAD_DIR, "./data/uploads")).toAbsolutePath().normalize();
+        return Paths.get(resolved(UPLOAD_DIR, "./data/uploads")).toAbsolutePath().normalize();
     }
 
     public boolean uploadPathScanEnabled() {
-        return Boolean.parseBoolean(props.getProperty(UPLOAD_PATH_SCAN_ENABLED, "true"));
+        return Boolean.parseBoolean(resolved(UPLOAD_PATH_SCAN_ENABLED, "true"));
     }
 
     public boolean uploadPathScanFallbackToInstream() {
-        return Boolean.parseBoolean(props.getProperty(UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM, "false"));
+        return Boolean.parseBoolean(resolved(UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM, "false"));
     }
 
     public Path quarantineDir() {
-        return Paths.get(props.getProperty(QUARANTINE_DIR, "./data/quarantine")).toAbsolutePath().normalize();
+        return Paths.get(resolved(QUARANTINE_DIR, "./data/quarantine")).toAbsolutePath().normalize();
     }
 
     public boolean quarantineEnabled() {
-        return Boolean.parseBoolean(props.getProperty(QUARANTINE_ENABLED, "false"));
+        return Boolean.parseBoolean(resolved(QUARANTINE_ENABLED, "false"));
     }
 
     public boolean webhookEnabled() {
-        return Boolean.parseBoolean(props.getProperty(WEBHOOK_ENABLED, "false"));
+        return Boolean.parseBoolean(resolved(WEBHOOK_ENABLED, "false"));
     }
 
     public String webhookUrl() {
-        return props.getProperty(WEBHOOK_URL, "");
+        return resolved(WEBHOOK_URL, "");
     }
 
     public boolean watchEnabled() {
-        return Boolean.parseBoolean(props.getProperty(WATCH_ENABLED, "false"));
+        return Boolean.parseBoolean(resolved(WATCH_ENABLED, "false"));
     }
 
     public int watchPollSeconds() {
-        try { return Integer.parseInt(props.getProperty(WATCH_POLL_SECONDS, "30")); } catch (Exception e) { return 30; }
+        try { return Integer.parseInt(resolved(WATCH_POLL_SECONDS, "30")); } catch (Exception e) { return 30; }
     }
 
     // Legacy getters
-    public String legacyHost() { return props.getProperty(CLAMAV_SERVICE_HOST_PROPERTY, "localhost"); }
-    public int legacyPort() { try { return Integer.parseInt(props.getProperty(CLAMAV_SERVICE_PORT_PROPERTY, "3310")); } catch (Exception e) { return 3310; } }
-    public String legacyPlatform() { return props.getProperty(CLAMAV_SERVICE_PLATFORM_PROPERTY, "UNIX"); }
+    public String legacyHost() { return resolved(CLAMAV_SERVICE_HOST_PROPERTY, "localhost"); }
+    public int legacyPort() { try { return Integer.parseInt(resolved(CLAMAV_SERVICE_PORT_PROPERTY, "3310")); } catch (Exception e) { return 3310; } }
+    public String legacyPlatform() { return resolved(CLAMAV_SERVICE_PLATFORM_PROPERTY, "UNIX"); }
 }

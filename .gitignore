@@ -13,7 +13,7 @@ conf/auth-settings.key
 conf/*.key
 
 # Phase 3 local Java truststore / TLS artifacts (never commit)
-conf/ldap-test-truststore
+conf/*truststore*
 conf/*.jks
 conf/*.p12
 conf/*.pfx
@@ -23,3 +23,24 @@ conf/*.pem
 # Generated CLI executables are distributed as build/release artifacts.
 cli/dist/
 conf/integrations.properties
+
+# Configuration Center state and recovery credentials are runtime volume contents.
+conf/configuration-center.properties
+conf/configuration-recovery-token
+conf/configuration-audit.jsonl
+conf/configuration-database-state.properties
+conf/configuration-database-choice.properties
+__pycache__/
+*.pyc
+
+# Private deployment environment and TLS files (examples remain versioned).
+.env.*
+!.env.example
+secrets/
+certificates/
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.crt

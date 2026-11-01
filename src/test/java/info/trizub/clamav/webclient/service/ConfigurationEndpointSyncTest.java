@@ -65,4 +65,24 @@ class ConfigurationEndpointSyncTest {
         Files.writeString(dir.resolve("clamd.conf"),"TCPSocket invalid\n");
         service(true,new MockEnvironment()).pollConfiguration();verify(repository,never()).save(any());
     }
+    @Test void selectedDefaultSurvivesRenameAndRecreationWithUnorderedAdditionalEndpoints() throws Exception {
+        var primary=new ClamdEndpoint("primary","primary.example",3310,Platform.UNIX);
+        var secondary=new ClamdEndpoint("secondary","secondary.example",3311,Platform.UNIX);
+        org.springframework.test.util.ReflectionTestUtils.setField(primary,"id",10L);
+        org.springframework.test.util.ReflectionTestUtils.setField(secondary,"id",2L);
+        when(repository.findAll()).thenReturn(List.of(secondary,primary));
+        when(repository.findByName(anyString())).thenAnswer(i->List.of(primary,secondary).stream()
+                .filter(ep->ep.getName().equals(i.getArgument(0))).findFirst());
+        when(repository.findById(10L)).thenReturn(Optional.of(primary));
+        var configured=new MockEnvironment().withProperty("center.clamd.name","primary");
+        var observer=new ClamdConfigurationObserver("","",false);
+        var service=new EndpointService(repository,mock(SettingsService.class),observer,configured);
+        assertThat(service.defaultEndpoint()).isSameAs(primary);
+        primary.setName("renamed-primary");
+        assertThat(service.defaultEndpoint()).isSameAs(primary);
+        var recreated=new EndpointService(repository,mock(SettingsService.class),observer,
+                new MockEnvironment().withProperty("center.clamd.name","renamed-primary"));
+        assertThat(recreated.defaultEndpoint()).isSameAs(primary);
+    }
+
 }

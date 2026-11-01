@@ -1,6 +1,7 @@
-<!doctype html><html xmlns:th="http://www.thymeleaf.org"><body><div th:fragment="jobsTable(jobs)" class="table-responsive">
+<!doctype html><html xmlns:th="http://www.thymeleaf.org"><body><div th:fragment="jobsTable(jobs)" class="table-responsive" data-jobs-table th:attr="data-refresh-url=${canRefreshJobs} ? @{/jobs/table} : null">
+<p class="muted small" data-jobs-refresh-status th:if="${canRefreshJobs}" role="status" aria-live="polite">Updates automatically.</p>
 <table class="table table-sm table-hover app-table"><thead><tr><th>Job ID</th><th>Type</th><th>Target</th><th>Status</th><th>Verdict</th><th>Submitted</th></tr></thead>
-<tbody><tr th:each="job : ${jobs}"><td><a sec:authorize="hasAnyRole('OPERATOR','ADMIN')" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:href="@{/jobs/{id}(id=${job.id})}" th:text="${job.id}">ID</a><span sec:authorize="hasRole('VIEWER') and !hasAnyRole('OPERATOR','ADMIN')" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:text="${job.id}">ID</span></td>
+<tbody><tr th:each="job : ${jobs}" th:attr="data-job-id=${job.id},data-job-status=${job.status}"><td><a sec:authorize="hasAnyRole('OPERATOR','ADMIN')" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:href="@{/jobs/{id}(id=${job.id})}" th:text="${job.id}">ID</a><span sec:authorize="hasRole('VIEWER') and !hasAnyRole('OPERATOR','ADMIN')" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:text="${job.id}">ID</span></td>
 <td th:text="${job.type}">UPLOAD</td><td th:text="${job.target}">file</td><td th:text="${job.status}">QUEUED</td>
 <td th:text="${job.verdict}">OK</td><td th:text="${job.submittedAt}">time</td></tr>
 <tr th:if="${jobs == null or #lists.isEmpty(jobs)}"><td colspan="6" class="muted">No jobs have been submitted.</td></tr></tbody></table></div></body></html>

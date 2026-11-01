@@ -4,6 +4,14 @@ The recommended entry point is the **[ClamAV Web UI Complete User, Administrator
 
 ## Current deployment and verification guides
 
+- [Publish the complete source snapshot to GitHub](PUBLISHING.md)
+- [Source-package privacy and integrity](SOURCE_PACKAGE_PRIVACY.md)
+- [Configuration Center, minimal Compose, encrypted persistence and recovery](CONFIGURATION_CENTER.md)
+- [Configuration Center field and environment reference](CONFIGURATION_REFERENCE.md)
+- [Built-in API, optional REST scanner, GUI/Compose setup and upload limits](REST_API_DEPLOYMENT.md)
+- [Database connection tests, timeouts and first-run H2 behavior](DATABASE_CONNECTION_TESTS.md)
+- [Configuration Center validation](CONFIGURATION_CENTER_VALIDATION.md)
+
 - [Build and deploy the complete application](../SERVER_DEPLOYMENT.md)
 - [Update an existing deployment and verify all three changes](UPDATE_AND_VERIFY.md)
 - [31 October 2026 update notes](UPDATE_NOTES_2026_10_31.md)
