@@ -1,3 +1,5 @@
+> **v2.1beta1 staging branch:** Main is unchanged. The complete beta source import and CI verification must finish **before** the `v2.1beta1` tag is pushed. See [beta release notes](docs/releases/v2.1beta1.md) and [deployment examples](docs/BETA_DEPLOYMENT_EXAMPLES.md). Fresh-install INSTREAM defaults and the optional secure native filename scanner are covered in the forthcoming full source import.
+
 # ClamAV Web UI
 
 **A self-hosted console for malware scanning, ClamD monitoring and automation.**

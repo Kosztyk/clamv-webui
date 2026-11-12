@@ -1,0 +1,29 @@
+name: Publish v2.1beta1 prerelease (tag gated)
+on:
+  push:
+    tags:
+      - v2.1beta1
+permissions:
+  contents: write
+jobs:
+  verify-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Check source invariants and secrets
+        run: |
+          python3 scripts/check-safe-scanning-source.py
+          python3 tools/audit-source-package.py .
+      - name: Run Java tests
+        run: mvn -B verify
+      - name: Package tracked full source
+        run: git archive --format=zip --output=clamav-webui-v2.1beta1-full-source.zip HEAD
+      - name: Publish beta GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v2.1beta1 --prerelease --verify-tag --title "ClamAV Web UI v2.1beta1 (beta)" --notes-file docs/releases/v2.1beta1.md clamav-webui-v2.1beta1-full-source.zip
