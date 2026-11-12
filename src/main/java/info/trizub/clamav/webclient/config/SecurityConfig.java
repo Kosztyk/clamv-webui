@@ -85,6 +85,7 @@ public class SecurityConfig {
              LoginLockoutFilter loginLockoutFilter, LoginAttemptService attempts) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.GET, "/login").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/icons/**", "/webfonts/**", "/flags/**", "/favicon.ico", "/error", "/setLocale", "/login/ldap", "/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/actuator/prometheus").permitAll() // Fail-closed standalone scrape token filter.
                 .requestMatchers("/actuator/**").hasRole("ADMIN")

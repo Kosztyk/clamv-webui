@@ -86,12 +86,12 @@ public class SettingsService {
             applyEnvironmentOverride(
                     UPLOAD_PATH_SCAN_ENABLED,
                     ENV_UPLOAD_PATH_SCAN_ENABLED,
-                    "true"
+                    "false"
             );
             applyEnvironmentOverride(
                     UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM,
                     ENV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM,
-                    "false"
+                    "true"
             );
 
             // Legacy endpoint defaults. These values seed a new default endpoint.
@@ -253,11 +253,11 @@ public class SettingsService {
     }
 
     public boolean uploadPathScanEnabled() {
-        return Boolean.parseBoolean(resolved(UPLOAD_PATH_SCAN_ENABLED, "true"));
+        return Boolean.parseBoolean(resolved(UPLOAD_PATH_SCAN_ENABLED, "false"));
     }
 
     public boolean uploadPathScanFallbackToInstream() {
-        return Boolean.parseBoolean(resolved(UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM, "false"));
+        return Boolean.parseBoolean(resolved(UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM, "true"));
     }
 
     public Path quarantineDir() {

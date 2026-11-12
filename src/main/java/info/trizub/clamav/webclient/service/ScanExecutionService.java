@@ -150,9 +150,9 @@ public class ScanExecutionService {
                     } catch (Exception pathScanError) {
                         String message = "Path-based upload scan failed for " + stored + ". "
                                 + "Native clamdtop can show filenames only when clamd receives a SCAN/MULTISCAN path "
-                                + "and the clamd container can read that exact path. Mount the upload directory into the "
+                                + "and the clamd container can read that exact path. Only an explicitly verified, restricted read-only uploads mount and UID-matched daemon permit native filename scanning. Otherwise disable native upload path scanning, or enable fallback. Previously: "
                                 + "clamd container at the same path, or enable app.upload.pathScan.fallbackToInstream=true "
-                                + "to keep old INSTREAM behavior. Details: " + pathScanError.getMessage();
+                                + "to keep secure INSTREAM behavior. Details: " + pathScanError.getMessage();
 
                         if (!settings.uploadPathScanFallbackToInstream()) {
                             log.warn(message, pathScanError);

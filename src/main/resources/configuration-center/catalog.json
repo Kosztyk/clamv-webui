@@ -841,7 +841,7 @@
       "category": "Scanning",
       "section": "scanning",
       "type": "boolean",
-      "defaultValue": "true",
+      "defaultValue": "false",
       "environment": [
         "CLAMAV_UPLOAD_PATH_SCAN_ENABLED"
       ],
@@ -849,7 +849,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "",
+      "hint": "Optional native SCAN/MULTISCAN for original filenames in clamdtop. Only enable after the daemon can read this path through a verified read-only upload-only share with UID-matched 0700/0600 permissions; otherwise use safe INSTREAM.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -861,7 +861,7 @@
       "category": "Scanning",
       "section": "scanning",
       "type": "boolean",
-      "defaultValue": "false",
+      "defaultValue": "true",
       "environment": [
         "CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM"
       ],
@@ -869,7 +869,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "",
+      "hint": "Recommended ON: when native uploaded-path scanning cannot access the private file, retry securely via INSTREAM. Existing saved values and Docker environment overrides take precedence over fresh-install defaults.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
