@@ -1,0 +1,22 @@
+# Strict owner-only upload files (0700/0600) with native clamd scan paths.
+ARG CLAMAV_BASE_IMAGE
+FROM ${CLAMAV_BASE_IMAGE}
+# Match app numeric UID without making scanner root or widening permissions.
+RUN set -eu; \
+    test "$(id -u)" = 0; \
+    test -f /etc/passwd; \
+    old_uid="$(id -u clamav)"; \
+    if [ "$old_uid" != 10001 ]; then \
+        if awk -F: '$3 == 10001 { found=1 } END { exit !found }' /etc/passwd; then \
+            echo 'UID 10001 already assigned to another user' >&2; exit 1; \
+        fi; \
+        awk -F: 'BEGIN { OFS=":" } $1=="clamav" { $3=10001; updated=1 } { print } END { if (!updated) exit 1 }' \
+            /etc/passwd > /tmp/passwd.clamav; \
+        cat /tmp/passwd.clamav > /etc/passwd; \
+        rm /tmp/passwd.clamav; \
+    fi; \
+    test "$(id -u clamav)" = 10001; \
+    for dir in /var/lib/clamav /var/log/clamav /run/clamav; do \
+        if [ -d "$dir" ]; then chown -R clamav:clamav "$dir"; fi; \
+    done
+# Keep upstream entrypoint, clamd config, signature update behavior.

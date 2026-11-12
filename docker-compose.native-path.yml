@@ -1,0 +1,15 @@
+# Optional clamdtop filenames: use only after testing the UID-matched scanner.
+# docker compose -f docker-compose.yml -f docker-compose.native-path.yml up -d --build
+services:
+  clamav-server:
+    image: clamav-uid10001:local
+    build:
+      context: .
+      dockerfile: Dockerfile.clamd-uid
+      args:
+        CLAMAV_BASE_IMAGE: "${CLAMAV_BASE_IMAGE:?Set a tested immutable image digest in .env}"
+    volumes:
+      - type: bind
+        source: ./data/uploads
+        target: /app/data/uploads
+        read_only: true

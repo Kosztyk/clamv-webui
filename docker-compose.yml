@@ -1,46 +1,34 @@
+# v2.1beta1 secure fresh-install example for HTTPS proxy on Docker host.
+# Do not overwrite an existing PostgreSQL/LDAP/OIDC/NGINX deployment.
 services:
   clamav-web-client:
-    # Build the application from the Dockerfile in this directory.
-    # This is a LOCAL tag; Docker Compose will build it, not pull it from Docker Hub.
-    image: clamav-web-client:2.1.0-local
+    image: clamav-web-client:2.1beta1-local
     pull_policy: build
     build:
       context: .
       dockerfile: Dockerfile
       pull: false
-
     container_name: clamav-web-client
-
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-
     ports:
-      - "8080:8080"
-
-    # First-run application settings are entered at /setup/ on this port.
-    # When using the bundled scanner, enter clamav-server:3310 in the GUI.
-
+      - "${CLAMAV_WEB_BIND_ADDRESS:-127.0.0.1}:8081:8080"
+    environment:
+      CLAMAV_HOST: "clamav-server"
+      CLAMAV_PORT: "3310"
+      # No scan mode override: fresh-install default is INSTREAM.
+      # Configure the deployment-specific database and trusted HTTPS proxy separately.
     volumes:
-      # Prepare existing host folders for UID/GID 10001; see docs/NON_ROOT_CONTAINER.md.
       - ./conf:/app/conf
       - ./data:/app/data
-
     depends_on:
       clamav-server:
         condition: service_started
-
     restart: unless-stopped
-
   clamav-server:
-    image: clamav/clamav:latest
+    image: "${CLAMAV_BASE_IMAGE:?Set a verified immutable ClamAV image digest in .env}"
     container_name: clamav
-
-    ports:
-      - "3310:3310"
-
-    volumes:
-      - ./data:/app/data:ro
-
+    # Issue #15: no published port, no access to the entire application data volume.
     restart: unless-stopped
