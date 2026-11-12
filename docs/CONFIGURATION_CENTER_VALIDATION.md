@@ -30,7 +30,7 @@ Flyway stays V4. Earlier features and issues #10, #11 and #12 remain included.
 | Earlier unchanged CLI/MCP Spring integration | Passed against the real Spring API, including Basic/CSRF, scoped Bearer operations and MCP; ClamD was a synthetic wire fixture |
 | Bash/Python/JavaScript syntax and diff whitespace | Passed |
 | Final executable JAR | ZIP/CRC passed; build metadata and setup footer verified as 2.1.0 |
-| Complete-source GitHub publisher | **19 passed** with actual local bare Git remotes and an offline GitHub CLI fixture; default/protected branch, PR, dry run, repeat and unsafe/tampered ZIP cases |
+| Complete-source GitHub publisher | **12 passed** with actual local bare Git remotes and an offline GitHub CLI fixture; default/protected branch, PR, dry run, repeat and unsafe/tampered ZIP cases |
 | Public-source privacy/integrity | All release files checked against supplied identifiers; binary assets inspected; no runtime credentials/state; final ZIP CRC, file list and SHA-256 manifest verified |
 | Configuration documentation | README has explicit GUI and Compose/hybrid procedures and exact recovery credential command; YAML parsed and examples/local links checked |
 
@@ -164,17 +164,3 @@ The publisher was exercised with local Git remotes and a simulated `gh`, not wit
 ## Database probe correction — 1 November 2026
 
 The old three-second PostgreSQL login budget was reproduced as a false failure with a four-second authentication fixture. The corrected probe uses the configured pool connection budget with bounded, driver-specific timeout units and explicit driver selection before Spring startup. New H2 databases now receive an uninitialized informational result, existing `IFEXISTS` options are normalized, and failed tests explain the cause without including raw JDBC messages or secrets. Direct HTTP consent, unchanged saved revisions and post-initialization retesting are verified. See [database test details and reproduction](DATABASE_CONNECTION_TESTS.md); the optional Docker integration workflow now exercises the probe before and after migrations for all three external SQL families.
-
-## API documentation and Compose package — 1 November 2026
-
-This documentation-only edition retains every file from the 965-file database-probe package and adds the external REST-service Compose plus the API deployment guide. Application, CLI, templates, catalogue and runtime assets are byte-identical to that tested edition. Its 609 Java tests (604 passes, five environment-limited skips) and browser/runtime evidence above remain applicable; they were not rerun for prose/Compose changes.
-
-The current package passed **14 documentation/model checks**: five Compose files against the official Compose schema, three README YAML examples matching the shipped files, the no-environment minimum setup and exact owner-credential command, combined GUI/REST services and volumes, all REST aliases and multipart matching, built-in API route/response checks, current local links and unchanged application source. The publisher's original **12 regressions** were rerun with actual local Git remotes and an offline `gh` fixture. Final archive CRC, all retained paths, SHA-256 file entries and supplied-identifier privacy checks passed. Binary assets are unchanged from their earlier inspection.
-
-The new guide explains upload-size units, the built-in API versus the external service, GUI/environment precedence, direct setup, the separate backend environment, network addresses and required async/report endpoints. It does not claim a new Docker build or execution of the separate `kosztyk/clamav-rest-api:renovate` image. See [API and REST deployment](REST_API_DEPLOYMENT.md).
-
-## Publisher cache-permission correction — 1 November 2026
-
-The publisher no longer installs a downloaded CLI under `~/.local/share`. It uses the macOS user cache or the Linux XDG/home cache, verifies a real write before downloading, installs the executable atomically, and falls back to its private temporary directory if the cache is unavailable. Temporary use configures Git credentials for the current commands, without saving a reference to an executable that cleanup removes. Existing installed GitHub CLI use is retained.
-
-**19 publisher tests passed**, retaining the original 12 snapshot/security/branch cases and adding cache/bootstrap regressions. Tests cover both Mac architectures with a blocked legacy parent, a cached Mac CLI, Linux XDG/default/relative-cache behavior, private temporary fallback through an actual local Git push, and rejection of a bad downloaded-asset checksum before installation/authentication. These use simulated OS detection and an offline executable/archive fixture; only a temporary test copy substitutes the fixture asset digest and home prefix. Production release digests are unchanged. No live GitHub push or native macOS execution is claimed. Both the previously downloaded full ZIP and the updated full ZIP pass the corrected publisher's offline check. Application and CLI runtime code remain unchanged from the preceding verified edition.

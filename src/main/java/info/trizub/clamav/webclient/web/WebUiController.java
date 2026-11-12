@@ -73,6 +73,7 @@ public class WebUiController {
     private final AuditEventRepository auditRepo;
     private final AppUserRepository userRepo;
     private final UserService userService;
+    private final info.trizub.clamav.webclient.repo.ExternalIdentityRepository externalIdentities;
     private final WatchedDirectoryRepository watchRepo;
     private final WebhookAddressPolicy webhookPolicy;
     private final WebhookNotificationProperties webhookProperties;
@@ -85,6 +86,7 @@ public class WebUiController {
                            AuditEventRepository auditRepo,
                            AppUserRepository userRepo,
                            UserService userService,
+                           info.trizub.clamav.webclient.repo.ExternalIdentityRepository externalIdentities,
                            WatchedDirectoryRepository watchRepo,
                            WebhookAddressPolicy webhookPolicy,
                            WebhookNotificationProperties webhookProperties) {
@@ -97,6 +99,7 @@ public class WebUiController {
         this.auditRepo = auditRepo;
         this.userRepo = userRepo;
         this.userService = userService;
+        this.externalIdentities = externalIdentities;
         this.watchRepo = watchRepo;
         this.webhookPolicy = webhookPolicy;
         this.webhookProperties = webhookProperties;
@@ -146,7 +149,7 @@ public class WebUiController {
         }
 
         try {
-            ClamdClient c = clientProvider.clientFor(ep);
+            ClamdClient c = clientProvider.probeFor(ep);
             c.ping();
             model.addAttribute("pingOk", true);
             model.addAttribute("version", c.version());
@@ -312,6 +315,7 @@ public class WebUiController {
     @GetMapping("/admin/users")
     public String adminUsers(Model model) {
         model.addAttribute("users", userRepo.findAll());
+        model.addAttribute("externalIdentities", externalIdentities.findAll());
         return PAGE_USERS;
     }
 

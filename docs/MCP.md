@@ -124,8 +124,12 @@ unknown statistics are returned as observations by the health tool.
 Resources have MIME type `application/json`. Each read queries the API. Reads
 are not cached and subscriptions are not advertised. `--endpoint ID` selects
 the endpoint for health/statistics and filters recent jobs. Endpoint overrides
-on scan tools do not change this default. Audit visibility follows the API
-identity's existing endpoint restrictions. A resource read without its required
+on scan tools do not change this default. With nonempty token path roots, recent
+jobs include only in-root PATH/WATCH jobs and this token's own uploads; recent
+audit includes only events linked to those visible jobs. Page totals exclude
+hidden records too. Empty-root history credentials retain endpoint-wide reads,
+while still denying path submissions. See [root semantics and legacy alias migration](TOKEN_PATH_SCOPES.md).
+A resource read without its required
 scope fails rather than returning another identity's data.
 
 ## Job diagnostics and timestamps
@@ -137,15 +141,21 @@ It continues to omit server paths, raw detection JSON and raw exception text.
 |---|---|
 | `PENDING` | The job has not finished and no quarantine location is recorded |
 | `RECORDED` | A successful quarantine operation recorded a location; this is not a current disk-presence check |
+| `FAILED` | A quarantine error was recorded; the infected verdict remains `VIRUS_FOUND` |
 | `NOT_RECORDED` | A finished infected upload has no recorded quarantine operation, for example when quarantine is disabled |
 | `NOT_APPLICABLE` | A finished clean job has nothing to quarantine |
 | `UNKNOWN` | No reliable per-job evidence, including older PATH/WATCH detections that can quarantine files without recording their locations |
 
-`error` is present for verdict `ERROR` and contains fixed `code`/`message` values.
+`error` contains fixed `code`/`message` values for verdict `ERROR` or a recorded
+quarantine failure alongside verdict `VIRUS_FOUND`.
 Codes are `POLICY_REJECTED`, `NO_ELIGIBLE_FILES`, `CONFIGURATION_UNAVAILABLE`,
-`LIMIT_EXCEEDED`, or the fallback `SCAN_FAILED`. An administrator can use the job
+`LIMIT_EXCEEDED`, `QUARANTINE_FAILED`, or the fallback `SCAN_FAILED`. An administrator can use the job
 ID to investigate private diagnostic details in server logs. The bridge does not
 make historical quarantine state more certain than the server record allows.
+
+An error object alongside `VIRUS_FOUND` reports incomplete quarantine, not a
+replacement scan verdict. CLI/MCP consumers must continue treating the malware
+detection as positive. See [upload and quarantine behavior](UPLOAD_FILENAMES.md).
 
 The health DTO adds `signatureDatabaseTimestamp`, an RFC 3339 UTC timestamp
 parsed using the server's `api.v1.clamd.database-timezone` (default UTC). It is

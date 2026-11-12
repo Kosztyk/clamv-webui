@@ -1,25 +1,22 @@
-# v2.1beta1 secure fresh-install example for HTTPS proxy on Docker host.
-# Do not overwrite an existing PostgreSQL/LDAP/OIDC/NGINX deployment.
+# Safe default for fresh installations. Do not replace an existing production
+# Compose file; merge changes into that deployment after backup and testing.
+# Set CLAMAV_BASE_IMAGE to a VERIFIED pinned image digest in .env first.
 services:
   clamav-web-client:
-    image: clamav-web-client:2.1beta1-local
-    pull_policy: build
+    image: clamav-web-client:local
     build:
       context: .
       dockerfile: Dockerfile
-      pull: false
     container_name: clamav-web-client
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     ports:
+      # NGINX on the Docker host terminates HTTPS; do not expose app HTTP directly.
       - "${CLAMAV_WEB_BIND_ADDRESS:-127.0.0.1}:8081:8080"
     environment:
       CLAMAV_HOST: "clamav-server"
       CLAMAV_PORT: "3310"
-      # No scan mode override: fresh-install default is INSTREAM.
-      # Configure the deployment-specific database and trusted HTTPS proxy separately.
+      # No upload scan-mode overrides. Fresh installs default to INSTREAM;
+      # Configuration Center can change the mode.
+      # Set real DB and trusted HTTPS proxy configuration per deployment.
     volumes:
       - ./conf:/app/conf
       - ./data:/app/data
@@ -27,8 +24,9 @@ services:
       clamav-server:
         condition: service_started
     restart: unless-stopped
+
   clamav-server:
-    image: "${CLAMAV_BASE_IMAGE:?Set a verified immutable ClamAV image digest in .env}"
+    image: "${CLAMAV_BASE_IMAGE:?Set a verified pinned clamav/clamav digest in .env}"
     container_name: clamav
-    # Issue #15: no published port, no access to the entire application data volume.
+    # No host-published TCP/3310 and no application-data mount (issue #15).
     restart: unless-stopped

@@ -19,14 +19,14 @@ class UserServiceTest {
         ReflectionTestUtils.setField(admin, "id", 1L);
         when(repo.findById(1L)).thenReturn(Optional.of(admin));
         when(repo.findAll()).thenReturn(List.of(admin));
-        UserService users = new UserService(repo, new BCryptPasswordEncoder());
+        UserService users = new UserService(repo, new BCryptPasswordEncoder(), mock(org.springframework.context.ApplicationEventPublisher.class));
         assertThatThrownBy(() -> users.deleteUser(1L)).isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("last enabled administrator");
         verify(repo, never()).deleteById(anyLong());
     }
 
     @Test void shortPasswordsAreRejected() {
-        UserService users = new UserService(mock(AppUserRepository.class), new BCryptPasswordEncoder());
+        UserService users = new UserService(mock(AppUserRepository.class), new BCryptPasswordEncoder(), mock(org.springframework.context.ApplicationEventPublisher.class));
         assertThatThrownBy(() -> users.createUser("new", "admin", Set.of("ROLE_VIEWER"), true))
             .isInstanceOf(IllegalArgumentException.class);
     }

@@ -1,0 +1,163 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15",
+    "https://github.com/Kosztyk/clamv-webui/issues/16",
+    "https://github.com/Kosztyk/clamv-webui/issues/17",
+    "https://github.com/Kosztyk/clamv-webui/issues/18"
+  ],
+  "verified_at_utc": "2026-11-10T13:50:06.436733+00:00",
+  "application_version": "2.1.0",
+  "java_verification": {
+    "command": "mvn verify",
+    "result": "passed",
+    "tests": 702,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 697,
+    "new_upload_lifecycle_tests": [
+      {
+        "class": "info.trizub.clamav.webclient.service.UploadBatchPersistenceTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "optionalHistoryRetentionPrunesAllOldBatchesAndKeepsActiveRecentAndQuarantinedJobs",
+          "aDatabaseFailureAtCommitAlsoRemovesAlreadyWrittenFiles",
+          "historyPruningIsDisabledByDefault",
+          "failedMultiFileBatchRollsBackRowsAndRemovesCompleteAndPartialFilesForBothPublicOverloads(boolean)[1]",
+          "failedMultiFileBatchRollsBackRowsAndRemovesCompleteAndPartialFilesForBothPublicOverloads(boolean)[2]",
+          "successfulCommitKeepsQueuedFilesAndAnAfterCommitQueueFailureDoesNotDeleteThem"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UploadStorageTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "cleanupRefusesPathsOutsideStorageAndDoesNotDeletePathScans",
+          "janitorRemovesExpiredOrphansButPreservesYoungUnknownAndSymlinkedFiles",
+          "retainedCleanFilesExpireButActiveAndRecentlyFinishedUploadsDoNot",
+          "uploadFilesAndDirectoriesArePrivateOnPosixAndNameCollisionsPreserveExistingFiles",
+          "inProgressBatchesAreProtectedEvenIfTheirFilesAreOld",
+          "infectedUploadsAreDeletedOrQuarantinedAndNeverLeftInUploads(boolean)[1]",
+          "infectedUploadsAreDeletedOrQuarantinedAndNeverLeftInUploads(boolean)[2]",
+          "aCleanScanRemovesItsUploadAfterPersistingTheVerdict",
+          "quarantineFailureDeletesTheInfectedUploadedCopy"
+        ]
+      }
+    ],
+    "new_catalogue_field_checks": 8,
+    "new_tests_total": 23,
+    "skipped_tests": [
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "multiscanReadsAllNullDelimitedResultsUntilConnectionClose"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "nonResponsiveSocketTimesOutAndClosesWithoutHangingAWorker"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "pingVersionAndStatsUseTheMountedSocketAndCorrectTerminators"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "cleanErrorsAndEmptyRepliesAreDistinct"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "instreamSendsLengthPrefixedChunksAndAZeroTerminatorThenReturnsDetections"
+      }
+    ]
+  },
+  "packaged_application_sha256": "4143b631841d4eb6810ff139b674bd40870acf219127fcd60b13e3cd0179dfaa",
+  "upload_policy": {
+    "clean_delete_default": true,
+    "infected": "Quarantine, or delete the uploaded copy when quarantine is disabled/unsuccessful",
+    "retention_hours_default": 24,
+    "active_jobs_and_inflight_copies_protected": true,
+    "job_history_days_default": 0,
+    "audit_history_days_default": 0,
+    "history_pruning": "Explicit opt-in; artifact/quarantine safeguards",
+    "posix_directories": "0700",
+    "posix_files": "0600",
+    "quarantine_files_automatically_deleted": false
+  },
+  "native_scan_runtime": {
+    "result": "passed",
+    "engine": "Official ClamAV 1.4.6 Linux package",
+    "package_sha256": "d3ee9e401974855a1edc1761b1425417d126de618d5f0c91cd51209f69f6fcc2",
+    "runner": "scripts/test-eicar-native.py --isolate",
+    "signature_database": "Local harmless EICAR-only signature fixture",
+    "assertions": [
+      "Real clean OK and EICAR VIRUS_FOUND jobs persisted with signatures/audit",
+      "Native MULTISCAN with INSTREAM fallback disabled",
+      "Both completed uploaded copies removed",
+      "Separate restricted Linux filesystems with only uploads shared read-only",
+      "Actual Web UI H2/bootstrap files inaccessible to ClamD",
+      "Linux enforced read-only upload mount"
+    ]
+  },
+  "compose_contracts": {
+    "checks": 32,
+    "runtime": false,
+    "result": "passed",
+    "renderer": "Official Docker Compose v5.7.0",
+    "renderer_sha256": "7758048ad38e580f22559603312874fec8bb638d021a9e64182385fc17cc12a2",
+    "native_image": "clamav-server:1.4.6-uid10001-local",
+    "source": "Dockerfile.clamd",
+    "base_image": "clamav/clamav:1.4.6@sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9",
+    "assertions": [
+      "Unpublished scanner port",
+      "Read-only upload-only mounts",
+      "Derived native scanner retains pinned official base",
+      "Same derived recipe in shared-path overrides",
+      "Standalone INSTREAM uses the official image without application mounts",
+      "Optional loopback-only host diagnostics"
+    ]
+  },
+  "configuration_runtime": {
+    "checks": 36,
+    "result": "passed",
+    "runner": "tools/verify-configuration-center.py"
+  },
+  "deployment_helper": {
+    "scenarios": 11,
+    "result": "passed",
+    "method": "Real Bash helper with a simulated Docker CLI"
+  },
+  "previous_fixes": {
+    "issues_13_through_17_retained": true,
+    "other_main_java_files_unchanged": 116,
+    "forwarding_defaults_unchanged": true,
+    "all_previous_java_regressions_reran": true
+  },
+  "docker_runtime": {
+    "local_result": "not_run",
+    "reason": "No Docker Engine is available in this environment",
+    "workflow": ".github/workflows/phase0-ci.yml",
+    "checks": [
+      "Build derived scanner/app images",
+      "Clean and EICAR scans",
+      "UID 10001 account",
+      "Uploaded copies absent after completion",
+      "Private-state and port isolation"
+    ]
+  },
+  "limits": [
+    "The Linux native test does not execute the derived Docker image or verify Docker networking.",
+    "H2/JPA transaction tests do not constitute live external PostgreSQL/MySQL/MariaDB verification.",
+    "Quarantine files and their recorded jobs remain operator-managed.",
+    "Unrecognized/manual names, old unconfigured upload directories and non-POSIX ACLs require operator management.",
+    "Independent configuration audit files and server logs are not covered by SQL audit retention."
+  ],
+  "database_schema_migrations": "None",
+  "upgrade_instructions": "docs/UPLOAD_RETENTION.md"
+}

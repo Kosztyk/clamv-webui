@@ -6,7 +6,6 @@ set -euo pipefail
 umask 077
 export GIT_PAGER=cat GH_PAGER=cat PAGER=cat GH_HOST=github.com
 publish_work=''
-publish_gh_temporary=false
 publish_mode=push
 publish_arguments=()
 publish_die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
@@ -109,21 +108,13 @@ if [[ "$publish_mode" == check ]]; then publish_info 'Archive validation passed.
 for publish_tool in git curl uname; do command -v "$publish_tool" >/dev/null 2>&1 || publish_die "Required command missing: $publish_tool"; done
 git --version >/dev/null || publish_die 'Install Git. On macOS: xcode-select --install'
 
-# Test a real write: directory modes alone do not cover ACLs or read-only mounts.
-publish_cache_writable() {
-  local directory="$1" probe
-  mkdir -p "$directory" 2>/dev/null || return 1
-  probe=$(mktemp "$directory/.write-test.XXXXXX" 2>/dev/null) || return 1
-  rm -f "$probe"
-}
-
 # Pinned official asset SHA-256 values verified against the GitHub release API.
 publish_bootstrap_gh() {
   if command -v gh >/dev/null 2>&1; then
     publish_gh=$(command -v gh)
     return
   fi
-  local version='2.103.3' platform architecture asset expected_sha cached unpack archive cache_root staged
+  local version='2.103.3' platform architecture asset expected_sha cached unpack archive
   case "$(uname -s):$(uname -m)" in
     Darwin:arm64|Darwin:aarch64)
       platform='macOS'; architecture='arm64'
@@ -139,24 +130,11 @@ publish_bootstrap_gh() {
       expected_sha='4c806978ffce1cec70853302a56d70ac6da4f19bae7adca4e1a8ab00633dd91d' ;;
     *) publish_die 'Automatic GitHub CLI installation supports macOS/Linux on arm64 or amd64. Install gh manually for this platform.' ;;
   esac
-  if [[ "$platform" == 'macOS' ]]; then
-    cache_root="$HOME/Library/Caches/clamav-publisher"
-  elif [[ "${XDG_CACHE_HOME:-}" == /* ]]; then
-    cache_root="$XDG_CACHE_HOME/clamav-publisher"
-  else
-    cache_root="$HOME/.cache/clamav-publisher"
-  fi
-  cached="$cache_root/gh-$version-$platform-$architecture"
+  cached="$HOME/.local/share/clamav-publisher/gh-$version-$platform-$architecture"
   if [[ -x "$cached/bin/gh" ]]; then
     publish_gh="$cached/bin/gh"
     export PATH="$cached/bin:$PATH"
     return
-  fi
-  if ! publish_cache_writable "$cached/bin"; then
-    cached="$publish_work/gh-cli"
-    publish_gh_temporary=true
-    publish_info 'The user cache is not writable. Using a private temporary GitHub CLI for this run.'
-    publish_cache_writable "$cached/bin" || publish_die 'Cannot prepare a writable GitHub CLI directory.'
   fi
   if [[ "$platform" == 'macOS' ]]; then
     asset="gh_${version}_${platform}_${architecture}.zip"
@@ -181,10 +159,9 @@ publish_bootstrap_gh() {
     [[ -f "$candidate" ]] && extracted="$candidate"
   done
   [[ -n "$extracted" ]] || publish_die 'The GitHub CLI archive did not contain bin/gh.'
-  staged=$(mktemp "$cached/bin/.gh.XXXXXX")
-  cp "$extracted" "$staged"
-  chmod 700 "$staged"
-  mv -f "$staged" "$cached/bin/gh"
+  mkdir -p "$cached/bin"
+  cp "$extracted" "$cached/bin/gh"
+  chmod 700 "$cached/bin/gh"
   publish_gh="$cached/bin/gh"
   export PATH="$cached/bin:$PATH"
   "$publish_gh" --version
@@ -195,16 +172,7 @@ if ! "$publish_gh" auth status --hostname github.com >/dev/null 2>&1; then
     publish_info 'Sign in to GitHub in the browser when prompted. Allow repository and workflow access.'
     "$publish_gh" auth login --hostname github.com --git-protocol https --web --scopes repo,workflow
 fi
-if [[ "$publish_gh_temporary" == true ]]; then
-    # Keep the temporary executable out of persistent Git credential settings.
-    # PATH already includes its directory; no executable path enters shell code.
-    git() {
-        command git -c credential.helper= \
-          -c 'credential.https://github.com.helper=!gh auth git-credential' "$@"
-    }
-else
-    "$publish_gh" auth setup-git --hostname github.com
-fi
+"$publish_gh" auth setup-git --hostname github.com
 publish_oauth_scopes=$("$publish_gh" api --include user | awk 'tolower($0) ~ /^x-oauth-scopes:/ {sub(/^[^:]*:[[:space:]]*/, "");gsub(/[[:space:]]/, "");print}')
 if [[ -n "$publish_oauth_scopes" && -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
     case ",$publish_oauth_scopes," in

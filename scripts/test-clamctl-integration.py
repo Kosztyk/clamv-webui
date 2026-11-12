@@ -98,7 +98,7 @@ def main():
             port = reservation.getsockname()[1]
         with (folder / "application.log").open("w+") as log:
             application = subprocess.Popen(["java", "-jar", str(jar), "--server.address=127.0.0.1", "--server.port=" + str(port),
-                "--server.forward-headers-strategy=framework", "--spring.datasource.url=jdbc:h2:mem:cli-e2e;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+                "--server.forward-headers-strategy=native", "--server.tomcat.remoteip.internal-proxies=127.0.0.1/32", "--spring.datasource.url=jdbc:h2:mem:cli-e2e;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
                 "--spring.datasource.username=sa", "--spring.datasource.password="], cwd=folder, env=env, stdout=log, stderr=subprocess.STDOUT)
             try:
                 server = "http://127.0.0.1:" + str(port)

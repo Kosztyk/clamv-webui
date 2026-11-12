@@ -154,7 +154,10 @@
       this.content.append(bottom); this.count();
     }
     card(section) {
-      const enabled = this.enabled(section); const expanded = enabled && this.open.get(this.category) === section.id;
+      const enabled = this.enabled(section);
+      // Cookie and session limits also apply when forwarded-header trust is disabled.
+      const editable = enabled || section.id === 'proxy';
+      const expanded = editable && this.open.get(this.category) === section.id;
       const fields = this.sectionFields(section); const applyKinds = new Set(fields.map(field => field.definition.apply));
       const badge = applyKinds.size === 1 && applyKinds.has('live') ? 'Apply live' : applyKinds.size > 1 ? 'Live + restart' : 'Restart required';
       const card = node('section', {class: `cc-card${expanded ? ' cc-open' : ''}`, 'data-section': section.id});
@@ -168,14 +171,15 @@
       }
       if (section.enableKey) {
         const locked = this.fields.get(section.enableKey)?.locked;
-        const toggle = node('input', {type: 'checkbox', role: 'switch', checked: enabled, disabled: locked, 'aria-label': section.title, title: locked ? 'Controlled by deployment configuration' : `Enable ${section.title}`});
+        const toggleLabel = section.id === 'proxy' ? 'Trust forwarded headers' : section.title;
+        const toggle = node('input', {type: 'checkbox', role: 'switch', checked: enabled, disabled: locked, 'aria-label': toggleLabel, title: locked ? 'Controlled by deployment configuration' : `Enable ${toggleLabel}`});
         toggle.addEventListener('change', () => {
           this.set(section.enableKey, toggle.checked ? section.enabledValue : section.disabledValue);
           if (toggle.checked) this.open.set(this.category, section.id); this.render();
         });
         header.append(node('label', {class: 'cc-switch'}, toggle, node('span', {'aria-hidden': 'true'})));
       }
-      const expand = node('button', {type: 'button', class: 'cc-expand', 'aria-expanded': expanded, 'aria-label': `Edit ${section.title}`, disabled: !enabled}, expanded ? '⌃' : '⌄');
+      const expand = node('button', {type: 'button', class: 'cc-expand', 'aria-expanded': expanded, 'aria-label': `Edit ${section.title}`, disabled: !editable}, expanded ? '⌃' : '⌄');
       expand.addEventListener('click', () => { this.open.set(this.category, expanded ? '' : section.id); this.render(); });
       header.append(expand); card.append(header);
       if (!expanded) return card;

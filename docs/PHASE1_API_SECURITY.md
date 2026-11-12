@@ -1,5 +1,7 @@
 # Phase 1: Stable, secure `/api/v1` + scoped API tokens
 
+Current token root/visibility behavior is documented in [Token path scopes](TOKEN_PATH_SCOPES.md) and the [issue #21 validation record](security/token-path-scopes-validation.json). Earlier phase notes retain their original feature scope; forwarding and database defaults below reflect the current safe deployment behavior.
+
 ## Baseline and preservation
 
 Built on `clamv-webui-phase0-clamdtop-terminal-fit-full-source.zip`, **not** the older GitHub `main` source. Preserves Phase 0 pages, sidebar, native PTY ClamdTop, REST monitor (`/rest-monitor/*`, `/api-scan`, `/api-reports`), Discord webhook settings, H2/Postgres support, Dockerfile, Compose, existing database mappings and legacy `/api` route paths. This release does **not** claim completion of proposals #8 or #9; it provides their API/security foundation.
@@ -37,9 +39,9 @@ printf 'header = "Authorization: Bearer %s"\n' "$CLAMV_API_TOKEN" | \
   curl -fsS --config - 'https://clamav.example.com/api/v1/jobs?page=0&size=25'
 ```
 
-`scan:path` tokens **must** have explicit `pathRoots` inside the existing global allowed scan roots. Blank path roots deliberately deny path submissions even when `scan:path` scope is selected. Blank endpoint restrictions mean any configured endpoint; set endpoint IDs to narrow them. Endpoint limits also filter job lists and individual job/progress responses, and health/metrics requests.
+`scan:path` tokens **must** have explicit `pathRoots` naming existing absolute directories inside global allowed scan roots. Issuance stores canonical directory paths, including when the supplied or global root is an alias. With nonempty roots, PATH/WATCH history is restricted by recorded canonical target and upload history by this token's ownership. Details, progress, lists, counts and linked audit events enforce the same policy. Blank roots deny path submissions but retain endpoint-wide history reads; blank endpoint restrictions mean any configured endpoint. Existing unresolved alias grants fail closed and should be reissued. See [complete root semantics](TOKEN_PATH_SCOPES.md).
 
-**HTTPS required** for token and HTTP Basic credentials. The service uses `request.isSecure()` to verify HTTPS. If terminating TLS at a reverse proxy, terminate traffic only at a trusted proxy, *strip/replace* all client-supplied `Forwarded` and `X-Forwarded-*` headers, and restrict backend access to that proxy. The current application packages `server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}`, so forwarded HTTPS is recognized without opt-in. Set `SERVER_FORWARD_HEADERS_STRATEGY=none` only to explicitly disable forwarding for direct-access deployments; plain HTTP still returns `tls_required`. Browser form sessions continue on the current development HTTP deployment; use HTTPS in production.
+**HTTPS required** for token and HTTP Basic credentials. Direct deployments ignore forwarded headers by default (`none`). For TLS termination, explicitly select `native`, allowlist the actual proxy peers, replace incoming forwarded headers at the proxy and restrict backend access. See [safe proxy deployment](REVERSE_PROXY_TLS.md). Plain HTTP cannot be upgraded by a client-supplied header. Browser form sessions retain their existing transport behavior.
 
 ## Health truthfulness
 
@@ -60,7 +62,7 @@ printf 'header = "Authorization: Bearer %s"\n' "$CLAMV_API_TOKEN" | \
 
 ## Configuration / upgrades
 
-All changes are additive DDL managed by the baseline `spring.jpa.hibernate.ddl-auto=update` (`api_credentials` table, `audit_events.transport`, `audit_events.endpoint_id`, `scan_jobs.submitted_transport`). For production, back up H2/Postgres before upgrade and consider replacing Hibernate auto-DDL with explicit migration tooling in Phase 2/#5. No change to the mounted `./data` and `./conf` volumes. The external REST monitor remains **separate** from the local v1 API.
+The current server uses Flyway migrations followed by Hibernate schema validation. Follow the existing [upgrade instructions](UPDATE_AND_VERIFY.md), including the documented v1 baseline procedure when applicable. Issue #21 adds no migration or database column. Keep the existing database, conf/data and keys. The external REST monitor remains separate from the local v1 API.
 
 | Spring property | Default | Environment variable |
 |---|---|---|
@@ -68,11 +70,11 @@ All changes are additive DDL managed by the baseline `spring.jpa.hibernate.ddl-a
 | `api.v1.max-page-size` | 100 | `API_V1_MAX_PAGE_SIZE` |
 | `api.v1.clamd.max-database-age-hours` | 168 | `API_V1_CLAMD_MAX_DATABASE_AGE_HOURS` |
 | `api.v1.clamd.database-timezone` | UTC | `API_V1_CLAMD_DATABASE_TIMEZONE` |
-| `server.forward-headers-strategy` | framework | `SERVER_FORWARD_HEADERS_STRATEGY` (`none` explicitly disables forwarding) |
+| `server.forward-headers-strategy` | none | `SERVER_FORWARD_HEADERS_STRATEGY` (safe proxy mode is explicit `native` plus a peer allowlist) |
 
 ## Verification and limitations
 
-Automated Java tests added for token issuance/revocation, HTTPS requirement, scoped reads and writes, CSRF and DTO redaction. Existing Phase 0 tests preserved. Static validation done on this archive: complete file inventory, OpenAPI YAML parse, security/path audits, Java lexical parsing and ZIP CRC. This environment lacks Maven and Docker; **full `mvn verify`, image build, database upgrade, webhook delivery, live ClamD health and EICAR acceptance have not been executed here**. Run on the test host:
+Automated Java tests cover token issuance/revocation, HTTPS, scoped reads/writes, CSRF, DTO redaction and root privacy. Current executed results and limitations are in [VALIDATION.md](../VALIDATION.md) and [the issue #21 report](security/token-path-scopes-validation.json). The original Phase 1 edition had only static validation; later scoped reports supersede that limitation without claiming local Docker execution. Build on a Docker-enabled test host with:
 
 ```bash
 docker compose build --no-cache clamav-web-client
@@ -81,3 +83,20 @@ docker compose logs -f clamav-web-client
 ```
 
 Then validate role matrix, token rotation/revocation, 401/403, upload and path scans, job progress, `SCAN_RESULT` audit parity for clean/infected/error, database readiness vs daemon availability, ClamdTop terminal, existing REST API integration and Discord. Do not remove legacy routes until CLI/MCP callers have migrated.
+
+## Bounded submission and login throttling (issue #23)
+
+Scan attempts now use authenticated token/account identity across client IPs and
+header spellings, with an IP fallback for anonymous requests. Browser and Basic
+scans share the local account budget. Invalid credentials rejected before the
+scan filter allocate no scan bucket. Both stores have configurable 10,000-entry
+capacities and indexed TTL cleanup. At capacity, new keys are throttled while
+active budgets remain intact. See [settings, overload behavior and tests](BOUNDED_LIMITERS.md).
+
+## Scan target existence privacy (issue #24)
+
+Global lexical containment is checked before resolving untrusted targets, followed
+by canonical containment to reject escapes. Restricted Bearer path denials are
+uniform 403 responses for missing and forbidden targets, closing the cross-root
+existence oracle. Browser/legacy/v1 session errors remain generic. See
+[configured aliases, response semantics and verification](SCAN_PATH_PRIVACY.md).

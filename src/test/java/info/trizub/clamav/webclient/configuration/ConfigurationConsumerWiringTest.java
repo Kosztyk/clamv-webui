@@ -202,6 +202,25 @@ class ConfigurationConsumerWiringTest {
             assertThat(locale.resolveLocale(new MockHttpServletRequest()).getLanguage()).isEqualTo("fr");
         }
     }
+    @Test void savedLimiterCapacitiesControlAdmissionAtTheActualConsumers() throws Exception {
+        var env = saved(Map.of("clamav.security.login.max-entries", "2", "api.v1.scan-rate-limit-max-entries", "1"));
+        try (var context = context(env, info.trizub.clamav.webclient.identity.LoginAttemptService.class)) {
+            var attempts = context.getBean(info.trizub.clamav.webclient.identity.LoginAttemptService.class);
+            attempts.fail("local", "one", "192.0.2.1"); attempts.fail("local", "two", "192.0.2.1");
+            assertThat(attempts.locked("local", "three", "192.0.2.1")).isTrue();
+            attempts.success("local", "one", "192.0.2.1");
+            assertThat(attempts.locked("local", "three", "192.0.2.1")).isFalse();
+        }
+        try (var context = context(env, ScanRateLimitFilter.class)) {
+            var filter = context.getBean(ScanRateLimitFilter.class);
+            var first = new MockHttpServletRequest("POST", "/api/v1/scans/uploads"); first.setRemoteAddr("192.0.2.1");
+            var second = new MockHttpServletRequest("POST", "/api/v1/scans/uploads"); second.setRemoteAddr("192.0.2.2");
+            var response = new MockHttpServletResponse(); filter.doFilter(first, response, new MockFilterChain());
+            assertThat(response.getStatus()).isEqualTo(200);
+            response = new MockHttpServletResponse(); filter.doFilter(second, response, new MockFilterChain());
+            assertThat(response.getStatus()).isEqualTo(429);
+        }
+    }
     @Test void apiLimitsAndDaemonFreshnessUseTheSavedValues() throws Exception {
         var env=saved(Map.of("api.v1.scan-rate-limit-per-minute","2","api.v1.max-page-size","2",
             "api.v1.clamd.max-database-age-hours","1","api.v1.clamd.database-timezone","Europe/Bucharest"));
@@ -222,7 +241,7 @@ class ConfigurationConsumerWiringTest {
             assertThatThrownBy(()->api.jobList(0,3,null,null,null,null)).hasMessageContaining("pagination");
             var endpoint=new ClamdEndpoint("primary","localhost",3310,xyz.capybara.clamav.Platform.UNIX);
             when(context.getBean(EndpointService.class).defaultEndpointOrEnsure()).thenReturn(endpoint);
-            var client=mock(ClamdClient.class);when(context.getBean(ClamavClientProvider.class).clientFor(endpoint)).thenReturn(client);
+            var client=mock(ClamdClient.class);when(context.getBean(ClamavClientProvider.class).probeFor(endpoint)).thenReturn(client);
             var timestamp=Instant.now().minus(Duration.ofHours(2)).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
             var format=java.time.format.DateTimeFormatter.ofPattern("EEE MMM d HH:mm:ss yyyy",Locale.US).withZone(ZoneId.of("Europe/Bucharest"));
             when(client.version()).thenReturn("ClamAV 1.5.4/28170/"+format.format(timestamp));

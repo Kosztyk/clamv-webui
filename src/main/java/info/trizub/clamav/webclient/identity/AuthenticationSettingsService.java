@@ -52,7 +52,7 @@ public class AuthenticationSettingsService {
             String provider=rs.getString(1);
             Map<String,String> options=parse(rs.getString(2));
             String encrypted=rs.getString(3);
-            String secret=encrypted == null ? "" : decrypt(encrypted);
+            String secret=encrypted == null ? "" : decrypt(provider,encrypted);
             persisted.put(provider, Map.copyOf(options));
             secretSaved.put(provider, encrypted!=null);
             apply(provider, options, secret, encrypted!=null);
@@ -77,9 +77,11 @@ public class AuthenticationSettingsService {
         checkProvider(provider);
         Map<String,String> normalized=draft(provider,submitted);
         requireEditableSecret(provider,replacementSecret);
+        requireDestinationSecret(provider,normalized,replacementSecret);
         String oldCipher=jdbc.query("SELECT encrypted_secret FROM auth_provider_settings WHERE provider=?", rs -> rs.next() ? rs.getString(1) : null, provider);
-        String cipher=replacementSecret!=null && !replacementSecret.isBlank() ? encrypt(replacementSecret) : oldCipher;
-        String effectiveSecret=cipher!=null ? decrypt(cipher) : environmentalSecret(provider);
+        String cipher=replacementSecret!=null && !replacementSecret.isBlank() ? encrypt(provider,replacementSecret) : oldCipher;
+        String effectiveSecret=cipher!=null ? decrypt(provider,cipher) : environmentalSecret(provider);
+        if(cipher!=null && cipher.startsWith("gcm1:")) cipher=encrypt(provider,effectiveSecret);
         validate(provider,normalized,effectiveSecret);
         String stored=serialize(normalized);
         // Atomic transaction per statement; only update live authentication after DB write succeeds.
@@ -96,7 +98,7 @@ public class AuthenticationSettingsService {
     public synchronized String effectiveSecret(String provider) {
         checkProvider(provider);
         String cipher=jdbc.query("SELECT encrypted_secret FROM auth_provider_settings WHERE provider=?", rs -> rs.next()?rs.getString(1):null, provider);
-        return configurationSecret(provider,cipher!=null?decrypt(cipher):environmentalSecret(provider));
+        return configurationSecret(provider,cipher!=null?decrypt(provider,cipher):environmentalSecret(provider));
     }
     public synchronized Map<String,String> draft(String provider, Map<String,String> submitted) {
         if (centerManaged(provider)) throw new IllegalArgumentException(provider.toUpperCase(Locale.ROOT)+" is managed by Configuration Center; edit it there and apply the required restart");
@@ -107,7 +109,13 @@ public class AuthenticationSettingsService {
     }
     public synchronized void validateDraft(String provider, Map<String,String> fields, String replacement) {
         requireEditableSecret(provider,replacement);
-        validate(provider, normalize(provider,fields), replacement!=null&&!replacement.isBlank()?replacement:effectiveSecret(provider));
+        Map<String,String> normalized=draft(provider,fields);
+        requireDestinationSecret(provider,normalized,replacement);
+        validate(provider,normalized,replacement!=null&&!replacement.isBlank()?replacement:effectiveSecret(provider));
+    }
+    private void requireDestinationSecret(String provider,Map<String,String> normalized,String replacement) {
+        ProviderSecretGuard.requireReplacement(provider,values(provider),normalized,!effectiveSecret(provider).isBlank(),
+                replacement!=null && !replacement.isBlank(),false);
     }
     private String environmentalSecret(String provider) {
         checkProvider(provider);
@@ -325,25 +333,28 @@ public class AuthenticationSettingsService {
         if(bytes.length!=32) throw new IllegalStateException("Authentication encryption key must be 32 bytes, base64 encoded");
         return bytes;
     }
-    private String encrypt(String secret) {
+    private String encrypt(String provider,String secret) {
         try {
             if(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>1024) throw new IllegalArgumentException("Secret exceeds maximum length");
             byte[] iv=new byte[12];rng.nextBytes(iv);
             Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE,new SecretKeySpec(key(),"AES"),new GCMParameterSpec(128,iv));
+            cipher.updateAAD(("clamav-auth-provider:"+provider).getBytes(java.nio.charset.StandardCharsets.UTF_8));
             byte[] encrypted=cipher.doFinal(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             byte[] joined=new byte[iv.length+encrypted.length];System.arraycopy(iv,0,joined,0,iv.length);
             System.arraycopy(encrypted,0,joined,iv.length,encrypted.length);
-            return "gcm1:"+Base64.getEncoder().encodeToString(joined);
+            return "gcm2:"+Base64.getEncoder().encodeToString(joined);
         } catch(Exception e){throw new IllegalStateException("Unable to encrypt authentication secret",e);}
     }
-    private String decrypt(String encoded) {
+    private String decrypt(String provider,String encoded) {
         try {
-            if(!encoded.startsWith("gcm1:")) throw new IllegalStateException("Unsupported encrypted secret format");
+            checkProvider(provider);
+            if(!encoded.startsWith("gcm1:") && !encoded.startsWith("gcm2:")) throw new IllegalStateException("Unsupported encrypted secret format");
             byte[] bytes=Base64.getDecoder().decode(encoded.substring(5));
             if(bytes.length<29) throw new IllegalStateException("Invalid secret ciphertext");
             Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE,new SecretKeySpec(key(),"AES"),new GCMParameterSpec(128,Arrays.copyOf(bytes,12)));
+            if(encoded.startsWith("gcm2:")) cipher.updateAAD(("clamav-auth-provider:"+provider).getBytes(java.nio.charset.StandardCharsets.UTF_8));
             return new String(cipher.doFinal(Arrays.copyOfRange(bytes,12,bytes.length)),java.nio.charset.StandardCharsets.UTF_8);
         }catch(Exception e){throw new IllegalStateException("Cannot decrypt saved provider credentials; restore the original authentication key",e);}
     }

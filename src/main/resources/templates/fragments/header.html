@@ -1,0 +1,36 @@
+<head th:fragment="head">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#0b1220" />
+	<meta name="_csrf" th:content="${_csrf.token}" />
+	<meta name="_csrf_header" th:content="${_csrf.headerName}" />
+	<title>ClamAV Web UI Client</title>
+
+	<!-- Bootstrap CSS -->
+	<link rel="stylesheet" type="text/css" th:href="@{/css/bootstrap.min.css}" />
+	<!-- Font Awesome CSS -->
+	<link rel="stylesheet" type="text/css" th:href="@{/css/fontawesome.min.css}" />
+	<link rel="stylesheet" type="text/css" th:href="@{/css/all.css}" />
+	<!-- Flags Icons CSS -->
+	<link rel="stylesheet" type="text/css" th:href="@{/css/flag-icons.css}" />
+
+	<!-- App theme overrides (load after vendor CSS) -->
+	<link rel="stylesheet" type="text/css" th:href="@{/css/style.css}" />
+
+	<!-- javascripts -->
+	<script type="text/javascript" th:src="@{/js/jquery-3.6.0.min.js}"></script>
+	<script type="text/javascript" th:src="@{/js/bootstrap.bundle.min.js}"></script>
+	<script type="text/javascript" th:src="@{/js/script.js}"></script>
+	<script type="text/javascript" th:src="@{/js/native-clamdtop.js}"></script>
+	<script type="text/javascript" th:src="@{/js/tabs-pjax.js}"></script>
+
+	<script defer th:src="@{/js/rest-api.js}"></script>
+	<link rel="stylesheet" th:href="@{/css/rest-api.css}" />
+
+	<!-- Favicons -->
+	<link rel="icon" type="image/png" th:href="@{/icons/favicon-96x96.png}" sizes="96x96" />
+	<link rel="icon" type="image/svg+xml" th:href="@{/icons/favicon.svg}" />
+	<link rel="shortcut icon" th:href="@{/icons/favicon.ico}" />
+	<link rel="apple-touch-icon" sizes="180x180" th:href="@{/icons/apple-touch-icon.png}" />
+	<link rel="manifest" th:href="@{/icons/site.webmanifest}" />
+</head>

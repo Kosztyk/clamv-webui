@@ -2,17 +2,43 @@
 # Combine with the standalone Compose, e.g.:
 # docker compose -f docker-compose.yaml -f examples/compose/shared-paths.override.yaml up -d
 # Relative paths are resolved from the FIRST Compose file's directory.
+# Prepare data/uploads for UID 10001 before starting; see docs/CLAMD_ISOLATION.md.
 services:
   clamav-web-client:
     environment:
+      CLAMAV_UPLOAD_DIR: "/app/data/uploads"
       CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "true"
       CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "false"
     volumes:
       - ./data:/app/data
       - ./scandir:/scandir:ro
   clamav-server:
+    image: clamav-server:1.4.6-uid10001-local
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: !reset null
+      # Inline form works with both repository-root and examples/compose first files.
+      dockerfile_inline: |
+        # Native path scanning needs the same numeric owner as the Web UI's private uploads.
+        # Retain the official entrypoint/configuration and its unprivileged clamav daemon account.
+        FROM clamav/clamav:1.4.6@sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9
+        USER root
+        RUN set -eu; \
+            awk -F: '$3 == 10001 && $1 != "clamav" { exit 1 }' /etc/passwd; \
+            awk -F: '$3 == 10001 && $1 != "clamav" { exit 1 }' /etc/group; \
+            sed -i 's/^clamav:\([^:]*\):[0-9]*:[0-9]*:/clamav:\1:10001:10001:/' /etc/passwd; \
+            sed -i 's/^clamav:\([^:]*\):[0-9]*:/clamav:\1:10001:/' /etc/group; \
+            chown -R 10001:10001 /var/lib/clamav /var/log/clamav; \
+            test "$(id -u clamav)" = 10001; \
+            test "$(id -g clamav)" = 10001
     volumes:
-      - ./data:/app/data:ro           # uploaded files use exactly /app/data on both sides
+      - type: bind
+        source: ./data/uploads
+        target: /app/data/uploads
+        read_only: true
+        bind:
+          create_host_path: false
       - ./scandir:/scandir:ro         # path scans use exactly /scandir on both sides
 # Then, in Admin > Settings, set app.allowedScanRoots to /scandir.
 # Read-only roots cannot have their ORIGINALS moved into quarantine.

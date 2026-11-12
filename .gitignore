@@ -1,46 +1,21 @@
+# Maven / Java build output
 target/
+*.jar
+*.war
+*.ear
+
+# Runtime state - do not commit local DBs, uploads, or quarantined files
 data/
-*.log
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Local configuration overrides
+conf/*.local.properties
 .env
+
+# IDE / OS files
 .idea/
+.vscode/
+*.iml
 .DS_Store
-
-# Phase 3 mounted identity-provider secrets
-.secrets/
-
-# Phase 3.1 auth settings encryption keys (never commit these)
-conf/auth-settings.key
-conf/*.key
-
-# Phase 3 local Java truststore / TLS artifacts (never commit)
-conf/*truststore*
-conf/*.jks
-conf/*.p12
-conf/*.pfx
-conf/*.crt
-conf/*.pem
-
-# Generated CLI executables are distributed as build/release artifacts.
-cli/dist/
-conf/integrations.properties
-
-# Configuration Center state and recovery credentials are runtime volume contents.
-conf/configuration-center.properties
-conf/configuration-recovery-token
-conf/configuration-audit.jsonl
-conf/configuration-database-state.properties
-conf/configuration-database-choice.properties
-__pycache__/
-*.pyc
-
-# Private deployment environment and TLS files (examples remain versioned).
-.env.*
-!.env.example
-secrets/
-certificates/
-*.key
-*.pem
-*.p12
-*.pfx
-*.jks
-*.crt

@@ -3,6 +3,7 @@ package info.trizub.clamav.webclient.api.v1;
 import info.trizub.clamav.webclient.model.*;
 import info.trizub.clamav.webclient.repo.*;
 import info.trizub.clamav.webclient.security.ApiV1Access;
+import info.trizub.clamav.webclient.security.TokenJobScope;
 import info.trizub.clamav.webclient.service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -102,7 +103,7 @@ public class ApiV1Controller {
     private ClamdHealth inspect(ClamdEndpoint ep) {
         Instant checked = Instant.now();
         try {
-            ClamdClient client = clients.clientFor(ep);
+            ClamdClient client = clients.probeFor(ep);
             client.ping();
             String raw = client.version();
             String[] version = (raw == null ? "" : raw).split("/", 3);
@@ -195,7 +196,10 @@ public class ApiV1Controller {
             if (!allowed.isEmpty()) predicates.add(root.get("endpoint").get("id").in(allowed));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
-        return ApiV1Dtos.Page.from(jobRepo.findAll(spec, paging(page, size, "submittedAt")), ApiV1Dtos.Job::from);
+        var pageable = paging(page, size, "submittedAt");
+        var result = token != null && !token.pathRoots().isEmpty()
+                ? ScopedJobPages.jobs(jobRepo, spec, pageable, new TokenJobScope(token)) : jobRepo.findAll(spec, pageable);
+        return ApiV1Dtos.Page.from(result, ApiV1Dtos.Job::from);
     }
     private ScanJob job(String id, Authentication auth) {
         ScanJob j = jobs.getOrNull(id);
@@ -240,8 +244,9 @@ public class ApiV1Controller {
         ClamdEndpoint ep = endpoint(body.endpointId(), auth);
         if (!ep.isEnabled()) throw new IllegalArgumentException("Endpoint is disabled");
         try {
-            access.path(auth, body.path());
-            ScanJob j = jobs.createPathJob(body.path(), ep, auth.getName(), access.principal(auth) != null ? "API_TOKEN" : "API_SESSION");
+            java.nio.file.Path canonical = access.path(auth, body.path());
+            ScanJob j = canonical != null ? jobs.createPathJob(canonical, ep, auth.getName(), "API_TOKEN")
+                    : jobs.createPathJob(body.path(), ep, auth.getName(), "API_SESSION");
             audit.recordScan(auth, req, "SCAN_PATH", "QUEUED", ep.getId(), j.getId());
             return ResponseEntity.status(202).body(Map.of("jobId", j.getId()));
         } catch (RuntimeException e) {
@@ -254,6 +259,12 @@ public class ApiV1Controller {
             Authentication auth) {
         access.require(auth, "audit:read");
         var token = access.principal(auth);
+        if (token != null && !token.pathRoots().isEmpty()) {
+            Specification<AuditEvent> allowed = (root, query, cb) -> token.endpointIds().isEmpty()
+                    ? cb.conjunction() : root.get("endpointId").in(token.endpointIds());
+            return ApiV1Dtos.Page.from(ScopedJobPages.audit(auditRepo, jobRepo, allowed, paging(page, size, "at"),
+                    new TokenJobScope(token)), ApiV1Dtos.Audit::from);
+        }
         if (token != null && !token.endpointIds().isEmpty()) {
             Specification<AuditEvent> allowed = (root, query, cb) -> root.get("endpointId").in(token.endpointIds());
             return ApiV1Dtos.Page.from(auditRepo.findAll(allowed, paging(page, size, "at")), ApiV1Dtos.Audit::from);

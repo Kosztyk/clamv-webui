@@ -114,8 +114,24 @@ class ApiV1CliSupportIntegrationTest {
             .andExpect(jsonPath("$.quarantineStatus").value("UNKNOWN")).andReturn().getResponse().getContentAsString();
         assertThat(body).doesNotContain("/private","token=secret","raw error");
     }
+    @Test void quarantineFailureIsVisibleInBothApisWithoutChangingTheInfectedVerdict() throws Exception {
+        var job=new ScanJob();job.setId("quarantine-failed");job.setType(ScanJobType.UPLOAD);job.setStatus(ScanJobStatus.FINISHED);
+        job.setEndpoint(endpoints.defaultEndpointOrEnsure());job.setVerdict(ScanVerdict.VIRUS_FOUND);job.setTarget("sample.exe");
+        job.setStoredPath("/private/uploads/sample.exe");job.setErrorMessage(QuarantineService.UPLOAD_FAILURE);
+        when(jobs.getOrNull(job.getId())).thenReturn(job);
+        String body=mvc.perform(get("/api/v1/jobs/"+job.getId()).secure(true).header("Authorization","Bearer "+token(Set.of("jobs:read"))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.verdict").value("VIRUS_FOUND"))
+            .andExpect(jsonPath("$.quarantineStatus").value("FAILED"))
+            .andExpect(jsonPath("$.error.code").value("QUARANTINE_FAILED")).andReturn().getResponse().getContentAsString();
+        assertThat(body).doesNotContain("/private","storedPath","errorMessage");
+        mvc.perform(get("/api/jobs/"+job.getId()).secure(true).with(user("admin").roles("ADMIN")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.quarantineStatus").value("FAILED"))
+            .andExpect(jsonPath("$.error.code").value("QUARANTINE_FAILED"));
+        mvc.perform(get("/jobs/"+job.getId()).secure(true).with(user("admin").roles("ADMIN")))
+            .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Quarantine failed.")));
+    }
     @Test void healthReportsParsedDatabaseTimestampAndKeepsUnknownValuesUnknown() throws Exception {
-        ClamdClient client=mock(ClamdClient.class);when(clients.clientFor(any())).thenReturn(client);
+        ClamdClient client=mock(ClamdClient.class);when(clients.probeFor(any())).thenReturn(client);
         when(client.version()).thenReturn("ClamAV 1.5.4/27920/Fri Oct 30 10:00:00 2020");
         String token=token(Set.of("health:read"));
         mvc.perform(get("/api/v1/health/clamd").secure(true).header("Authorization","Bearer "+token))

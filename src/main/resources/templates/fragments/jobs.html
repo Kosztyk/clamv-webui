@@ -1,0 +1,94 @@
+<div th:fragment="jobs">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h4 class="m-0">Scan jobs</h4>
+        <a th:href="@{/scan}" href="#" class="btn btn-sm btn-primary">New scan</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Verdict</th>
+                    <th>Target</th>
+                    <th>Endpoint</th>
+                    <th>Submitted</th>
+                    <th>User</th>
+                </tr>
+            </thead>
+            <tbody id="jobs-tbody">
+                <tr th:each="j : ${jobs}" th:attr="data-job-id=${j.id}">
+                    <td><a th:href="@{'/jobs/' + ${j.id}}" th:text="${j.id}">id</a></td>
+                    <td th:text="${j.type}">type</td>
+                    <td class="col-status" th:text="${j.status}">status</td>
+                    <td class="col-verdict" th:text="${j.verdict}">verdict</td>
+                    <td class="col-target" th:text="${j.target}">target</td>
+                    <td class="col-endpoint" th:text="${j.endpoint != null ? j.endpoint.name : ''}">ep</td>
+                    <td class="col-submitted" th:text="${j.submittedAt}">time</td>
+                    <td class="col-user" th:text="${j.submittedBy}">user</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Auto-refresh jobs table (no page reload needed) -->
+    <script>
+      (function() {
+        const tbody = document.getElementById('jobs-tbody');
+        if (!tbody) return;
+
+        // Only run once per page even if fragment is included multiple times.
+        if (window.__jobsAutoRefreshInstalled) return;
+        window.__jobsAutoRefreshInstalled = true;
+
+        function esc(s) {
+          return String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        function upsertRow(j) {
+          const id = j.id;
+          let row = tbody.querySelector(`tr[data-job-id="${CSS.escape(id)}"]`);
+          if (!row) {
+            row = document.createElement('tr');
+            row.setAttribute('data-job-id', id);
+            row.innerHTML = `
+              <td><a href="/jobs/${esc(id)}">${esc(id)}</a></td>
+              <td>${esc(j.type)}</td>
+              <td class="col-status"></td>
+              <td class="col-verdict"></td>
+              <td class="col-target"></td>
+              <td class="col-endpoint"></td>
+              <td class="col-submitted"></td>
+              <td class="col-user"></td>
+            `;
+            // Insert newest at top
+            tbody.prepend(row);
+          }
+          row.querySelector('.col-status').textContent   = j.status ?? '';
+          row.querySelector('.col-verdict').textContent  = j.verdict ?? '';
+          row.querySelector('.col-target').textContent   = j.target ?? '';
+          row.querySelector('.col-endpoint').textContent = j.endpoint?.name ?? '';
+          row.querySelector('.col-submitted').textContent= j.submittedAt ?? '';
+          row.querySelector('.col-user').textContent     = j.submittedBy ?? '';
+        }
+
+        async function refresh() {
+          try {
+            const res = await fetch('/api/jobs', { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+            if (!res.ok) return;
+            const list = await res.json();
+            if (!Array.isArray(list)) return;
+            for (const j of list) upsertRow(j);
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        // refresh now and then every 2s
+        refresh();
+        setInterval(refresh, 2000);
+      })();
+    </script>
+</div>

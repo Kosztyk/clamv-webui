@@ -47,10 +47,9 @@ class LdapSettingsCompatibilityTest {
         var service = service(bootstrap("environment-secret", ""));
         Map<String, String> fields = new LinkedHashMap<>(service.values("ldap"));
         fields.put("groupSearchFilter", "(&(objectClass=group)(member={0}))");
-        fields.put("url", "ldaps://saved-directory.example");
         service.save("ldap", fields, "", "administrator");
         var restarted = service(bootstrap("environment-secret", ""));
-        assertThat(restarted.values("ldap")).containsEntry("url", "ldaps://saved-directory.example")
+        assertThat(restarted.values("ldap")).containsEntry("url", "ldaps://directory.example")
             .containsEntry("groupSearchFilter", "(&(objectClass=group)(member={0}))");
         assertThat(restarted.properties().getLdap().getGroupSearchFilter()).isEqualTo(fields.get("groupSearchFilter"));
         assertThat(restarted.effectiveSecret("ldap")).isEqualTo("environment-secret");

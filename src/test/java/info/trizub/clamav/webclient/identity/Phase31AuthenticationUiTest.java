@@ -65,7 +65,7 @@ class Phase31AuthenticationUiTest {
         assertThat(ConfigurationCatalog.provider("ldap",center.engine().values(true))).containsAllEntriesOf(legacy);
         assertThat(center.engine().values(true)).containsEntry("clamav.identity.ldap.manager-password",secret);
         String encrypted=jdbc.queryForObject("select encrypted_secret from auth_provider_settings where provider='ldap'",String.class);
-        assertThat(encrypted).startsWith("gcm1:").doesNotContain(secret);
+        assertThat(encrypted).startsWith("gcm2:").doesNotContain(secret);
         mvc.perform(get("/admin/configuration-center/api/view").with(user("admin").roles("ADMIN")))
             .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(secret))))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("displayName")));

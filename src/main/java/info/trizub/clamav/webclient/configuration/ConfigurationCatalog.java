@@ -48,6 +48,15 @@ public final class ConfigurationCatalog {
             throw invalid(field, "invalid length or control characters");
         String value = field.secret() ? submitted : submitted.trim();
         try {
+            if (field.key().startsWith("server.tomcat.remoteip.") && field.key().endsWith("-proxies")) {
+                if (value.isBlank()) throw invalid(field, "use (?!) to trust nobody, or explicit proxy addresses");
+                if (value.contains("/")) {
+                    for (String network : value.split(",", -1)) {
+                        if (!network.trim().matches("[0-9A-Fa-f:.]+/[0-9]{1,3}")) throw invalid(field, "use numeric CIDRs");
+                        new org.apache.catalina.util.NetMask(network.trim());
+                    }
+                } else java.util.regex.Pattern.compile(value);
+            }
             if(field.secret() && field.section().matches("ldap|oidc") && value.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>1024) throw invalid(field,"credential exceeds 1024 bytes");
             if(field.key().equals("center.clamd.name") && !value.matches("[A-Za-z0-9 _.\\-]{1,64}")) throw invalid(field,"use 1–64 letters, numbers, spaces or punctuation");
             if(field.key().equals("clamav.service.host") && (value.isBlank() || value.length()>255
@@ -79,7 +88,13 @@ public final class ConfigurationCatalog {
                 }
                 case "duration" -> {
                     Duration duration = DurationStyle.detectAndParse(value);
-                    if (duration.toMillis() < 1 || duration.toMillis() > 300_000) throw invalid(field,"use 1ms to 5m");
+                    if (field.key().equals("clamav.security.session.max-age")) {
+                        if (duration.compareTo(Duration.ofSeconds(1)) < 0 || duration.compareTo(Duration.ofHours(24)) > 0)
+                            throw invalid(field,"use 1s to 24h");
+                    } else if (field.key().equals("server.servlet.session.timeout")) {
+                        if (duration.compareTo(Duration.ofMinutes(1)) < 0 || duration.compareTo(Duration.ofHours(24)) > 0)
+                            throw invalid(field,"use 1m to 24h");
+                    } else if (duration.toMillis() < 1 || duration.toMillis() > 300_000) throw invalid(field,"use 1ms to 5m");
                 }
                 case "select" -> { if (!field.choices().contains(value)) throw invalid(field,"unsupported option"); }
                 case "url" -> { if (!value.isEmpty()) checkHttp(field,value); }
@@ -133,6 +148,12 @@ public final class ConfigurationCatalog {
         return lower.startsWith("jdbc:h2:")?"org.h2.Driver":lower.startsWith("jdbc:postgresql:")?"org.postgresql.Driver":lower.startsWith("jdbc:mariadb:")?"org.mariadb.jdbc.Driver":"com.mysql.cj.jdbc.Driver";
     }
     public static void validateCombination(Map<String,String> values,Set<String> changed) {
+        if(changed.contains("app.storage.uploadDir") || changed.contains("app.storage.quarantineDir")) {
+            Path uploads=Path.of(values.get("app.storage.uploadDir")).toAbsolutePath().normalize();
+            Path quarantine=Path.of(values.get("app.storage.quarantineDir")).toAbsolutePath().normalize();
+            if(quarantine.startsWith(uploads) || uploads.startsWith(quarantine))
+                throw new IllegalArgumentException("Upload and quarantine directories must be separate, non-overlapping paths");
+        }
         if (changed.stream().anyMatch(k->k.startsWith("spring.datasource."))) {
             String url=values.get("spring.datasource.url"),driver=values.getOrDefault("spring.datasource.driver-class-name","");
             checkJdbc(url);

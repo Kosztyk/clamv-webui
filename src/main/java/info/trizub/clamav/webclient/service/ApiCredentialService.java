@@ -46,17 +46,26 @@ public class ApiCredentialService {
         for (Long id : eps) {
             if (id == null || endpoints.all().stream().noneMatch(e -> id.equals(e.getId()))) throw new IllegalArgumentException("Unknown endpoint restriction");
         }
-        Set<String> roots = pathRoots == null ? Set.of() : Set.copyOf(pathRoots);
+        Set<String> roots = pathRoots == null ? Set.of() : new HashSet<>(pathRoots);
         Set<String> normalizedRoots = new HashSet<>();
         for (String root : roots) {
-            if (root == null || root.isBlank() || root.contains(",")) throw new IllegalArgumentException("Invalid token path root");
+            if (root == null || root.isBlank() || root.contains(",") || root.chars().anyMatch(Character::isISOControl))
+                throw new IllegalArgumentException("Invalid token path root");
             try {
-                var path = java.nio.file.Path.of(root).toAbsolutePath().normalize();
-                if (!path.isAbsolute() || settings.allowedRoots().stream().noneMatch(path::startsWith))
-                    throw new IllegalArgumentException("Token path roots must be within configured scan roots");
-                normalizedRoots.add(path.toString());
+                var input = java.nio.file.Path.of(root);
+                if (!input.isAbsolute()) throw new IllegalArgumentException("Token path roots must be absolute existing directories");
+                // Root selection is administrator-only: resolve its chosen alias, then enforce the global roots.
+                // Scan submissions use requireAllowed's lexical screening before any target lookup.
+                var path = info.trizub.clamav.webclient.util.PathPolicy.requireCanonicalAllowed(
+                    info.trizub.clamav.webclient.util.PathPolicy.canonical(input), settings.allowedRoots());
+                String canonical = path.toString();
+                if (!java.nio.file.Files.isDirectory(path) || canonical.contains(",") || !canonical.equals(canonical.trim())
+                        || canonical.chars().anyMatch(Character::isISOControl))
+                    throw new IllegalArgumentException("Invalid token path root; use an existing directory without commas or control characters");
+                normalizedRoots.add(canonical);
             } catch (java.nio.file.InvalidPathException e) { throw new IllegalArgumentException("Invalid token path root"); }
         }
+        if (String.join(",", normalizedRoots).length() > 2048) throw new IllegalArgumentException("Token path roots exceed the storage limit");
         byte[] bytes = new byte[32]; RANDOM.nextBytes(bytes);
         String raw = "clamv_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         ApiCredential c = new ApiCredential(); c.setLabel(label.trim()); c.setTokenHash(sha256(raw));

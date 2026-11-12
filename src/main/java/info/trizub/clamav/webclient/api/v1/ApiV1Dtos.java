@@ -26,6 +26,7 @@ public final class ApiV1Dtos {
                     quarantineStatus(j), JobError.from(j));
         }
         private static String quarantineStatus(ScanJob job) {
+            if(job.getVerdict()==ScanVerdict.VIRUS_FOUND && info.trizub.clamav.webclient.service.QuarantineService.failureRecorded(job.getErrorMessage())) return "FAILED";
             // A recorded location is evidence of a completed quarantine operation, not a live disk check.
             if (job.getQuarantinePath()!=null && !job.getQuarantinePath().isBlank()) return "RECORDED";
             if (job.getStatus()!=ScanJobStatus.FINISHED) return "PENDING";
@@ -65,6 +66,8 @@ public final class ApiV1Dtos {
     /** Stable public diagnostics. Never reflect raw exception messages, daemon output or paths. */
     public record JobError(String code, String message) {
         private static JobError from(ScanJob job) {
+            if(job.getVerdict()==ScanVerdict.VIRUS_FOUND && info.trizub.clamav.webclient.service.QuarantineService.failureRecorded(job.getErrorMessage()))
+                return new JobError("QUARANTINE_FAILED","Malware was detected, but quarantine could not be completed. An administrator can inspect this job.");
             if (job.getVerdict()!=ScanVerdict.ERROR) return null;
             String raw=job.getErrorMessage();
             if ("Path is excluded by the daemon scan policy.".equals(raw))

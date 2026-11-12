@@ -1,3 +1,11 @@
+Issue #23 adds two restart-bound limiter capacities, bringing the current catalogue to **117 fields** (23 live, 94 restart-bound). Generic persistence/precedence and actual consumer checks cover both. [Bounded limiter validation](security/bounded-limiters-validation.json) records the current 832-test build and packaged HTTP checks. Historical counts and browser audits below retain their edition scope.
+
+Issue #22 adds two restart-bound session durations, bringing the current catalogue to **115 fields** (23 live, 92 restart-bound). Both join the generic review/persistence and override checks. Current Java and packaged HTTP evidence, together with the Chromium environment limitation, is in [session revocation validation](security/session-revocation-validation.json). The historical browser field audit below retains its original scope.
+
+Issue #13 adds two proxy allowlist fields, bringing the current catalogue to **109 fields** (19 live, 90 restart-bound). The original audit below covered 107 fields. Current forwarding regressions and all-fields persistence/precedence checks are recorded in [issue #13 validation](security/forwarded-header-trust-validation.json).
+
+Current issue #18 adds four live cleanup/history fields, bringing the catalog to **113**. They participate in the generic field review/persistence and override tests; [upload-specific behavior and results](UPLOAD_RETENTION.md) cover their runtime use. Historical baseline counts below describe the earlier audit.
+
 # Configuration Center: complete field audit (v2.1.0)
 
 The audit covers all **107 fields**, across seven categories: **19 live** and **88 restart-bound**. It checks the global editor, review/apply boundary, encrypted credential storage, deployment precedence, startup snapshots and runtime consumers. The application still builds directly with:
@@ -12,7 +20,7 @@ docker build --pull -t clamav-web-client:2.1.0-local .
 - Renaming the primary engine could bypass daemon-derived size/exclusion policy, which used its old literal name. Policy now follows the primary engine record.
 - A primary-engine name colliding with an additional engine could be saved before the database rejected the live change. Review and apply now reject the collision first.
 - Watch intervals such as 45 seconds were rounded up by a fixed 30-second schedule. A one-second tick now honors the selected interval. Supported values remain 30–3600 seconds.
-- Watch files were marked processed before successful job creation. Disabled engines are skipped and a failed submission leaves the file eligible for retry.
+- Watch files were marked processed before successful job creation. Issue #17 now commits a durable job and its fingerprint together, preserving the old fingerprint on failure. Polls load markers once per directory, traverse beyond the former count/depth limits, and log failures. Disabled engines remain skipped; hourly cleanup prunes absent paths. See [watcher reliability](WATCHER_RELIABILITY.md).
 - The form allowed page sizes above the API's 500-row ceiling and more than the metrics collector's 12 endpoint slots. GUI validation now matches both supported limits.
 - Invalid REST multipart field names could be silently replaced with defaults. Invalid path whitespace/percent escapes could fail only when making a request. Review now rejects those inputs; the adapter also validates path syntax at construction.
 - Blank storage locations and invalid Flyway baseline version text are rejected before saving.

@@ -1,0 +1,121 @@
+<div class="container" th:fragment="result">
+	<div class="d-flex flex-column flex-shrink-0 p-3 bg-light">
+		<span class="fs-4" th:text="#{web.result}">Result</span>
+	</div>
+	<hr style="margin-top: 0px;">
+	<div align="left">
+		<span th:if="${action != null && action == 'scanFile'}">
+			<div class="card w-75 mb-4">
+				<div class="card-header" th:text="#{web.result.upload.file}">
+					Upload File
+				</div>
+				<div class="card-body">
+					<div class="card-text">
+						<div id="waitingUploadFile" class="spinner-border" role="status" style="display: none;">
+							<span class="visually-hidden" th:text="#{web.result.loading}">Loading...</span>
+						</div>
+						<form class="row ms-1" id="uploadForm" th:action="@{/scanFile}" method="post"
+							enctype="multipart/form-data">
+							<div class="row g-1">
+								<label for="fileInput" class="form-label" th:text="#{web.result.select.file}">Select a
+									file to upload</label>
+								<div class="custom-file-button input-group">
+									<label class="input-group-text" for="fileInput"
+										th:text="#{web.result.upload}">Upload</label>
+									<input value="" type="file" class="form-control" id="fileInput" name="file"
+										style="color:transparent;" onchange="this.style.color = 'black';" required>
+								</div>
+							</div>
+							<div class="row g-2 w-50" style="max-width: 180px">
+								<button id="uploadFormButton" class="btn btn-primary" type="submit"
+									th:text="#{web.result.submit}">Submit</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</span>
+		<span th:if="${action != null && action == 'scanFolder'}">
+			<div class="card w-75 mb-4">
+				<div class="card-header" th:text="#{web.result.folder.path}">
+					Folder Path
+				</div>
+				<div class="card-body">
+					<div class="card-text">
+						<div id="waitingFolderScan" class="spinner-border" role="status" style="display: none;">
+							<span class="visually-hidden" th:text="#{web.result.loading}">Loading...</span>
+						</div>
+						<form class="row ms-1" id="scanFolderForm" th:action="@{/scanFolder}" method="post"
+							enctype="multipart/form-data">
+							<div class="row g-1">
+								<label for="folderInput" class="form-label" th:text="#{web.result.select.folder}">Select
+									a folder to scan</label>
+								<input th:value="${scanFolder}" type="text" class="form-control" id="folderInput"
+									name="path" required>
+							</div>
+							<div class="row g-2 w-50" style="max-width: 180px">
+								<button id="scanFolderFormButton" class="btn btn-primary" type="submit"
+									th:text="#{web.result.submit}">Submit</button>
+							</div>
+							<div class="row g-4" th:text="#{web.result.note}">Note:</div>
+							<div class="row g-1 fw-lighter" th:text="#{web.result.note.meassage}">This folder should be
+								available
+								from
+								ClamAV antivirus service.</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</span>
+	</div>
+	<div align="left">
+		<span th:if="${status != null}">
+			<div class="card w-50 mb-4">
+				<div class="card-header" th:text="#{web.result.status}">
+					Status
+				</div>
+				<div class="card-body text-success" th:if="${status =='success'}">
+					<div class="card-text">
+						<p th:text="#{web.main.status.success}" />
+					</div>
+				</div>
+				<div class="card-body text-danger" th:if="${status !='success'}">
+					<div class=" card-text">
+						<p th:text="#{web.main.status.failed}" th:if="${status =='failed'}" />
+						<p th:text="#{web.main.status.viruses.found}" th:if="${status =='viruses-found'}" />
+					</div>
+				</div>
+			</div>
+		</span>
+	</div>
+	<div align="left">
+		<span th:if="${response != null || responses != null}">
+			<div class="card">
+				<div class="card-header" th:text="#{web.result.response}">
+					Response
+				</div>
+				<div class="card-body">
+					<div class="card-text" th:if="${response != null}">
+						<p style="white-space: pre-line" th:text="${response}" />
+					</div>
+					<div class="card-text" th:if="${responses != null}">
+						<table class="table table-sm">
+							<thead>
+								<tr>
+									<th scope="col" th:text="#{web.result.response.file}">File</th>
+									<th scope="col" th:text="#{web.result.response.virus}">Virus</th>
+								</tr>
+							</thead>
+							<tbody th:each="response: ${responses}">
+								<tr th:each="virus: ${response.value}">
+									<td data-th-text="${response.key}"></td>
+									<td data-th-text="${virus}"></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</span>
+	</div>
+</div>

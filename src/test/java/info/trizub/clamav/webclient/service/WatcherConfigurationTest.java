@@ -17,7 +17,6 @@ class WatcherConfigurationTest {
     final WatchedDirectoryRepository directories=mock(WatchedDirectoryRepository.class);
     final ProcessedFileRepository processed=mock(ProcessedFileRepository.class);
     final ScanJobService jobs=mock(ScanJobService.class);
-    final DaemonScanPolicy policy=mock(DaemonScanPolicy.class);
     final AtomicLong now=new AtomicLong(1_000_000);
     final Clock clock=new Clock() {
         public ZoneId getZone(){return ZoneOffset.UTC;}
@@ -28,7 +27,7 @@ class WatcherConfigurationTest {
     @Test void liveIntervalChangesRunAtTheSelectedTimeRatherThanMultiplesOfThirtySeconds() {
         when(settings.watchEnabled()).thenReturn(true);when(settings.watchPollSeconds()).thenReturn(45);
         when(directories.findByEnabledTrue()).thenReturn(List.of());
-        var watcher=new WatcherService(settings,directories,processed,jobs,policy,clock);
+        var watcher=new WatcherService(settings,directories,processed,new WatchFileSubmissionService(jobs,processed),clock);
         watcher.poll();verify(directories,times(1)).findByEnabledTrue();
         now.addAndGet(44_000);watcher.poll();verify(directories,times(1)).findByEnabledTrue();
         now.addAndGet(1_000);watcher.poll();verify(directories,times(2)).findByEnabledTrue();
@@ -43,13 +42,13 @@ class WatcherConfigurationTest {
         var watched=new WatchedDirectory();watched.setPath(folder.toString());watched.setEndpoint(endpoint);watched.setEnabled(true);
         when(settings.watchEnabled()).thenReturn(true);when(settings.watchPollSeconds()).thenReturn(30);
         when(settings.allowedRoots()).thenReturn(List.of(folder));when(directories.findByEnabledTrue()).thenReturn(List.of(watched));
-        var watcher=new WatcherService(settings,directories,processed,jobs,policy,clock);
+        var watcher=new WatcherService(settings,directories,processed,new WatchFileSubmissionService(jobs,processed),clock);
         watcher.poll();verifyNoInteractions(jobs,processed);
         endpoint.setEnabled(true);now.addAndGet(30_000);
         doThrow(new IllegalStateException("queue unavailable")).when(jobs).createWatchFileJob(file,endpoint,"watcher");
-        watcher.poll();verify(processed,never()).save(any());
+        watcher.poll();verify(processed,never()).saveAndFlush(any());
         reset(jobs);now.addAndGet(30_000);watcher.poll();
-        var order=inOrder(jobs,processed);order.verify(jobs).createWatchFileJob(file,endpoint,"watcher");order.verify(processed).save(any());
+        var order=inOrder(jobs,processed);order.verify(jobs).createWatchFileJob(file,endpoint,"watcher");order.verify(processed).saveAndFlush(any());
     }
     @Test void schedulingTickIsFineEnoughForAllSupportedIntervals() throws Exception {
         assertThat(WatcherService.class.getMethod("poll").getAnnotation(org.springframework.scheduling.annotation.Scheduled.class).fixedDelay()).isEqualTo(1000);

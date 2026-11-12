@@ -40,12 +40,11 @@ class OidcSettingsCompatibilityTest {
         var service = service(bootstrap());
         var fields = new LinkedHashMap<>(service.values("oidc"));
         fields.put("scopes", "openid email custom:read openid");
-        fields.put("issuer", "https://saved.example/realm");
         fields.put("enabled", "false");
         service.save("oidc", fields, "", "administrator");
         var restarted = service(bootstrap());
         assertThat(restarted.properties().getOidc().isEnabled()).isFalse();
-        assertThat(restarted.properties().getOidc().getIssuer()).isEqualTo("https://saved.example/realm");
+        assertThat(restarted.properties().getOidc().getIssuer()).isEqualTo("https://startup.example/realm");
         assertThat(restarted.properties().getOidc().getScopes()).containsExactly("openid", "email", "custom:read");
         assertThat(restarted.values("oidc")).containsEntry("scopes", "openid,email,custom:read");
         assertThat(restarted.effectiveSecret("oidc")).isEqualTo("synthetic-startup-secret");

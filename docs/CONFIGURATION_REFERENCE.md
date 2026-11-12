@@ -1,6 +1,6 @@
 # Configuration Center field reference
 
-Generated from `src/main/resources/configuration-center/catalog.json`, the same catalogue used by setup and the administration API. All 107 global fields have one GUI editor. Deployment overrides are read-only; blank credential inputs retain saved secrets. See [Configuration Center](CONFIGURATION_CENTER.md) and [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [the complete field audit](CONFIGURATION_FIELD_AUDIT.md).
+Generated from `src/main/resources/configuration-center/catalog.json`, the same catalogue used by setup and the administration API. All 113 global fields have one GUI editor. Deployment overrides are read-only; blank credential inputs retain saved secrets. LDAP/OIDC destination or bind/client identity changes require explicit credential re-entry before Test or Save; see [provider secret protection](PROVIDER_SECRET_BINDING.md). See [Configuration Center](CONFIGURATION_CENTER.md) and [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [the complete field audit](CONFIGURATION_FIELD_AUDIT.md).
 
 ## Connections
 
@@ -51,6 +51,11 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 | Quarantine directory | `app.storage.quarantineDir` | `CLAMAV_QUARANTINE_DIR` | `./data/quarantine` | Restart |
 | Enable directory watching | `app.watch.enabled` | `CLAMAV_WATCH_ENABLED` | `false` | Live |
 | Watch interval (seconds) | `app.watch.pollSeconds` | `CLAMAV_WATCH_POLL_SECONDS` | `30` | Live |
+
+| Delete clean uploads | `app.uploads.deleteClean` | `CLAMAV_UPLOADS_DELETE_CLEAN` | `true` | Live |
+| Upload retention (hours) | `app.uploads.retentionHours` | `CLAMAV_UPLOADS_RETENTION_HOURS` | `24` | Live |
+| Job history retention (days) | `app.history.jobsRetentionDays` | `CLAMAV_HISTORY_JOBS_RETENTION_DAYS` | `0` (keep history) | Live |
+| Audit history retention (days) | `app.history.auditRetentionDays` | `CLAMAV_HISTORY_AUDIT_RETENTION_DAYS` | `0` (keep history) | Live |
 
 ## Identity & API
 
@@ -112,7 +117,9 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 
 | Field | Application key | Environment / compatibility input aliases | Default | Activation |
 |---|---|---|---|---|
-| Forwarded-header strategy | `server.forward-headers-strategy` | `SERVER_FORWARD_HEADERS_STRATEGY` | `framework` | Restart |
+| Forwarded-header strategy | `server.forward-headers-strategy` | `SERVER_FORWARD_HEADERS_STRATEGY` | `none` | Restart |
+| Proxy peer allowlist | `server.tomcat.remoteip.internal-proxies` | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | `(?!)` (trust nobody) | Restart |
+| Additional proxy chain allowlist | `server.tomcat.remoteip.trusted-proxies` | `SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES` | `(?!)` (trust nobody) | Restart |
 | Application HTTPS base URL | `clamav.public-url` | `CLAMAV_PUBLIC_URL` | Not configured | Restart |
 | URL prefix | `server.servlet.context-path` | `SERVER_SERVLET_CONTEXT_PATH` | Not configured | Restart |
 | Secure session cookies | `server.servlet.session.cookie.secure` | `SERVER_SERVLET_SESSION_COOKIE_SECURE` | `false` | Restart |
@@ -160,12 +167,12 @@ See [the complete guide](COMPLETE_USER_GUIDE.md) for per-field meaning and [vali
 
 ## Validated limits
 
-API page size: 1–500. Metrics endpoint slots: 1–12. Watch interval: 30–3600 seconds, checked with a one-second scheduler tick. REST multipart field names must start with a letter and contain at most 51 letters, digits, underscores or hyphens. REST paths require valid absolute URI path syntax without traversal or query components. Upload and quarantine directories cannot be blank. Flyway baseline versions must be numeric; enabling legacy baselining still requires version 1 and an acknowledged backup.
-
-## API and external REST deployment
-
-See [built-in API and external REST setup](REST_API_DEPLOYMENT.md) for token examples, a complete REST-service Compose, GUI/client-environment mappings, upload-size units and endpoint compatibility. The REST backend's own `APP_*` and `CLAMD_*` inputs are configured in that container's deployment.
+API page size: 1–500. Metrics endpoint slots: 1–12. Watch interval: 30–3600 seconds, checked with a one-second scheduler tick. Watch polls traverse the complete tree without overlapping; large traversals can extend the effective interval. See [watcher coverage and retry behavior](WATCHER_RELIABILITY.md). REST multipart field names must start with a letter and contain at most 51 letters, digits, underscores or hyphens. REST paths require valid absolute URI path syntax without traversal or query components. Upload and quarantine directories cannot be blank. Flyway baseline versions must be numeric; enabling legacy baselining still requires version 1 and an acknowledged backup.
 
 ## Database test budgets
 
 The pool connection timeout also supplies the database Test connection budget, clamped to 1–30 seconds for interactive tests. The outer test deadline adds five seconds; the default is 15 seconds. PostgreSQL uses seconds, while MySQL/MariaDB use milliseconds. New H2 databases are reported as not initialized, not falsely verified. See [database connection tests](DATABASE_CONNECTION_TESTS.md).
+
+## Upload cleanup and history
+
+Clean uploaded copies are deleted after completion by default. Infected copies are quarantined or deleted. Upload retention is 1–8760 hours, with active jobs and copies in progress protected. Job/audit history retention is 0–3650 days; 0 disables history pruning. See [upload retention and native scanner migration](UPLOAD_RETENTION.md).

@@ -16,6 +16,7 @@ public interface ScanJobRepository extends JpaRepository<ScanJob, String>, JpaSp
     List<ScanJob> findTop200ByOrderBySubmittedAtDesc();
     long countByStatus(ScanJobStatus status);
     List<ScanJob> findTop100ByStatusOrderBySubmittedAtAsc(ScanJobStatus status);
+    List<ScanJob> findTop500ByStatusAndFinishedAtBeforeAndIdGreaterThanOrderByIdAsc(ScanJobStatus status,Instant cutoff,String id);
     @Modifying(clearAutomatically=true, flushAutomatically=true)
     @Transactional
     @Query("update ScanJob j set j.status = :running, j.startedAt = :started " +

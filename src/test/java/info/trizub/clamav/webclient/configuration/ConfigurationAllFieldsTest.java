@@ -43,6 +43,7 @@ class ConfigurationAllFieldsTest {
             long n=Long.parseLong(before);return Long.toString(n==field.maximum()?n-1:n+1);
         }
         if(field.type().equals("select")) return field.choices().stream().filter(s->!s.equals(before)).findFirst().orElseThrow();
+        if(key.equals("server.servlet.session.timeout")) return "7m";
         if(field.type().equals("duration")) return "7s";
         if(field.type().equals("timezone")) return "Europe/Bucharest";
         if(field.type().equals("jdbc")) return "jdbc:h2:mem:field_audit;MODE=PostgreSQL;DB_CLOSE_DELAY=-1";
@@ -75,7 +76,13 @@ class ConfigurationAllFieldsTest {
         var env=new MockEnvironment();env.getPropertySources().addLast(new ConfigurationSource(store));
         var engine=new ConfigurationEngine(env,store,Map::of);
         String before=engine.values(false).get(field.key()),changed=alternate(field,baseline);
-        var review=engine.review("1",Map.of(field.key(),changed),Set.of());
+        var submitted=new LinkedHashMap<String,String>();submitted.put(field.key(),changed);
+        if(Set.of("ldap","oidc").contains(field.section()) &&
+                info.trizub.clamav.webclient.identity.ProviderSecretGuard.destinationFields(field.section()).contains(field.legacy())) {
+            String secret="clamav.identity."+field.section()+"."+(field.section().equals("ldap")?"manager-password":"client-secret");
+            submitted.put(secret,baseline.get(secret));
+        }
+        var review=engine.review("1",submitted,Set.of());
         assertThat(review.summary()).as(field.key()).anyMatch(c->c.key().equals(field.key()));
         engine.apply(review,true,"field-audit");
         String normalized=ConfigurationCatalog.validate(field,changed);

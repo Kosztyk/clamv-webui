@@ -6,6 +6,10 @@ info:
     First-party, versioned API. Bearer credentials must be transmitted over HTTPS.
     Create tokens with an admin session and CSRF token. Existing /api routes remain
     during migration. This API never returns local scan storage or quarantine paths.
+    Nonempty token pathRoots restrict PATH/WATCH job reads to recorded canonical
+    targets in those roots and UPLOAD reads to this token's own uploads. Linked
+    audit events use the same visibility; page totals count only authorized rows.
+    Empty pathRoots deny path submission but leave history endpoint-scoped.
 servers:
   - url: /api/v1
 security:
@@ -103,6 +107,7 @@ paths:
     get:
       tags: [Jobs]
       summary: Paginated, filtered jobs
+      description: Endpoint restrictions always apply. With nonempty pathRoots, only in-root PATH/WATCH jobs and this token's own API uploads are visible. Pagination and totals exclude unauthorized records.
       parameters:
         - {name: page, in: query, schema: {type: integer, minimum: 0, default: 0}}
         - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
@@ -118,14 +123,17 @@ paths:
       parameters: [{$ref: '#/components/parameters/jobId'}]
       responses:
         '200': {description: Safe job DTO, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
+        '403': {description: Scope, endpoint or job root/ownership restriction}
         '404': {description: No such job}
   /jobs/{id}/progress:
     get:
       tags: [Jobs]
       summary: Polling-friendly QUEUED/RUNNING/FINISHED status and verdict
+      description: Applies the same endpoint and root/ownership restrictions as job details and lists.
       parameters: [{$ref: '#/components/parameters/jobId'}]
       responses:
         '200': {description: Status snapshot}
+        '403': {description: Scope, endpoint or job root/ownership restriction}
   /scans/uploads:
     post:
       tags: [Scanning]
@@ -168,6 +176,7 @@ paths:
     get:
       tags: [Administration]
       summary: Admin role OR audit:read token, sanitized audit records
+      description: A token with nonempty pathRoots sees only events linked to its visible jobs. Unlinked, missing-job and out-of-root events are excluded from both records and page totals.
       parameters:
         - {name: page, in: query, schema: {type: integer, minimum: 0}}
         - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
@@ -194,7 +203,7 @@ paths:
                 label: {type: string}
                 scopes: {type: array, items: {type: string, enum: [scan:upload, scan:path, jobs:read, endpoints:read, health:read, audit:read]}}
                 endpointIds: {type: array, items: {type: integer, format: int64}}
-                pathRoots: {type: array, items: {type: string}}
+                pathRoots: {type: array, items: {type: string}, description: Existing absolute directories inside global allowed roots. Symlink inputs are resolved and stored canonically. Nonempty roots also constrain job/audit visibility; empty roots deny scan:path submissions but permit endpoint-scoped history reads.}
                 expiresAt: {type: string, format: date-time}
       responses:
         '201': {description: One-time secret and public token metadata}
@@ -259,14 +268,14 @@ components:
         finishedAt: {type: string, format: date-time, nullable: true}
         signatures: {type: array, maxItems: 1000, items: {type: string, maxLength: 256}, description: Distinct sorted signature values only. Internal filenames and raw detection JSON are omitted. Missing/unreadable metadata produces an empty array.}
         durationMillis: {type: integer, format: int64, nullable: true, description: Execution duration from startedAt to finishedAt; queue time is excluded}
-        quarantineStatus: {type: string, enum: [PENDING, RECORDED, NOT_RECORDED, NOT_APPLICABLE, UNKNOWN], description: Recorded quarantine evidence only; no live filesystem check. PATH/WATCH history without a recorded location is UNKNOWN.}
+        quarantineStatus: {type: string, enum: [PENDING, RECORDED, FAILED, NOT_RECORDED, NOT_APPLICABLE, UNKNOWN], description: Recorded quarantine evidence only; no live filesystem check. FAILED is an observed quarantine error and preserves the VIRUS_FOUND verdict. PATH/WATCH history without recorded outcomes is UNKNOWN.}
         error: {$ref: '#/components/schemas/JobError'}
     JobError:
       type: object
       nullable: true
       required: [code, message]
       properties:
-        code: {type: string, enum: [POLICY_REJECTED, NO_ELIGIBLE_FILES, CONFIGURATION_UNAVAILABLE, LIMIT_EXCEEDED, SCAN_FAILED]}
+        code: {type: string, enum: [POLICY_REJECTED, NO_ELIGIBLE_FILES, CONFIGURATION_UNAVAILABLE, LIMIT_EXCEEDED, SCAN_FAILED, QUARANTINE_FAILED]}
         message: {type: string, description: Fixed public summary; raw daemon and exception messages are never returned}
     JobPage:
       type: object

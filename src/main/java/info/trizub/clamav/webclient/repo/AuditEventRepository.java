@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface AuditEventRepository extends JpaRepository<AuditEvent, Long>, JpaSpecificationExecutor<AuditEvent> {
     List<AuditEvent> findTop200ByOrderByAtDesc();
+    List<AuditEvent> findTop500ByAtBeforeAndIdGreaterThanOrderByIdAsc(java.time.Instant cutoff,long id);
 }

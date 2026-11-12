@@ -1,0 +1,125 @@
+{
+  "issue": "https://github.com/Kosztyk/clamv-webui/issues/13",
+  "verified_date": "2026-11-10",
+  "application_version": "2.1.0",
+  "maven_verify": {
+    "result": "passed",
+    "tests": 628,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 623,
+    "skipped_tests": [
+      "UnixClamdClientTest.multiscanReadsAllNullDelimitedResultsUntilConnectionClose",
+      "UnixClamdClientTest.nonResponsiveSocketTimesOutAndClosesWithoutHangingAWorker",
+      "UnixClamdClientTest.pingVersionAndStatsUseTheMountedSocketAndCorrectTerminators",
+      "UnixClamdClientTest.cleanErrorsAndEmptyRepliesAreDistinct",
+      "UnixClamdClientTest.instreamSendsLengthPrefixedChunksAndAZeroTerminatorThenReturnsDetections"
+    ]
+  },
+  "security_test_classes": [
+    {
+      "class": "RecoveryProxyHeadersTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "ApiTokenDirectTlsIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "ApiTokenNativeWithoutAllowlistIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "ApiTokenProxyTlsIntegrationTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "ApiTokenUntrustedProxyIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "packaged_recovery_forwarding": {
+    "result": "passed",
+    "checks": 9,
+    "command": "python3 scripts/test-forwarded-header-runtime.py"
+  },
+  "packaged_configuration_center": {
+    "result": "passed",
+    "checks": 36,
+    "command": "python3 tools/verify-configuration-center.py"
+  },
+  "deployment_helper": {
+    "result": "passed",
+    "scenarios": 11,
+    "method": "Actual Bash helper with simulated Docker CLI; includes legacy proxy migration"
+  },
+  "acceptance_criteria": [
+    {
+      "case": "Default direct HTTP with X-Forwarded-For=1.2.3.4 and X-Forwarded-Proto=https",
+      "remoteAddr": "127.0.0.1 (actual test socket peer)",
+      "secure": false,
+      "scheme": "http",
+      "bearer_status": 403,
+      "result": "passed"
+    },
+    {
+      "case": "Default direct HTTP with RFC Forwarded for=192.0.2.10;proto=https",
+      "remoteAddr": "127.0.0.1 (actual test socket peer)",
+      "secure": false,
+      "bearer_status": 403,
+      "result": "passed"
+    },
+    {
+      "case": "Native forwarding, unlisted socket peer",
+      "secure": false,
+      "bearer_status": 403,
+      "result": "passed"
+    },
+    {
+      "case": "Native forwarding, no explicit allowlist",
+      "secure": false,
+      "bearer_status": 403,
+      "result": "passed"
+    },
+    {
+      "case": "Native forwarding, explicitly allowlisted proxy",
+      "remoteAddr": "192.0.2.10 (proxy-supplied client)",
+      "secure": true,
+      "valid_health_read_token_status": 200,
+      "result": "passed"
+    },
+    {
+      "case": "Recovery listener with rotating forged IP headers",
+      "lockout_status": 429,
+      "result": "passed"
+    }
+  ],
+  "scope": {
+    "docker_image_build": "Not executed; Docker CLI unavailable",
+    "cross_vendor_db_profile": "Not invoked; no database implementation was changed",
+    "database_migrations": "No changes",
+    "native_transport_tests": "Real HTTP to embedded Tomcat, not MockMvc-only"
+  },
+  "documentation": [
+    "README.md",
+    "SERVER_DEPLOYMENT.md",
+    "docs/REVERSE_PROXY_TLS.md",
+    "docs/CONFIGURATION_REFERENCE.md"
+  ]
+}

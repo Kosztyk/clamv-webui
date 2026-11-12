@@ -1,0 +1,141 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15",
+    "https://github.com/Kosztyk/clamv-webui/issues/16",
+    "https://github.com/Kosztyk/clamv-webui/issues/17"
+  ],
+  "verified_at_utc": "2026-11-10T13:04:28.224733+00:00",
+  "application_version": "2.1.0",
+  "java_verification": {
+    "command": "mvn verify",
+    "result": "passed",
+    "tests": 679,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 674,
+    "watcher_tests": [
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherConfigurationTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "liveIntervalChangesRunAtTheSelectedTimeRatherThanMultiplesOfThirtySeconds",
+          "schedulingTickIsFineEnoughForAllSupportedIntervals",
+          "disabledEndpointsAndFailedEnqueuesDoNotConsumeFilesBeforeTheyCanBeScanned"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherCoverageTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "aFailedFileDoesNotPreventOtherFilesFromBeingSubmitted",
+          "twoConcurrentPollsCannotSubmitTheSameSnapshot",
+          "changedFileFailurePreservesCommittedFingerprintAndRetriesWithAWarnPath",
+          "traversalIncludesFilesDeeperThanTheOldFiveLevelLimit",
+          "symlinkFilesAreCheckedAgainstRealRootsAndDirectoryLinksAreNotTraversed"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherPersistenceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "hourlyPruningTraversesAllBatchesWithoutDeletingExistingFiles",
+          "bulkLookupEscapesWildcardCharactersAndExcludesSiblingDirectoryPrefixes",
+          "failedChangedFileRetainsItsOldFingerprintAndRetriesWithoutTouchingTheFileAgain",
+          "postCommitQueueFailureRetainsRecoverableDurableWorkRatherThanLosingTheFile",
+          "directoryWith2500FilesCreates2500DurableJobsAndDoesNotRepeatUnchangedFiles",
+          "markerWriteFailureRollsBackItsJobAndNoWorkerSeesUncommittedWork",
+          "createFailureRollsBackTheJobAndLeavesANewFileEligibleForTheNextPoll"
+        ]
+      }
+    ],
+    "new_tests": 12,
+    "skipped_tests": [
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "multiscanReadsAllNullDelimitedResultsUntilConnectionClose"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "nonResponsiveSocketTimesOutAndClosesWithoutHangingAWorker"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "pingVersionAndStatsUseTheMountedSocketAndCorrectTerminators"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "cleanErrorsAndEmptyRepliesAreDistinct"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "instreamSendsLengthPrefixedChunksAndAZeroTerminatorThenReturnsDetections"
+      }
+    ]
+  },
+  "acceptance": {
+    "large_directory": {
+      "files": 2500,
+      "durable_watch_jobs": 2500,
+      "fingerprints": 2500,
+      "unchanged_second_poll_new_jobs": 0,
+      "method": "Real JPA/H2 schema and per-file transactions; worker enqueue mocked"
+    },
+    "retry": [
+      "Failure after job insertion rolls back the job and leaves a new file eligible for the next poll",
+      "Changed-file failure retains the old fingerprint and retries without another file modification",
+      "Actual duplicate-marker database write failure rolls back its job before any enqueue",
+      "Post-commit queue failure retains durable QUEUED work for reconciliation"
+    ],
+    "other": [
+      "Depth greater than five",
+      "WARN messages contain the failed path",
+      "One file failure does not stop other files",
+      "Real-path symlink containment",
+      "No overlapping polls",
+      "Escaped wildcard and sibling-root database prefix boundaries"
+    ],
+    "pruning": {
+      "seeded_markers": 1205,
+      "absent_removed": 1200,
+      "existing_retained": 5,
+      "batch_limit": 500,
+      "total_limit": null,
+      "cursor": "Primary key, not offset",
+      "schedule": "Hourly; first run one hour after startup"
+    }
+  },
+  "packaged_configuration_runtime": {
+    "result": "passed",
+    "checks": 36,
+    "runner": "tools/verify-configuration-center.py",
+    "jar_sha256": "aaee3722beaa297b347ff51e8f73c2e70f1d7821e8557cace214170dbfcf5b87"
+  },
+  "previous_fixes": {
+    "issues_13_through_16_retained": true,
+    "other_main_java_files_unchanged": 119,
+    "scanner_compose_and_forwarding_defaults_unchanged": true,
+    "scanner_report": "docs/security/clamd-isolation-validation.json",
+    "provider_report": "docs/security/provider-secret-binding-validation.json",
+    "note": "Earlier packaged Basic/forwarding/provider and isolated EICAR checks are retained historical results; all Java regressions ran again."
+  },
+  "limits": [
+    "The 2500-job persistence test mocks worker enqueueing and does not perform 2500 live ClamD scans.",
+    "No Docker runtime or live external PostgreSQL/MySQL/MariaDB service was used for this edition.",
+    "Fingerprint matching still uses size and mtime rather than content hashing.",
+    "Historical fingerprints are retained; docs explain clearing the cache to resubmit potentially affected legacy files."
+  ],
+  "database_schema_migrations": "None",
+  "legacy_rescan_instructions": "docs/WATCHER_RELIABILITY.md"
+}

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>ClamAV Web UI</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+  <link rel="icon" type="image/png" th:href="@{/img/icon.png}"/>
+</head>
+<body>
+<div class="app-shell">
+  <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+
+  <main class="content">
+    <div th:replace="~{fragments/header :: header}"></div>
+
+    <section class="page">
+      <div th:replace="~{fragments/admin-audit :: adminAudit}"></div>
+    </section>
+
+    <div th:replace="~{fragments/footer :: footer}"></div>
+  </main>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

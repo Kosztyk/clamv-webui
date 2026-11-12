@@ -14,27 +14,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.capybara.clamav.commands.scan.result.ScanResult;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.UnixDomainSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.SocketChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import info.trizub.clamav.webclient.util.PathPolicy;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,8 +34,6 @@ import java.util.concurrent.TimeUnit;
 public class ScanExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(ScanExecutionService.class);
-    private static final int CLAMD_CONNECT_TIMEOUT_MS = 10_000;
-    private static final int CLAMD_READ_TIMEOUT_MS = (int) TimeUnit.HOURS.toMillis(24);
 
     private final SettingsService settings;
     private final ScanJobRepository jobRepo;
@@ -59,6 +44,7 @@ public class ScanExecutionService {
     private final AuditService auditService;
     private final info.trizub.clamav.webclient.metrics.ScanMetrics scanMetrics;
     private final DaemonScanPolicy daemonPolicy;
+    private final UploadStorageService uploads;
 
     private ExecutorService executor;
     private final Set<String> locallyQueued = ConcurrentHashMap.newKeySet();
@@ -70,6 +56,16 @@ public class ScanExecutionService {
                                QuarantineService quarantineService,
                                NotificationService notificationService, AuditService auditService, info.trizub.clamav.webclient.metrics.ScanMetrics scanMetrics,
                                DaemonScanPolicy daemonPolicy) {
+        this(settings,jobRepo,mapper,clientProvider,quarantineService,notificationService,auditService,scanMetrics,daemonPolicy,
+            new UploadStorageService(settings,jobRepo));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ScanExecutionService(SettingsService settings, ScanJobRepository jobRepo, ObjectMapper mapper,
+                               ClamavClientProvider clientProvider, QuarantineService quarantineService,
+                               NotificationService notificationService, AuditService auditService,
+                               info.trizub.clamav.webclient.metrics.ScanMetrics scanMetrics,
+                               DaemonScanPolicy daemonPolicy, UploadStorageService uploads) {
         this.settings = settings;
         this.jobRepo = jobRepo;
         this.mapper = mapper;
@@ -79,6 +75,7 @@ public class ScanExecutionService {
         this.auditService = auditService;
         this.scanMetrics = scanMetrics;
         this.daemonPolicy = daemonPolicy;
+        this.uploads = uploads;
     }
 
     @PostConstruct
@@ -146,13 +143,13 @@ public class ScanExecutionService {
 
                 if (settings.uploadPathScanEnabled()) {
                     try {
-                        runNativeUploadPathScan(job, stored);
+                        runNativeUploadPathScan(job, stored, client);
                     } catch (Exception pathScanError) {
                         String message = "Path-based upload scan failed for " + stored + ". "
                                 + "Native clamdtop can show filenames only when clamd receives a SCAN/MULTISCAN path "
-                                + "and the clamd container can read that exact path. Only an explicitly verified, restricted read-only uploads mount and UID-matched daemon permit native filename scanning. Otherwise disable native upload path scanning, or enable fallback. Previously: "
-                                + "clamd container at the same path, or enable app.upload.pathScan.fallbackToInstream=true "
-                                + "to keep secure INSTREAM behavior. Details: " + pathScanError.getMessage();
+                                + "and the clamd process can read that exact path. Configure a secure read-only "
+                                + "upload-only mount with matching file ownership, or enable INSTREAM fallback "
+                                + "to keep old INSTREAM behavior. Details: " + pathScanError.getMessage();
 
                         if (!settings.uploadPathScanFallbackToInstream()) {
                             log.warn(message, pathScanError);
@@ -162,19 +159,20 @@ public class ScanExecutionService {
                         }
 
                         log.warn("{} Falling back to INSTREAM because fallback is enabled.", message, pathScanError);
-                        try (InputStream in = Files.newInputStream(stored)) {
-                            ScanResult result = client.scan(in);
-                            handleResult(jobId, job.getType(), result, stored);
-                        }
-                    }
-                } else {
-                    try (InputStream in = Files.newInputStream(stored)) {
-                        ScanResult result = client.scan(in);
+                        ScanResult result;
+                        try (InputStream in = Files.newInputStream(stored)) {result=client.scan(in);}
                         handleResult(jobId, job.getType(), result, stored);
                     }
+                } else {
+                    ScanResult result;
+                    try (InputStream in = Files.newInputStream(stored)) {result=client.scan(in);}
+                    handleResult(jobId, job.getType(), result, stored);
                 }
             } else if (job.getType() == ScanJobType.PATH || job.getType() == ScanJobType.WATCH) {
-                Path target = PathPolicy.requireAllowed(Paths.get(job.getTarget()), settings.allowedRoots());
+                Path submitted = Paths.get(job.getTarget());
+                Path target = PathPolicy.requireAllowed(submitted, settings.allowedRoots());
+                if (!submitted.isAbsolute() || !submitted.equals(target))
+                    throw new IllegalArgumentException("Scan path changed after submission; submit a new scan");
                 ScanResult result = daemonPolicy.scanPath(client,job.getEndpoint(),target);
                 handleResult(jobId, job.getType(), result, null);
             } else {
@@ -196,7 +194,7 @@ public class ScanExecutionService {
                 log.error("Job {} failed to persist ERROR state", jobId, inner);
             }
             notifyIfNeeded(jobId);
-        }
+        } finally {uploads.cleanupFinished(jobId);}
     }
 
     @SuppressWarnings("unchecked")
@@ -208,23 +206,22 @@ public class ScanExecutionService {
             ScanResult.VirusFound vf = (ScanResult.VirusFound) result;
             Map<String, Collection<String>> found = vf.getFoundViruses();
 
-            // Quarantine logic
+            Path quarantinePath=null;
+            String quarantineWarning=null;
             if (uploadedFile != null) {
-                Path q = quarantineService.quarantine(uploadedFile);
-                if (q != null) setQuarantinePath(jobId, q.toString());
+                var outcome=quarantineService.attempt(uploadedFile,jobId);
+                quarantinePath=outcome.path();
+                if(outcome.failed()) quarantineWarning=QuarantineService.UPLOAD_FAILURE;
             } else if (found != null) {
                 for (String p : found.keySet()) {
                     try {
-                        Path file = Paths.get(p);
-                        if (Files.isRegularFile(file)) {
-                            quarantineService.quarantine(file);
-                        }
-                    } catch (Exception ignored) {
-                    }
+                        var outcome=quarantineService.attempt(Paths.get(p),null);
+                        if(outcome.failed()) quarantineWarning=QuarantineService.SOURCE_FAILURE;
+                    } catch (Exception ex) {quarantineWarning=QuarantineService.SOURCE_FAILURE;}
                 }
             }
 
-            finishFound(jobId, found);
+            finishFound(jobId,found,quarantinePath,quarantineWarning);
             log.debug("Job {} finished VIRUS_FOUND", jobId);
             notifyIfNeeded(jobId);
         } else {
@@ -242,7 +239,7 @@ public class ScanExecutionService {
      * only display instream(client-ip@port). MULTISCAN sends a real filesystem path,
      * so clamdtop can display MULTISCANFILE /app/data/uploads/original-name.
      */
-    private void runNativeUploadPathScan(ScanJob job, Path stored) throws IOException {
+    private void runNativeUploadPathScan(ScanJob job, Path stored, ClamdClient client) throws IOException {
         ClamdEndpoint endpoint = job.getEndpoint();
         if (endpoint == null) {
             throw new IOException("No clamd endpoint configured for job " + job.getId());
@@ -251,123 +248,8 @@ public class ScanExecutionService {
             throw new IOException("Upload file is missing in the web container: " + stored);
         }
 
-        if (endpoint.getHost().startsWith("/")) {
-            handleResult(job.getId(),job.getType(),clientProvider.clientFor(endpoint).parallelScan(stored),stored);
-            return;
-        }
-
-        String response = sendClamdPathCommand(endpoint, "MULTISCAN", stored.toString());
-        NativePathScanResult parsed = parseNativePathScanResponse(response);
-
-        if (!parsed.errors().isEmpty()) {
-            throw new IOException("clamd rejected path scan: " + String.join(" | ", parsed.errors())
-                    + "; raw response: " + abbreviate(response, 2000));
-        }
-
-        if (!parsed.found().isEmpty()) {
-            Path q = quarantineService.quarantine(stored);
-            if (q != null) {
-                setQuarantinePath(job.getId(), q.toString());
-            }
-            finishFound(job.getId(), parsed.found());
-            log.debug("Job {} finished VIRUS_FOUND through direct native MULTISCAN path scan", job.getId());
-            notifyIfNeeded(job.getId());
-            return;
-        }
-
-        finishOk(job.getId());
-        notifyIfNeeded(job.getId());
-        log.debug("Job {} finished OK through direct native MULTISCAN path scan", job.getId());
-    }
-
-    private String sendClamdPathCommand(ClamdEndpoint endpoint, String command, String path) throws IOException {
-        String host = Optional.ofNullable(endpoint.getHost()).orElse("localhost").trim();
-        if (host.isBlank()) {
-            host = "localhost";
-        }
-
-        String wireCommand = "n" + command + " " + path + "\n";
-
-        if (host.startsWith("/")) {
-            try (SocketChannel channel = SocketChannel.open(UnixDomainSocketAddress.of(host))) {
-                channel.write(ByteBuffer.wrap(wireCommand.getBytes(StandardCharsets.UTF_8)));
-                channel.shutdownOutput();
-                try (InputStream input = Channels.newInputStream(channel)) {
-                    return readAll(input);
-                }
-            }
-        }
-
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, endpoint.getPort()), CLAMD_CONNECT_TIMEOUT_MS);
-            socket.setSoTimeout(CLAMD_READ_TIMEOUT_MS);
-            try (OutputStream output = socket.getOutputStream(); InputStream input = socket.getInputStream()) {
-                output.write(wireCommand.getBytes(StandardCharsets.UTF_8));
-                output.flush();
-                socket.shutdownOutput();
-                return readAll(input);
-            }
-        }
-    }
-
-    private String readAll(InputStream input) throws IOException {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        input.transferTo(output);
-        return output.toString(StandardCharsets.UTF_8).replace('\0', '\n');
-    }
-
-    private NativePathScanResult parseNativePathScanResponse(String output) {
-        Map<String, Collection<String>> found = new LinkedHashMap<>();
-        List<String> errors = new ArrayList<>();
-
-        if (output == null || output.isBlank()) {
-            errors.add("empty response from clamd");
-            return new NativePathScanResult(found, errors);
-        }
-
-        for (String rawLine : output.split("\\R")) {
-            String line = rawLine.trim();
-            if (line.isBlank()) {
-                continue;
-            }
-
-            if (line.endsWith(" FOUND")) {
-                int sep = line.lastIndexOf(": ");
-                if (sep <= 0) {
-                    errors.add(line);
-                    continue;
-                }
-                String file = line.substring(0, sep).trim();
-                String signature = line.substring(sep + 2, line.length() - " FOUND".length()).trim();
-                found.computeIfAbsent(file, k -> new ArrayList<>()).add(signature);
-                continue;
-            }
-
-            if (line.endsWith(" ERROR")) {
-                errors.add(line);
-                continue;
-            }
-
-            if (line.endsWith(" OK")) {
-                continue;
-            }
-
-            // Keep unexpected native clamd responses visible instead of silently falling back to INSTREAM.
-            errors.add(line);
-        }
-
-        return new NativePathScanResult(found, errors);
-    }
-
-    private String abbreviate(String value, int max) {
-        if (value == null) {
-            return "";
-        }
-        String compact = value.replace('\r', ' ').replace('\n', ' ').trim();
-        if (compact.length() <= max) {
-            return compact;
-        }
-        return compact.substring(0, max) + "...";
+        handleResult(job.getId(), job.getType(), client.parallelScan(stored), stored);
+        log.debug("Job {} completed native MULTISCAN through the bounded ClamD client", job.getId());
     }
 
     private void notifyIfNeeded(String jobId) {
@@ -395,10 +277,16 @@ public class ScanExecutionService {
 
     @Transactional
     public void finishFound(String id, Object foundViruses) {
+        finishFound(id,foundViruses,null,null);
+    }
+
+    private void finishFound(String id,Object foundViruses,Path quarantinePath,String quarantineWarning) {
         ScanJob job = jobRepo.findById(id).orElseThrow();
         if (job.getStatus() == ScanJobStatus.FINISHED) return;
         job.setStatus(ScanJobStatus.FINISHED);
         job.setVerdict(ScanVerdict.VIRUS_FOUND);
+        if(quarantinePath!=null) job.setQuarantinePath(quarantinePath.toString());
+        if(quarantineWarning!=null) job.setErrorMessage(quarantineWarning);
         try {
             job.setFoundVirusesJson(mapper.writeValueAsString(foundViruses));
         } catch (Exception e) {
@@ -434,5 +322,4 @@ public class ScanExecutionService {
         jobRepo.save(job);
     }
 
-    private record NativePathScanResult(Map<String, Collection<String>> found, List<String> errors) { }
 }

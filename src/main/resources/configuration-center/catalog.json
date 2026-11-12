@@ -136,9 +136,9 @@
       "title": "Reverse proxy & session security",
       "icon": "network-wired",
       "enableKey": "server.forward-headers-strategy",
-      "enabledValue": "framework",
+      "enabledValue": "native",
       "disabledValue": "none",
-      "description": "Optional forwarded-header handling for trusted reverse proxies. Direct HTTP configuration works without a proxy; choose none to ignore forwarded headers in a direct-access deployment.",
+      "description": "Forwarded headers are ignored by default. For a TLS proxy, select native and allow only the actual proxy addresses below. The proxy must replace incoming forwarded headers. Session limits apply in direct and proxy mode.",
       "link": ""
     },
     {
@@ -183,6 +183,17 @@
       "enabledValue": "true",
       "disabledValue": "false",
       "description": "Theme/language defaults apply to browsers without a saved preference. Recovery works independently of the application database.",
+      "link": ""
+    },
+    {
+      "id": "retention",
+      "category": "Scanning",
+      "title": "Upload cleanup and history",
+      "icon": "trash",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Remove completed uploads and expired temporary files. Optional job/audit retention is disabled until you choose a duration.",
       "link": ""
     }
   ],
@@ -849,7 +860,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "Optional native SCAN/MULTISCAN for original filenames in clamdtop. Only enable after the daemon can read this path through a verified read-only upload-only share with UID-matched 0700/0600 permissions; otherwise use safe INSTREAM.",
+      "hint": "Disabled by default. INSTREAM scans local or remote daemons without sharing private files. Enable native pathname scanning only after the clamd daemon can read the same absolute upload path using a restricted read-only mount and verified UID/permissions. Native clamdtop filenames require this mode.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -869,7 +880,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "Recommended ON: when native uploaded-path scanning cannot access the private file, retry securely via INSTREAM. Existing saved values and Docker environment overrides take precedence over fresh-install defaults.",
+      "hint": "Recommended ON: if a configured native pathname scan fails (for example, clamd lacks filesystem permission), retry the uploaded file via INSTREAM. INSTREAM results remain visible in ClamAV Web UI, but native clamdtop shows a stream connection rather than the original filename.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -989,7 +1000,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "The watcher checks every 30 seconds; longer configured intervals throttle those checks.",
+      "hint": "A one-second scheduler tick honors this interval. Each poll traverses the full watched tree without overlapping; large traversals may take longer than the selected interval.",
       "choices": [],
       "minimum": 30,
       "maximum": 3600,
@@ -1099,7 +1110,7 @@
       "secret": true,
       "sensitive": true,
       "advanced": false,
-      "hint": "",
+      "hint": "Blank retains the current credential only if URL, StartTLS, base DN, manager DN and referrals are unchanged. Re-enter the bind password before testing or saving a change to those fields.",
       "choices": [],
       "minimum": 1,
       "maximum": 30000,
@@ -1119,7 +1130,7 @@
       "secret": false,
       "sensitive": true,
       "advanced": true,
-      "hint": "",
+      "hint": "Mounted credentials receive the same destination protection. A file path alone does not authorize sending a saved bind password to a changed destination.",
       "choices": [],
       "minimum": 1,
       "maximum": 30000,
@@ -1537,7 +1548,7 @@
       "secret": true,
       "sensitive": true,
       "advanced": false,
-      "hint": "",
+      "hint": "Blank retains the current credential only if issuer and client ID are unchanged. Re-enter the client secret before testing or saving a change to either field.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -1557,7 +1568,7 @@
       "secret": false,
       "sensitive": true,
       "advanced": true,
-      "hint": "",
+      "hint": "Mounted credentials receive the same destination protection. A file path alone does not authorize reusing a saved secret with a changed issuer or client ID.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -1954,7 +1965,7 @@
       "category": "Network",
       "section": "proxy",
       "type": "select",
-      "defaultValue": "framework",
+      "defaultValue": "none",
       "environment": [
         "SERVER_FORWARD_HEADERS_STRATEGY"
       ],
@@ -1962,12 +1973,52 @@
       "secret": false,
       "sensitive": true,
       "advanced": false,
-      "hint": "",
+      "hint": "none: direct access (default). native: explicit proxy allowlist required. Legacy framework mode trusts every sender and requires an isolated backend.",
       "choices": [
-        "framework",
         "none",
-        "native"
+        "native",
+        "framework"
       ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "server.tomcat.remoteip.internal-proxies",
+      "label": "Proxy peer allowlist",
+      "category": "Network",
+      "section": "proxy",
+      "type": "text",
+      "defaultValue": "(?!)",
+      "environment": [
+        "SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Comma-separated exact proxy CIDRs (IPv4 /32 or IPv6 /128 recommended), or a Tomcat regular expression. Default (?!) trusts nobody. Never leave blank or trust an entire client network.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "server.tomcat.remoteip.trusted-proxies",
+      "label": "Additional proxy chain allowlist",
+      "category": "Network",
+      "section": "proxy",
+      "type": "text",
+      "defaultValue": "(?!)",
+      "environment": [
+        "SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Optional additional trusted proxy hops, using CIDRs or a Tomcat regular expression. Default (?!) trusts nobody. Leave at the default for a single proxy.",
+      "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
       "legacy": ""
@@ -2388,6 +2439,166 @@
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.uploads.deleteClean",
+      "label": "Delete clean uploads",
+      "category": "Scanning",
+      "section": "retention",
+      "type": "boolean",
+      "defaultValue": "true",
+      "environment": [
+        "CLAMAV_UPLOADS_DELETE_CLEAN"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Remove clean uploaded copies after their scan completes. Disabling this retains them only until upload retention expires.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 1,
+      "legacy": ""
+    },
+    {
+      "key": "app.uploads.retentionHours",
+      "label": "Upload retention (hours)",
+      "category": "Scanning",
+      "section": "retention",
+      "type": "number",
+      "defaultValue": "24",
+      "environment": [
+        "CLAMAV_UPLOADS_RETENTION_HOURS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Remove expired orphaned uploads and completed upload copies. Queued/running jobs and in-progress uploads are protected.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 8760,
+      "legacy": ""
+    },
+    {
+      "key": "app.history.jobsRetentionDays",
+      "label": "Job history retention (days)",
+      "category": "Scanning",
+      "section": "retention",
+      "type": "number",
+      "defaultValue": "0",
+      "environment": [
+        "CLAMAV_HISTORY_JOBS_RETENTION_DAYS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "0 keeps history. A positive duration prunes completed jobs only after stored artifacts are gone; quarantined jobs are retained.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 3650,
+      "legacy": ""
+    },
+    {
+      "key": "app.history.auditRetentionDays",
+      "label": "Audit history retention (days)",
+      "category": "Scanning",
+      "section": "retention",
+      "type": "number",
+      "defaultValue": "0",
+      "environment": [
+        "CLAMAV_HISTORY_AUDIT_RETENTION_DAYS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "0 keeps audit history. A positive duration permanently removes older audit records independently of job history.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 3650,
+      "legacy": ""
+    },
+    {
+      "key": "server.servlet.session.timeout",
+      "label": "Session idle timeout",
+      "category": "Network",
+      "section": "proxy",
+      "type": "duration",
+      "defaultValue": "30m",
+      "environment": [
+        "SERVER_SERVLET_SESSION_TIMEOUT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Ends an inactive browser session. Activity resets this timer. Use 1m to 24h.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.security.session.max-age",
+      "label": "Absolute session lifetime",
+      "category": "Network",
+      "section": "proxy",
+      "type": "duration",
+      "defaultValue": "1h",
+      "environment": [
+        "CLAMAV_SECURITY_SESSION_MAX_AGE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Requires fresh local, LDAP or OIDC authentication even during activity. Use 1s to 24h. Restart to apply.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.security.login.max-entries",
+      "label": "Maximum tracked login accounts",
+      "category": "Identity & API",
+      "section": "local",
+      "type": "number",
+      "defaultValue": "10000",
+      "environment": [
+        "CLAMAV_SECURITY_LOGIN_MAX_ENTRIES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Bounds per-instance account-wide failure state. Live lockouts are retained; new accounts are throttled at capacity until entries expire.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 100000,
+      "legacy": ""
+    },
+    {
+      "key": "api.v1.scan-rate-limit-max-entries",
+      "label": "Maximum tracked scan subjects",
+      "category": "Identity & API",
+      "section": "api",
+      "type": "number",
+      "defaultValue": "10000",
+      "environment": [
+        "API_V1_SCAN_RATE_LIMIT_MAX_ENTRIES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Bounds per-instance authenticated scan/IP budgets. New subjects receive 429 at capacity; existing budgets are retained.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 100000,
       "legacy": ""
     }
   ]

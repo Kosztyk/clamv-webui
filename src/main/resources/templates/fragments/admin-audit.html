@@ -1,0 +1,29 @@
+<div th:fragment="admin-audit" data-ui-build="2.3.4" data-page="audit">
+    <h4>Admin: Audit log</h4>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead>
+            <tr>
+                <th>At</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Outcome</th>
+                <th>Job</th>
+                <th>Details</th>
+                <th>IP</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="a : ${auditEvents}">
+                <td th:text="${a.at}"></td>
+                <td th:text="${a.username}"></td>
+                <td th:text="${a.action}"></td>
+                <td th:text="${a.outcome}"></td>
+                <td th:text="${a.jobId}"></td>
+                <td th:text="${a.details}"></td>
+                <td th:text="${a.ip}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

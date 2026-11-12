@@ -1,0 +1,72 @@
+<div th:fragment="admin-settings">
+    <h4>Admin: Settings</h4>
+    <p class="text-muted small">These values are persisted in <code>conf/clamav-web-client.properties</code>.</p>
+
+    <form method="post" th:action="@{/admin/settings}" action="/admin/settings" class="card p-3">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+        <div class="mb-3">
+            <label class="form-label">Allowed scan roots (comma-separated)</label>
+            <input class="form-control" name="app.allowedScanRoots" th:value="${settings != null ? settings['app.allowedScanRoots'] : ''}" />
+            <div class="form-text">Example: <code>/scandir,/incoming</code></div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Upload max bytes</label>
+                <input class="form-control" name="app.upload.maxBytes" th:value="${settings != null ? settings['app.upload.maxBytes'] : ''}" />
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Concurrent scans</label>
+                <input class="form-control" name="app.concurrentScans" th:value="${settings != null ? settings['app.concurrentScans'] : ''}" />
+                <div class="form-text">Restart required to apply.</div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Watch poll seconds</label>
+                <input class="form-control" name="app.watch.pollSeconds" th:value="${settings != null ? settings['app.watch.pollSeconds'] : ''}" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Upload directory</label>
+                <input class="form-control" name="app.storage.uploadDir" th:value="${settings != null ? settings['app.storage.uploadDir'] : ''}" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Quarantine directory</label>
+                <input class="form-control" name="app.storage.quarantineDir" th:value="${settings != null ? settings['app.storage.quarantineDir'] : ''}" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Quarantine enabled</label>
+                <select class="form-select" name="app.quarantine.enabled">
+                    <option value="false" th:selected="${settings['app.quarantine.enabled'] == 'false'}">false</option>
+                    <option value="true" th:selected="${settings['app.quarantine.enabled'] == 'true'}">true</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Webhook enabled</label>
+                <select class="form-select" name="app.webhook.enabled">
+                    <option value="false" th:selected="${settings['app.webhook.enabled'] == 'false'}">false</option>
+                    <option value="true" th:selected="${settings['app.webhook.enabled'] == 'true'}">true</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Watch enabled</label>
+                <select class="form-select" name="app.watch.enabled">
+                    <option value="false" th:selected="${settings['app.watch.enabled'] == 'false'}">false</option>
+                    <option value="true" th:selected="${settings['app.watch.enabled'] == 'true'}">true</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Webhook URL</label>
+            <input class="form-control" name="app.webhook.url" th:value="${settings != null ? settings['app.webhook.url'] : ''}" placeholder="https://example.com/webhook" />
+        </div>
+
+        <button class="btn btn-primary">Save</button>
+    </form>
+</div>

@@ -43,8 +43,25 @@ public final class ConfigurationEngine {
         }
     }
     public Map<String,String> draftValues(Review review) {
-        Map<String,String> values=new LinkedHashMap<>(values(true));values.putAll(review.changes());
-        review.clearSecrets().forEach(key->values.put(key,""));resolveSecretFiles(values);return values;
+        store.refresh();
+        if(!Objects.equals(review.version(),store.snapshot().revision()))
+            throw new ConcurrentModificationException("Configuration changed; reload before testing or applying");
+        Map<String,String> before=values(true),values=new LinkedHashMap<>(before);values.putAll(review.changes());
+        review.clearSecrets().forEach(key->values.put(key,""));
+        requireProviderSecrets(before,values,review.changes(),review.clearSecrets());
+        resolveSecretFiles(values);return values;
+    }
+    private static void requireProviderSecrets(Map<String,String> before,Map<String,String> after,
+                                               Map<String,String> supplied,Set<String> cleared) {
+        for(String provider:List.of("ldap","oidc")) {
+            String secret="clamav.identity."+provider+"."+(provider.equals("ldap")?"manager-password":"client-secret");
+            boolean explicit=supplied.containsKey(secret) && !supplied.get(secret).isBlank();
+            boolean removed=cleared.contains(secret) && after.getOrDefault(secret,"").isBlank()
+                    && after.getOrDefault(secret+"-file","").isBlank();
+            info.trizub.clamav.webclient.identity.ProviderSecretGuard.requireReplacement(provider,
+                    ConfigurationCatalog.provider(provider,before),ConfigurationCatalog.provider(provider,after),
+                    !before.getOrDefault(secret,"").isBlank(),explicit,removed);
+        }
     }
     public Map<String,Object> view() {
         store.refresh();
@@ -88,7 +105,7 @@ public final class ConfigurationEngine {
             var field=ConfigurationCatalog.get(entry.getKey());
             if(field.secret() && (entry.getValue()==null || entry.getValue().isBlank())) continue;
             String value=ConfigurationCatalog.validate(field,entry.getValue());
-            if(Objects.equals(before.get(field.key()),value) && !(field.key().equals("spring.datasource.url") && store.requiresDatabaseChoice(value))) continue;
+            if(!field.secret() && Objects.equals(before.get(field.key()),value) && !(field.key().equals("spring.datasource.url") && store.requiresDatabaseChoice(value))) continue;
             requireEditable(field);changes.put(field.key(),value);after.put(field.key(),value);
             summary.add(new Change(field.key(),field.label(),field.secret()?"[private]":before.get(field.key()),field.secret()?"[replaced]":value,field.apply()));
         }
@@ -114,6 +131,7 @@ public final class ConfigurationEngine {
                 }
             }
         }
+        requireProviderSecrets(before,after,changes,clear);
         resolveSecretFiles(after);
         // Legacy deployments infer some features from a URL or token alone.
         // A GUI save must retain the switch the administrator actually saw,
@@ -144,10 +162,11 @@ public final class ConfigurationEngine {
         if(review.databaseChange() && !acknowledged) throw new IllegalArgumentException("Confirm the database backup and connection change before applying");
         for(String key:review.changes().keySet()) requireEditable(ConfigurationCatalog.get(key));
         for(String key:review.clearSecrets()) requireEditable(ConfigurationCatalog.get(key));
+        Map<String,String> approved=draftValues(review);
         // Record the approved database before the atomic configuration commit. A
         // failed commit still retains the old selection and cannot cause fallback.
         var saved=store.save(review.version(),review.changes(),review.clearSecrets(),true,actor,
-                review.databaseChange()?draftValues(review).get("spring.datasource.url"):null);
+                review.databaseChange()?approved.get("spring.datasource.url"):null);
         return saved;
     }
     public boolean locked(String key) { return ConfigurationSource.override(environment,ConfigurationCatalog.get(key)).isPresent(); }

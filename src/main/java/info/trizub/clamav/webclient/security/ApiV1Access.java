@@ -44,13 +44,19 @@ public class ApiV1Access {
         if (token != null && !token.endpointIds().isEmpty() &&
                 (job == null || job.getEndpoint() == null || !token.endpointIds().contains(job.getEndpoint().getId())))
             throw new AccessDeniedException("Job endpoint not permitted by token");
+        if (token != null && !new TokenJobScope(token).allows(job))
+            throw new AccessDeniedException("Job not permitted by token restrictions");
     }
-    public void path(Authentication auth, String value) {
+    public Path path(Authentication auth, String value) {
         ApiTokenPrincipal token = principal(auth);
-        if (token == null) return;
+        if (token == null) return null; // Browser/Basic callers retain the service's global-policy validation.
         if (token.pathRoots().isEmpty()) throw new AccessDeniedException("Token has no authorized path roots");
-        Path target = info.trizub.clamav.webclient.util.PathPolicy.requireAllowed(Path.of(value), settings.allowedRoots());
-        if (token.pathRoots().stream().map(Path::of).noneMatch(target::startsWith))
-            throw new AccessDeniedException("Path is outside token restrictions");
+        try {
+            Path target = info.trizub.clamav.webclient.util.PathPolicy.requireAllowed(Path.of(value), settings.allowedRoots());
+            if (new TokenJobScope(token).allowsPath(target)) return target;
+        } catch (IllegalArgumentException denied) {
+            // Missing and forbidden targets must have the same outcome for a restricted token.
+        }
+        throw new AccessDeniedException(info.trizub.clamav.webclient.util.PathPolicy.DENIED_MESSAGE);
     }
 }

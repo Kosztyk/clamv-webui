@@ -101,15 +101,15 @@ Changing Compose environment requires **recreation**, not just restart. Changing
 
 Webhook private-address policy is privileged, default-deny and startup-bound. When it changes, a newly submitted webhook destination/enable is held until that restart as well. Existing bounded delivery, DNS pinning, redirect restrictions and metadata safeguards remain in force. Enable internal webhooks only for intentional receivers reachable from this container.
 
-## Optional REST service and API clients
-
-The built-in `/api/v1` API uses the managed scan engine; global API limits live in Identity & API and individual credentials remain in API Tokens. Connections → External REST scanner configures the client for a separately deployed REST server. Its own `APP_*` / `CLAMD_*` container settings remain in Compose. See [the complete REST Compose example, GUI fields, environment equivalents and API examples](REST_API_DEPLOYMENT.md).
-
 ## Optional reverse proxy and API transport
 
 A reverse proxy is optional. Direct HTTP GUI setup and administration work using the published application port. If an operator chooses HTTPS termination at a proxy, that proxy must replace forwarded headers and route to the operator's own application instance; the application never knows or assumes a particular proxy, server address or domain.
 
 The GUI's HTTP confirmation is scoped to authenticated configuration operations. It does not alter `request.isSecure()`, API token checks, scopes or revocation. API Bearer tokens used by CLI/MCP still require HTTPS. For a direct-access deployment that ignores forwarded headers, select `none` under Network; configure TLS separately when using those machine clients. Outbound LDAP/OIDC/Discord transport requirements and webhook SSRF filtering remain unchanged.
+
+## Upload cleanup and history
+
+**Scanning → Upload cleanup and history** controls immediate clean deletion, the 24-hour upload retention and optional job/audit history durations. Upload retention protects active work; history pruning is disabled by default and requires an explicit positive duration. The upload-cleanup edition added four fields; the current catalogue has 117 fields, including the session durations below. See [behavior, bounds and native scanner migration](UPLOAD_RETENTION.md).
 
 ## Persistence, encryption and audit
 
@@ -125,9 +125,9 @@ The GUI's HTTP confirmation is scoped to authenticated configuration operations.
 
 Back up the **whole conf directory together**, plus the database and data volume. Keep backups encrypted and access restricted. Restoring the properties file without its matching key cannot decrypt credentials; the application fails closed and never generates a substitute key for existing ciphertext. It cannot safely repair a lost key from the GUI. Restore the matched backup or deliberately rebuild configuration from known credentials. If credentials are solely in deployment secret files, preserve those files independently as well.
 
-Blank secret inputs retain the current value. Use the explicit **Clear** control to remove one. Secret-bearing webhook URLs are also private/write-only. Legacy plaintext webhook destinations are migrated into encrypted central storage on normal startup; deployment values are never copied into the GUI file. Scrape tokens saved by the older integration page remain hashed; newly central-managed tokens are encrypted so both setup and the live gate can use the shared source.
+Blank secret inputs retain the current value. For LDAP/OIDC, this requires an unchanged destination and bind/client identity: changing the LDAP URL, StartTLS, base DN, manager DN or referral policy, or the OIDC issuer or client ID, requires re-entering the credential before Test or Save. The same rule applies in setup/recovery and while a provider is disabled. See [provider secret protection](PROVIDER_SECRET_BINDING.md). Use the explicit **Clear** control to remove a credential; an enabled provider still requires valid credentials. Secret-bearing webhook URLs are also private/write-only. Legacy plaintext webhook destinations are migrated into encrypted central storage on normal startup; deployment values are never copied into the GUI file. Scrape tokens saved by the older integration page remain hashed; newly central-managed tokens are encrypted so both setup and the live gate can use the shared source.
 
-LDAP/OIDC secret files remain supported. A deployment secret-file source locks the matching inline credential too, preventing GUI bypass. Selecting a GUI secret file clears its saved inline credential; entering a new inline credential clears its GUI file path. Never configure conflicting deployment credential sources.
+LDAP/OIDC secret files remain supported. A deployment secret-file source locks the matching inline credential too, preventing GUI bypass. Selecting a GUI secret file clears its saved inline credential; entering a new inline credential clears its GUI file path. Re-submitting a file path does not authorize sending the existing credential to a changed provider destination. If a deployment-controlled credential prevents GUI re-entry, update the provider destination and credential together through deployment configuration and recreate the service. Never configure conflicting deployment credential sources.
 
 Optional deployment-only controls:
 
@@ -156,3 +156,25 @@ A different JDBC URL does **not** copy users, jobs, tokens, audit records or sch
 Configuration is per instance. This is not a distributed configuration bus. Coordinate file/key backups and restarts explicitly; do not assume changes fan out across replicas. H2 is for single-instance use.
 
 See [every supported field and environment alias](CONFIGURATION_REFERENCE.md), [validation results](CONFIGURATION_CENTER_VALIDATION.md), [non-root volumes](NON_ROOT_CONTAINER.md), [proxy TLS](REVERSE_PROXY_TLS.md) and [webhook policy](WEBHOOK_RESILIENCE.md).
+
+## Session limits and revocation (issue #22)
+
+**Network → Reverse proxy & session security → Advanced** includes **Session
+idle timeout** (`30m`) and **Absolute session lifetime** (`1h`). The idle timer
+slides; the absolute timer always starts at successful login. These work for
+local, LDAP and OIDC browser authentication and require a restart after saving.
+The GUI accepts 1m–24h idle and 1s–24h absolute age; the application also validates
+absolute age at startup. Both settings remain available for direct deployment
+with forwarded-header trust disabled.
+
+Local account controls and explicit local/external session revocation are on
+**Admin → Users**. See [account changes, IdP limitations and upgrade details](SESSION_REVOCATION.md).
+
+## Limiter capacities (issue #23)
+
+**Identity & API → Local recovery administrator → Advanced** exposes **Maximum tracked login
+accounts**. The API section exposes **Maximum tracked scan subjects**. Both
+default to 10,000, accept 1–100000 and require restart. At capacity, new keys are
+throttled; live budgets remain intact. Scheduled indexed expiry frees unused
+state. The existing API requests-per-minute control applies per authenticated
+subject, with an anonymous IP fallback. See [bounded limiter behavior](BOUNDED_LIMITERS.md).

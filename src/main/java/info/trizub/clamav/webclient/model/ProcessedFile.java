@@ -43,4 +43,11 @@ public class ProcessedFile {
     public String getSha256() { return sha256; }
     public void setSha256(String sha256) { this.sha256 = sha256; }
     public Instant getProcessedAt() { return processedAt; }
+
+    /** Keep the last committed fingerprint unchanged until the replacement commits. */
+    public ProcessedFile withFingerprint(long lastModified, long sizeBytes) {
+        ProcessedFile next = new ProcessedFile(path, lastModified, sizeBytes, null);
+        next.id = id;
+        return next;
+    }
 }

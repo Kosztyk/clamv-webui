@@ -17,15 +17,11 @@ bash ./publish-clamav-webui.sh \
 
 Replace `OWNER/REPOSITORY` with the intended existing GitHub repository. If the browser renamed a duplicate download with `(1)`, pass that actual filename in quotes. The ZIP's internal application directory remains `clamv-webui-v2.1.0/`.
 
-The script uses an installed `gh` or downloads the official GitHub CLI 2.103.3 asset for macOS/Linux on Apple Silicon/ARM64 or x86_64. It checks the pinned asset SHA-256 before running it. On macOS, downloaded CLI files are cached in `~/Library/Caches/clamav-publisher`; on Linux, the script uses an absolute `$XDG_CACHE_HOME/clamav-publisher` or `~/.cache/clamav-publisher`. It probes a real write before downloading. If the cache is unavailable, it uses its private temporary working directory for that run. Temporary CLI credentials are configured for the running Git commands, keeping the temporary executable out of persistent Git helper settings. Checksums were checked against the official GitHub release API. No administrator installation or Homebrew is needed.
+The script uses an installed `gh` or downloads the official GitHub CLI 2.103.3 asset for macOS/Linux on Apple Silicon/ARM64 or x86_64. It checks the pinned asset SHA-256 before running it. Downloaded CLI files are cached under the current account's local application-data directory. Checksums were checked against the official GitHub release API. No administrator installation or Homebrew is needed.
 
 If necessary, GitHub CLI prompts for browser authentication. Repository and workflow access are needed because this update includes `.github/workflows`. An existing OAuth login without workflow scope is refreshed. For a fine-grained token, grant the destination repository **Contents** and **Workflows** write access, plus **Pull requests** write access if a PR is needed. Authentication secrets are handled by `gh`; the script does not embed a token or place one in a source file.
 
 The publisher reads the repository's actual default branch instead of assuming `main`. Git and GitHub pagers are disabled, so the changed-file list cannot pause at a `:` prompt. Commit identity uses the authenticated GitHub account and its GitHub noreply address.
-
-## Recover from the earlier macOS cache error
-
-If an older script stopped while creating `~/.local/share` with **Permission denied**, replace the downloaded `publish-clamav-webui.sh` with the corrected script and rerun the same command. Your ZIP already passed verification and remains usable. This correction needs no `sudo`, ownership change or manual GitHub CLI installation. The current full archive also includes the corrected publisher.
 
 ## Verify or preview first
 

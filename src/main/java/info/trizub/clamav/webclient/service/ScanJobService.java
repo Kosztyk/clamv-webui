@@ -29,14 +29,29 @@ public class ScanJobService {
     private final ObjectMapper mapper;
     private final ScanExecutionService executor;
     private final DaemonScanPolicy daemonPolicy;
+    private final UploadStorageService uploads;
+    private final UploadJobCommitter uploadCommitter;
 
     public ScanJobService(ScanJobRepository repo, SettingsService settings, ObjectMapper mapper, ScanExecutionService executor,
                           DaemonScanPolicy daemonPolicy) {
+        this(repo,settings,mapper,executor,daemonPolicy,new UploadStorageService(settings,repo));
+    }
+
+    public ScanJobService(ScanJobRepository repo, SettingsService settings, ObjectMapper mapper, ScanExecutionService executor,
+                          DaemonScanPolicy daemonPolicy, UploadStorageService uploads) {
+        this(repo,settings,mapper,executor,daemonPolicy,uploads,new UploadJobCommitter(repo,executor));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ScanJobService(ScanJobRepository repo, SettingsService settings, ObjectMapper mapper, ScanExecutionService executor,
+                          DaemonScanPolicy daemonPolicy, UploadStorageService uploads, UploadJobCommitter uploadCommitter) {
         this.repo = repo;
         this.settings = settings;
         this.mapper = mapper;
         this.executor = executor;
         this.daemonPolicy = daemonPolicy;
+        this.uploads = uploads;
+        this.uploadCommitter = uploadCommitter;
     }
 
     @PostConstruct
@@ -86,62 +101,66 @@ public class ScanJobService {
         return createUploadJobs(files, endpoint, username, "BROWSER");
     }
 
-    @Transactional
     public List<ScanJob> createUploadJobs(List<MultipartFile> files, ClamdEndpoint endpoint, String username, String transport) {
+        // Avoid even an empty transaction synchronization scope around slow input streams.
+        if(TransactionSynchronizationManager.isActualTransactionActive())
+            throw new org.springframework.transaction.IllegalTransactionStateException("Upload copying must be called outside an active database transaction");
         requireEnabled(endpoint);
         List<ScanJob> jobs = new ArrayList<>();
-        record PendingUpload(MultipartFile file, String id, String name, Path stored) {}
+        record PendingUpload(MultipartFile file, String id, String name, String label, Path stored) {}
         List<PendingUpload> pending = new ArrayList<>();
         // Validate the entire batch before copying files or queuing any job.
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) continue;
             daemonPolicy.requireUpload(file.getSize(),endpoint);
             String id = UUID.randomUUID().toString().replace("-", "");
-            String name = (file.getOriginalFilename() == null ? "upload" : file.getOriginalFilename()).replaceAll("[^a-zA-Z0-9._-]", "_");
+            String name = info.trizub.clamav.webclient.util.UploadNames.stored(file.getOriginalFilename());
             Path stored = settings.uploadDir().resolve(id + "-" + name);
             daemonPolicy.requireNotExcluded(stored,endpoint);
-            pending.add(new PendingUpload(file,id,name,stored));
+            pending.add(new PendingUpload(file,id,name,info.trizub.clamav.webclient.util.UploadNames.display(file.getOriginalFilename()),stored));
         }
+        try (var batch=uploads.beginBatch()) {
         for (PendingUpload upload : pending) {
             MultipartFile f = upload.file();
             String id = upload.id();
             String safeName = upload.name();
             Path stored = upload.stored();
             try {
-                Files.createDirectories(stored.getParent());
+                Path created=batch.create(id,safeName);
+                if(!created.equals(stored)) throw new IllegalStateException("Upload storage changed; retry the batch");
 
-                // Save file
-                try (InputStream in = f.getInputStream()) {
-                    Files.copy(in, stored, StandardCopyOption.REPLACE_EXISTING);
+                // Copy and hash in one pass, without a database transaction or connection.
+                var digest=java.security.MessageDigest.getInstance("SHA-256");
+                long copied;
+                try (InputStream in = new java.security.DigestInputStream(f.getInputStream(),digest);
+                     var output=Files.newOutputStream(stored,StandardOpenOption.WRITE,LinkOption.NOFOLLOW_LINKS)) {
+                    copied=in.transferTo(output);
                 }
-
-                // Hash
-                String sha;
-                try (InputStream in2 = Files.newInputStream(stored)) {
-                    sha = info.trizub.clamav.webclient.util.HashUtils.sha256(in2);
-                }
+                daemonPolicy.requireUpload(copied,endpoint);
+                String sha=java.util.HexFormat.of().formatHex(digest.digest());
 
                 ScanJob job = new ScanJob();
                 job.setId(id);
                 job.setType(ScanJobType.UPLOAD);
                 job.setStatus(ScanJobStatus.QUEUED);
-                job.setTarget(safeName);
+                job.setTarget(upload.label());
                 job.setStoredPath(stored.toString());
                 job.setSha256(sha);
-                job.setSizeBytes(f.getSize());
+                job.setSizeBytes(copied);
                 job.setEndpoint(endpoint);
                 job.setSubmittedBy(username);
                 job.setSubmittedTransport(transport);
                 job.setSubmittedAt(Instant.now());
-                repo.save(job);
                 jobs.add(job);
-                enqueueAfterCommit(job.getId());
                 } catch (Exception e) {
                 log.error("Failed to create upload job: {}", e.getMessage(), e);
                 throw new IllegalStateException("Unable to create upload scan job", e);
             }
         }
-        return jobs;
+        if(jobs.isEmpty()){batch.succeeded();return jobs;}
+        List<ScanJob> committed=uploadCommitter.commit(jobs,batch);
+        batch.succeeded();return committed;
+        }
     }
 
     public ScanJob createPathJob(String path, ClamdEndpoint endpoint, String username) {
@@ -151,8 +170,20 @@ public class ScanJobService {
     @Transactional
     public ScanJob createPathJob(String path, ClamdEndpoint endpoint, String username, String transport) {
         requireEnabled(endpoint);
-        daemonPolicy.requireNotExcluded(PathPolicy.normalize(path),endpoint);
-        Path requested = PathPolicy.requireAllowed(PathPolicy.normalize(path), settings.allowedRoots());
+        Path normalized = PathPolicy.normalize(path);
+        Path requested = PathPolicy.requireAllowed(normalized, settings.allowedRoots());
+        daemonPolicy.requireNotExcluded(normalized,endpoint);
+        return pathJob(requested, endpoint, username, transport);
+    }
+
+    /** The v1 bearer access check resolved this target; never re-resolve its submitted alias. */
+    @Transactional
+    public ScanJob createPathJob(Path canonical, ClamdEndpoint endpoint, String username, String transport) {
+        requireEnabled(endpoint);
+        return pathJob(PathPolicy.requireCanonicalAllowed(canonical, settings.allowedRoots()), endpoint, username, transport);
+    }
+
+    private ScanJob pathJob(Path requested, ClamdEndpoint endpoint, String username, String transport) {
         daemonPolicy.requirePath(requested,endpoint);
 
         String id = UUID.randomUUID().toString().replace("-", "");

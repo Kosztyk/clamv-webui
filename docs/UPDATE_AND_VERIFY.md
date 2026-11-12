@@ -107,7 +107,7 @@ curl -sS -i --max-time 15 \
 | Result | Meaning |
 |---|---|
 | `401` and `invalid_token` | Expected: the application recognizes HTTPS and rejects the deliberately invalid credential |
-| `403` and `tls_required` | Check that the trusted proxy sends the original HTTPS scheme and that no `none` configuration overrides the packaged default |
+| `403` and `tls_required` | Check explicit `native` mode, the actual proxy peer allowlist, and that the proxy sends the HTTPS scheme |
 | curl error 60 | Certificate verification stopped the request before API authentication; configure client trust and check the URL's certificate SAN |
 | `502` from Nginx | Check application startup, backend connectivity and upstream address/port |
 
@@ -246,8 +246,7 @@ The Maven container downloads dependencies and writes build output under
 
 You do not need new Compose environment fields for the three fixes. The
 defaults live in the application and Dockerfile. An old explicit
-`SERVER_FORWARD_HEADERS_STRATEGY=none` still overrides the proxy default.
-For intentional direct access, see [the proxy opt-out](REVERSE_PROXY_TLS.md).
+Forwarded headers now default to `none`. TLS proxies require explicit `native` mode and a proxy allowlist; replace old `framework` overrides. See [safe proxy opt-in](REVERSE_PROXY_TLS.md).
 
 The current UI controls scan settings and webhook URL/enable state. Database
 bootstrap, identity truststores, proxy trust and webhook timeout/address policy

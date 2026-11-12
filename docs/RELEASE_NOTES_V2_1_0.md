@@ -124,11 +124,3 @@ README now provides explicit Configuration Center and Compose/hybrid setup, the 
 The setup and Configuration Center probe now use the configured connection-pool budget for PostgreSQL, MySQL and MariaDB with the correct driver timeout units, explicit packaged-driver selection and a bounded overall deadline. This fixes a reproduced PostgreSQL test failure when authentication takes longer than the old three-second limit while normal startup can connect. Errors distinguish authentication, missing database, permissions, TLS, DNS, connection refusal and timeout without exposing raw JDBC details.
 
 Testing a new H2 database now explains that it has not been initialized and that its credentials are unverified; Review → Apply → Start application still creates it. Existing `IFEXISTS` options are replaced rather than duplicated. Connection tests do not save configuration or migrate schemas. Direct HTTP setup keeps its explicit credential confirmation and works without a proxy. See [all database test behavior and validation](DATABASE_CONNECTION_TESTS.md). No new Compose field or build helper is needed.
-
-## API and deployment documentation package — 1 November 2026
-
-README now includes built-in `/api/v1` token/upload/job examples and a complete optional REST-service Compose. The new [REST deployment guide](REST_API_DEPLOYMENT.md) explains GUI versus environment control, network addresses, endpoint compatibility, multipart field names, upload-size units and checks. The minimal GUI setup, recovery credential command and GitHub publisher remain included. Application/CLI code and version are unchanged from the tested database-probe correction.
-
-## GitHub publisher cache fix — 1 November 2026
-
-The standalone publisher and archived copy now select writable macOS/Linux cache locations and a private temporary fallback, fixing the macOS `~/.local/share` permission failure without elevated privileges or ownership changes. CLI download checksums remain mandatory. The temporary path uses process-scoped Git credentials. All 19 local publisher regressions pass; the corrected script accepts existing complete v2.1.0 ZIPs. See [publishing and recovery](PUBLISHING.md).

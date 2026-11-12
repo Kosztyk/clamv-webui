@@ -1,0 +1,21 @@
+<div th:fragment="nativeClamdtop" class="native-clamdtop-page native-clamdtop-original-view" data-ui-build="2.3.8" data-page="native-clamdtop">
+  <div class="native-clamdtop-compactbar">
+    <div class="native-clamdtop-control native-clamdtop-control-endpoint">
+      <label class="native-clamdtop-label" for="nativeClamdtopEndpoint">Endpoint</label>
+      <select class="form-select form-select-sm" id="nativeClamdtopEndpoint">
+        <option th:each="ep : ${endpoints}"
+                th:value="${ep.id}"
+                th:selected="${endpointId != null and ep.id == endpointId}"
+                th:text="${ep.name + ' (' + ep.host + ':' + ep.port + ' / ' + ep.platform + ')'}">default (clamav-server:3310 / UNIX)</option>
+      </select>
+    </div>
+    <button type="button" class="btn btn-sm btn-primary" id="nativeClamdtopConnect">Connect</button>
+    <button type="button" class="btn btn-sm btn-outline-light" id="nativeClamdtopDisconnect">Disconnect</button>
+    <div class="native-clamdtop-status" id="nativeClamdtopStatus">Disconnected</div>
+    <div class="native-clamdtop-hint">Native keys: <kbd>q</kbd> quit, <kbd>r</kbd> reset max, arrows navigate. Queue rows are live only while clamd is scanning. Uploads use named path scans when the upload volume is shared with clamd.</div>
+  </div>
+
+  <div class="native-terminal-wrap">
+    <div id="nativeClamdtopTerminal" class="native-terminal" tabindex="0" role="application" aria-label="Native clamdtop terminal"></div>
+  </div>
+</div>

@@ -81,7 +81,7 @@ public class ScanMetrics {
         String reason = "NONE";
         if (job.getVerdict() == ScanVerdict.ERROR) {
             String message = job.getErrorMessage() == null ? "" : job.getErrorMessage().toLowerCase(java.util.Locale.ROOT);
-            if (message.contains("timeout")) reason = "TIMEOUT";
+            if (message.contains("timeout") || message.contains("timed out")) reason = "TIMEOUT";
             else if (message.contains("connect") || message.contains("refused")) reason = "CONNECTION";
             else if (message.contains("path") || message.contains("permission") || message.contains("denied")) reason = "PATH_OR_PERMISSION";
             else if (message.contains("unsupported")) reason = "UNSUPPORTED";

@@ -12,6 +12,18 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ScanMetricsTest {
+    @Test void boundedClientDeadlinesAreClassifiedAsTimeoutsWithoutPublishingPrivateDetails() {
+        var registry = new SimpleMeterRegistry();
+        try {
+            var metrics = new ScanMetrics(registry, mock(ScanJobRepository.class), new ObjectMapper());
+            var job = new ScanJob(); job.setType(ScanJobType.UPLOAD); job.setVerdict(ScanVerdict.ERROR);
+            job.setErrorMessage("Path-based upload scan failed for /private/upload. ClamD operation timed out.");
+            metrics.recordCompletion(job);
+            assertEquals(1, registry.get("clamav.scan.failures").tag("reason", "TIMEOUT").counter().count());
+            assertTrue(registry.getMeters().stream().flatMap(meter -> meter.getId().getTags().stream())
+                    .noneMatch(tag -> tag.getValue().contains("/private")));
+        } finally { registry.close(); }
+    }
     @Test void recordsBoundedCompletedCounterAndTimer() {
         var registry = new SimpleMeterRegistry();
         try {

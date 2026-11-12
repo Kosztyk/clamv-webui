@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Optional deployment helper; non-root and forwarded HTTPS defaults are in the source.
+# Optional deployment helper; direct access ignores forwarded headers by default.
 set -euo pipefail
 source_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd -P)"
 image_tag='clamav-web-client:2.1.0-local'
 forwarded_headers=''
+proxy_cidrs="${CLAMAV_TRUSTED_PROXY_CIDRS:-}"
 requested_compose=''
 requested_container=''
 service_name='clamav-web-client'
@@ -16,14 +17,21 @@ for argument in "$@"; do
         --compose=*) requested_compose="${argument#*=}" ;;
         --container=*) requested_container="${argument#*=}" ;;
         --service=*) service_name="${argument#*=}" ;;
-        --trusted-proxy) forwarded_headers=framework ;;
+        --trusted-proxy) forwarded_headers=native ;;
         --direct-access) forwarded_headers=none ;;
         --help)
             echo 'Usage: bash build-and-start.sh [--trusted-proxy|--direct-access] [--container=clamav-gui] [--compose=/absolute/docker-compose.yml] [--service=clamav-web-client]'
+            echo '--trusted-proxy requires CLAMAV_TRUSTED_PROXY_CIDRS with the exact backend proxy IP/CIDR.'
             exit 0 ;;
         *) echo "Unknown option: $argument (use --help)" >&2; exit 2 ;;
     esac
 done
+if [[ "$forwarded_headers" == native && -z "$proxy_cidrs" ]]; then
+    echo 'Set CLAMAV_TRUSTED_PROXY_CIDRS to the exact proxy IP/CIDR before using --trusted-proxy.' >&2; exit 2
+fi
+if [[ -n "$proxy_cidrs" && ( ! "$proxy_cidrs" =~ ^[0-9a-fA-F.:/,[:space:]]+$ || "$proxy_cidrs" == *$'\n'* || "$proxy_cidrs" == *$'\r'* ) ]]; then
+    echo 'CLAMAV_TRUSTED_PROXY_CIDRS must contain only IP addresses/CIDRs, separated by commas.' >&2; exit 2
+fi
 [[ "$service_name" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || { echo 'Invalid service name' >&2; exit 2; }
 command -v docker >/dev/null || { echo 'Install Docker Engine and the Docker Compose plugin first.' >&2; exit 1; }
 docker info >/dev/null
@@ -87,8 +95,14 @@ fi
 # Preserve an earlier explicit proxy choice when updating this managed file.
 if [[ -z "$forwarded_headers" && -f "$override_file" ]]; then
     forwarded_headers="$(sed -nE 's/^[[:space:]]+SERVER_FORWARD_HEADERS_STRATEGY: "(framework|none|native)"[[:space:]]*$/\1/p' "$override_file")"
+    if [[ -z "$proxy_cidrs" ]]; then
+        proxy_cidrs="$(sed -nE 's/^[[:space:]]+SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "([0-9a-fA-F.:/, ]+)"[[:space:]]*$/\1/p' "$override_file")"
+    fi
 fi
 case "$forwarded_headers" in ''|framework|none|native) ;; *) echo 'Invalid proxy strategy in managed override' >&2; exit 1 ;; esac
+if [[ "$forwarded_headers" == framework || ( "$forwarded_headers" == native && -z "$proxy_cidrs" ) ]]; then
+    echo 'An earlier proxy override needs migration. Use --direct-access, or set CLAMAV_TRUSTED_PROXY_CIDRS and use --trusted-proxy.' >&2; exit 2
+fi
 cat > "$override_file" <<YAML
 $override_marker
 services:
@@ -105,6 +119,12 @@ if [[ -n "$forwarded_headers" ]]; then
     cat >> "$override_file" <<YAML
     environment:
       SERVER_FORWARD_HEADERS_STRATEGY: "$forwarded_headers"
+YAML
+fi
+if [[ "$forwarded_headers" == native ]]; then
+    cat >> "$override_file" <<YAML
+      SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "$proxy_cidrs"
+      SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES: "(?!)"
 YAML
 fi
 already_included=false
@@ -144,7 +164,8 @@ if ! "${compose[@]}" run --rm --no-deps --entrypoint /bin/sh "$service_name" -eu
         rm "$probe"
     done
     for directory in /app/data/uploads /app/data/quarantine; do
-        if test -e "$directory"; then test -r "$directory" && test -w "$directory" && test -x "$directory"; fi
+        mkdir -p "$directory"
+        test -r "$directory" && test -w "$directory" && test -x "$directory"
     done
     for file in /app/conf/*.properties /app/conf/*.key; do
         if test -e "$file"; then test -r "$file"; fi
@@ -163,6 +184,9 @@ if ! "${compose[@]}" run --rm --no-deps --entrypoint /bin/sh "$service_name" -eu
                 chown -hR 10001:10001 "$directory"
                 chmod -R u+rwX "$directory"
             done
+            mkdir -p /app/data/uploads /app/data/quarantine
+            chown 10001:10001 /app/data/uploads /app/data/quarantine
+            chmod 0700 /app/data/uploads
         '
 fi
 if [[ -n "$existing_container" ]]; then

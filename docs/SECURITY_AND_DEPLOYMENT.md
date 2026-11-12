@@ -16,8 +16,9 @@ For Bearer/CLI/MCP HTTPS recognition behind a trusted TLS-terminating proxy,
 see [issue #11 configuration and regression coverage](REVERSE_PROXY_TLS.md).
 
 - This application does **not** terminate HTTPS itself in the supplied Compose example. Bind port 8080 to `127.0.0.1` and front it with a trusted NGINX, Traefik, or Caddy reverse proxy that serves HTTPS and handles certificates/HSTS.
+- Password lockout covers HTTP Basic and local form login using one account-wide counter, independent of client IP (issue #14). Five failed passwords within 15 minutes cause a 15-minute lockout; Basic returns `429` with `Retry-After`. Successful authentication before lockout resets failures. LDAP uses a separate account-wide budget. Counters are in process memory; see [lockout scope and tests](BASIC_AUTH_LOCKOUT.md).
 - Basic authentication and the web login session must never transit unencrypted public connections. Configure `Secure`, `HttpOnly`, and `SameSite` cookies through the TLS-terminating proxy and Spring configuration appropriate to deployment; avoid mixed HTTP/HTTPS links.
-- The app packages `server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}` by default, so TLS termination works with normal Docker/JAR builds. Restrict backend connections to the trusted proxy, which must **strip all inbound forwarded headers and replace them with its own**. Forwarded headers are trusted input in this mode. A deployment exposed directly without a trusted proxy can explicitly set `SERVER_FORWARD_HEADERS_STRATEGY=none` to ignore them; machine credentials still require HTTPS.
+- Forwarded headers are ignored by default (`server.forward-headers-strategy=none`, issue #13). For TLS termination use `native` with an explicit `server.tomcat.remoteip.internal-proxies` allowlist of actual proxy peers; the packaged internal/trusted defaults `(?!)` trust nobody. Restrict backend access to those proxies, which must strip and replace incoming forwarded headers. Migrate any old explicit `framework` settings; see [proxy configuration](REVERSE_PROXY_TLS.md).
 - `/actuator/**` should be restricted to a management network or disabled if not needed. Spring Actuator metrics/health exposure does not imply a public, authenticated metrics endpoint.
 - The H2 web console is **disabled** by default. The H2 database file is inside the mounted data directory.
 
@@ -40,18 +41,20 @@ Desktop/named-volume options, scan/socket permissions and Kubernetes settings.
 
 | Path | Web UI | ClamAV daemon | Use |
 |---|---|---|---|
-| `./data:/app/data` | Read/write | `./data:/app/data:ro` | Job DB, uploads, quarantine, bootstrap secret; upload files must be readable by clamd. |
+| `./data:/app/data` | Read/write | Not mounted | Private job DB, quarantine and bootstrap secret. |
+| `./data/uploads:/app/data/uploads` | Read/write through the data mount | Read-only, same absolute path | Only uploaded scan inputs; directory must exist and files must be readable by ClamD. |
+| `clamav-signatures:/var/lib/clamav` | Not mounted | Read/write | Independent scanner signature database. |
 | `./conf:/app/conf` | Read/write | Not mounted | Persisted web UI settings, including webhook URL. |
 | `/scandir` (optional) | Read for path/watcher policy | Read at **same absolute path** | Native path scans and watched directories. |
 
 - Do **not** mount Docker socket, host root filesystem, or broad host secrets into either container.
-- The standalone deployment example keeps ClamAV TCP port 3310 inside the Compose network. The root development Compose publishes it for local testing; remove or firewall that publication for production.
+- All bundled-scanner defaults keep port 3310 inside the Compose network. Never expose it to untrusted networks: ClamD has no authentication. Use the explicit loopback-only override if host diagnostics are needed. See [scanner isolation](CLAMD_ISOLATION.md).
 - Back up H2 while the application is stopped or use a database-consistent backup method. Never share the file-backed H2 volume between replicas.
 - Filesystem symlinks and scan roots are resolved by `Path.toRealPath()` and checked against canonical, existing allowed directories when a job is queued; the scanner also rechecks the target at execution. An operator with write access to target directories can still race a filesystem pathname between validation and ClamD access; use read-only, trusted mounts for path scans.
 
 ## Scanning mode: native MULTISCAN vs INSTREAM
 
-**Native upload path scanning** (`CLAMAV_UPLOAD_PATH_SCAN_ENABLED=true`) sends `nMULTISCAN /app/data/uploads/<file>\n` to clamd. ClamD must see **the exact same filesystem path** as the web client. This produces file paths in clamdtop, while allowing the daemon to work directly on files. The supplied Compose mounts `./data` at `/app/data` in both containers. If mount paths or daemon permissions differ, the scan fails unless fallback is explicitly enabled.
+**Native upload path scanning** (`CLAMAV_UPLOAD_PATH_SCAN_ENABLED=true`) sends `nMULTISCAN /app/data/uploads/<file>\n` to clamd. ClamD must see **the exact same filesystem path** as the web client. This produces file paths in clamdtop, while allowing the daemon to work directly on files. The Web UI keeps its data mount; ClamD receives only `./data/uploads` at `/app/data/uploads:ro`. If mount paths or daemon permissions differ, the scan fails unless fallback is explicitly enabled.
 
 **INSTREAM** (`CLAMAV_UPLOAD_PATH_SCAN_ENABLED=false`) sends file *bytes* to the daemon and works when the scanner is remote or cannot see the web container volume. ClamdTop then typically displays `INSTREAM` rather than the original filename; this is expected protocol behavior.
 

@@ -34,21 +34,21 @@ The resulting image already includes:
 
 - **Non-root runtime:** `USER 10001:10001`; writable image-owned `/app/data`
   and `/app/conf`; a root-owned, read-only application JAR.
-- **Reverse proxy TLS support:** `application.properties` packages
-  `server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}`.
-  Both RFC `Forwarded` and `X-Forwarded-Proto` HTTPS schemes are recognized by
-  Spring before Bearer authentication checks `request.isSecure()`.
+- **Forwarded-header protection (issue #13):** the packaged default is
+  `server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:none}`.
+  Direct requests retain their socket IP address and actual transport security.
+  TLS proxy support (issue #11) is an explicit opt-in using `native` and an
+  allowlist of actual proxy peers. Native mode alone trusts nobody.
 - **Webhook resilience (issue #12):** notifications use a dedicated bounded
   executor, finite timeouts and a public-address policy by default. Internal
   receivers require an explicit startup setting; see
   [webhook policy](docs/WEBHOOK_RESILIENCE.md).
 
-No deployment script or `--trusted-proxy` flag is required for these fixes.
-HTTPS, token validity, scope enforcement and revocation checks remain active.
-An old runtime `SERVER_FORWARD_HEADERS_STRATEGY=none` setting still overrides
-the packaged default; remove it to use automatic proxy HTTPS recognition.
-The included Compose examples and environment example now default to
-`framework` as well.
+No deployment script is required. HTTPS, token validity, scope enforcement and
+revocation checks remain active. Remove or replace old explicit `framework`
+overrides in Compose, command-line settings and saved Configuration Center
+settings; higher-priority deployment configuration still overrides defaults.
+Use `none` for direct access, or follow the proxy opt-in below.
 
 ## Update an existing deployment
 
@@ -68,7 +68,7 @@ Prepare existing bind mounts for UID/GID 10001 on the Docker host. Run these
 commands in the existing deployment directory, using its actual mount paths:
 
 ```bash
-mkdir -p conf data
+mkdir -p conf data/uploads
 sudo chown -R 10001:10001 conf data
 sudo chmod -R u+rwX conf data
 ```
@@ -93,15 +93,14 @@ settings already needed by a v1-to-v2 upgrade.
 
 ## First installation
 
-The root Compose uses the same local image and starts a separate ClamAV daemon.
-Choose built-in H2 or an existing external database during first-run setup. Prepare the bind mounts as shown above, then use:
+The root Compose builds the local image and starts a separate ClamAV daemon. Supply its existing-database environment values before starting. For a fresh GUI-managed H2 installation with bundled ClamD, use `examples/compose/standalone-h2.yaml` instead. Prepare the bind mounts, including `data/uploads` when native upload scanning is enabled, then use:
 
 ```bash
 docker compose up -d --no-build --pull never
 docker compose logs -f clamav-web-client
 ```
 
-The default host port is 8080. Open `http://YOUR_SERVER:8080/setup/` and read the
+The root Compose publishes the Web UI on host port 8081; the standalone example uses loopback port 8080. On installations waiting for first-run setup, open `/setup/` on that published port and read the
 owner credential from this container:
 
 ```bash
@@ -116,13 +115,57 @@ Allow ClamAV time to download its signatures. The first-install administrator
 password is generated securely and saved in `/app/data/bootstrap-admin-password`;
 existing accounts are preserved.
 
+## ClamD network and filesystem isolation
+
+Never expose unauthenticated ClamD port 3310 to untrusted networks. The bundled
+scanner publishes no host port; the Web UI connects to `clamav-server:3310`
+through Compose. Optional host diagnostics can use the supplied loopback-only
+override. Loopback binding is not authentication.
+
+ClamD receives only `./data/uploads:/app/data/uploads:ro`, plus its independent
+signature volume. Do not mount the whole application data directory into it:
+that exposes the H2 database and bootstrap administrator password. The app uses
+`CLAMAV_UPLOAD_DIR=/app/data/uploads` so native MULTISCAN and ClamdTop filenames
+continue to work at the same absolute path. Uploads must be readable by ClamD.
+
+On an existing deployment, remove the daemon's old broad data mount and host
+port mapping, then recreate it; adding another narrower mount does not remove
+the old one during Compose merging. Keep the Web UI's data mount.
+
+Create the upload directory before starting; the mount deliberately does not
+create a missing host directory with root ownership:
+
+```bash
+sudo install -d -o 10001 -g 10001 -m 0700 data/uploads
+```
+
+This creates/prepares only the directory, preserving existing contents. Retain
+your current database, mounts and configuration during an update. The root
+Compose and standalone example pin the scanner image by version and digest;
+review and update that pin when applying upstream image security updates.
+`CLAMAV_REST_URL` is blank by default and refers only to an optional, separate
+REST scanner. See [isolation, architecture and smoke-test details](docs/CLAMD_ISOLATION.md).
+
 ## Reverse proxy deployment
 
-Keep the backend reachable only from the trusted proxy/Ingress. The proxy must
-replace incoming `Forwarded` and `X-Forwarded-*` headers and forward the original
-HTTPS scheme. No application opt-in is needed. Use the public HTTPS URL in
-`clamctl`, MCP and API clients. See [reverse proxy TLS](docs/REVERSE_PROXY_TLS.md)
-for Nginx, Kubernetes and direct-access opt-out guidance.
+Enable native forwarding and specify only the proxy's actual socket IP/CIDR as
+seen by the application (Docker NAT may change it):
+
+```yaml
+environment:
+  SERVER_FORWARD_HEADERS_STRATEGY: native
+  SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "172.30.0.10/32"
+  SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES: "(?!)"
+  SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
+```
+
+Replace the example address with your proxy. IPv6 `/128`, comma-separated CIDRs
+and Tomcat regular expressions are supported. The default `(?!)` matches nobody;
+never use a blank value or trust an entire client LAN. Keep the backend reachable
+only from the proxy/Ingress. Replace incoming forwarded headers and send
+`X-Forwarded-Proto` and `X-Forwarded-For`; native mode does not interpret RFC
+`Forwarded` alone. Use the public HTTPS URL in `clamctl`, MCP and API clients.
+See [safe proxy deployment and migration](docs/REVERSE_PROXY_TLS.md).
 
 ## Optional existing-deployment helper
 
@@ -136,9 +179,9 @@ bash build-and-start.sh
 
 It builds `clamav-web-client:2.1.0-local` before stopping the existing UI, writes
 an image override beside the existing Compose files, and verifies startup. Its
-legacy `--trusted-proxy` option only writes an explicit runtime `framework`
-setting, which is now the application default. `--direct-access` explicitly
-sets `none`. Earlier explicit runtime overrides are preserved. If using the
+`--trusted-proxy` option requires `CLAMAV_TRUSTED_PROXY_CIDRS` and writes native
+mode with that allowlist. `--direct-access` explicitly sets `none`. An older
+managed `framework` override requires an explicit choice to migrate it. If using the
 helper, include its `clamv-webui-local-image.override.yml` with the original
 Compose files for later operations.
 
@@ -149,3 +192,84 @@ See [v2.1.0 validation](docs/CONFIGURATION_CENTER_VALIDATION.md) and
 retain their original v2.0.0 test scope.
 They distinguish Maven/HTTP checks from Docker image execution. A Docker image
 build and container smoke run require Docker on the target host.
+
+## Daemon timeouts and scheduler capacity
+
+The bundled scheduler uses four threads so a slow daemon metrics poll does not serialize configuration polling, watcher checks, job gauges and queue reconciliation. TCP and Unix health snapshots have a shared five-second budget; DNS/connect work is capped at three seconds within it. INSTREAM and MULTISCAN use a separate 24-hour total scan budget, with bounded stalled writes and replies capped at 4 MiB.
+
+These are startup deployment settings. Defaults work without adding environment entries; optional overrides are:
+
+```yaml
+environment:
+  CLAMAV_CLIENT_CONNECT_TIMEOUT: "3s"
+  CLAMAV_CLIENT_COMMAND_TIMEOUT: "5s"
+  CLAMAV_CLIENT_SCAN_TIMEOUT: "24h"
+  SPRING_TASK_SCHEDULING_POOL_SIZE: "4"
+```
+
+Recreate the application after changing them. Connect/command durations must be 1 ms–1 minute, the scan duration 1 ms–7 days, and the pool size 4–64; invalid values fail startup. Health failures return promptly instead of consuming the scan budget. These settings are separate from the optional REST scanner's HTTP timeouts and from `clamd.conf` limits. See [timeout behavior and tests](docs/CLAMD_TIMEOUTS.md).
+
+## Upload retention and private native scan inputs
+
+Clean uploaded copies are deleted by default after completion; infected copies are quarantined or deleted. Configure the 24-hour upload retention and optional job/audit history limits under **Configuration Center → Scanning → Upload cleanup and history**. See [complete settings and upgrade steps](docs/UPLOAD_RETENTION.md).
+
+POSIX uploads now use `0700` directories and `0600` files. The bundled native scanner builds from the pinned official ClamAV base with its daemon account mapped to UID/GID 10001. Rebuild/recreate both services with `docker compose up -d --build --force-recreate clamav-server clamav-web-client`; keep the database, conf/data and keys. For a separately managed daemon, match the upload owner UID or use INSTREAM. No database schema migration is needed.
+
+## Browser session limits and account revocation (issue #22)
+
+Account deletion, disabling, role changes and password resets revoke existing
+browser sessions after commit. Local account state is rechecked before protected
+requests. The default idle timeout is **30 minutes**; a separate **one-hour
+absolute lifetime** requires fresh authentication even during activity. Adjust
+both in Configuration Center → Network → Reverse proxy & session security →
+Advanced, then recreate the application. Optional deployment overrides:
+
+```yaml
+environment:
+  SERVER_SERVLET_SESSION_TIMEOUT: "30m"
+  CLAMAV_SECURITY_SESSION_MAX_AGE: "1h"
+```
+
+The absolute setting accepts 1s–24h and rejects invalid startup values. Session
+revocation returns API 401 or a browser login redirect. Admin → Users also offers
+explicit local/external **Revoke sessions** and access editing. Remove external
+group access at the IdP before revoking its recorded identity's sessions; live
+LDAP/OIDC membership removal is not automatically pushed to the app. Explicit
+revocations are per application instance. No schema migration is required.
+See [complete behavior, WebSocket handling and verification](docs/SESSION_REVOCATION.md).
+
+## Bounded login and scan throttling (issue #23)
+
+The default login store tracks at most 10,000 realm/account records; the scan
+store tracks at most 10,000 token/account/anonymous-IP budgets. Records expire
+and indexed cleanup performs bounded work. At capacity, new keys are temporarily
+throttled rather than evicting active protection. Monitor capacity warnings and
+retain ingress abuse controls; a saturated login store can block a new legitimate
+account until space is released. Existing browser sessions remain usable.
+
+Optional overrides on the existing web service:
+
+```yaml
+environment:
+  CLAMAV_SECURITY_LOGIN_MAX_ENTRIES: "10000"
+  API_V1_SCAN_RATE_LIMIT_MAX_ENTRIES: "10000"
+  API_V1_SCAN_RATE_LIMIT_PER_MINUTE: "30"
+```
+
+Capacities accept 1–100000. Scan attempts accept 1–10000 per subject per
+60-second window. These settings require restart and are also in Configuration
+Center → Identity & API. State is per instance; no distributed throttle or schema
+migration is added. See [identity rules and verification](docs/BOUNDED_LIMITERS.md).
+
+## Scan path privacy and alias compatibility (issue #24)
+
+Rebuild/recreate the app to apply lexical root screening before any untrusted
+target lookup and canonical containment afterward. No setting or schema change is
+required. Configured root aliases remain usable through their configured or real
+spelling. Arbitrary aliases outside all configured/canonical roots are denied;
+submit the canonical in-root path or the configured root spelling instead.
+
+Missing and forbidden paths share a generic validation error. Restricted Bearer
+path denials use one 403 status, including missing targets, so private filesystem
+existence cannot be inferred from those errors. Diagnose root mounts/permissions
+on the host when needed. See [behavior and tests](docs/SCAN_PATH_PRIVACY.md).

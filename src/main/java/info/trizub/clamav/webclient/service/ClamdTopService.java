@@ -48,7 +48,7 @@ public class ClamdTopService {
         result.put("endpoint", endpointInfo(ep));
 
         try {
-            ClamdClient client = clientProvider.clientFor(ep);
+            ClamdClient client = clientProvider.probeFor(ep);
             client.ping();
 
             String version = safe(client.version());

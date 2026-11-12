@@ -176,7 +176,7 @@ services:
     restart: unless-stopped
 
   clamav-server:
-    image: clamav/clamav:latest
+    image: clamav/clamav:1.4.6@sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9
     container_name: clamav-server
     volumes:
       - clamav-signatures:/var/lib/clamav
@@ -251,7 +251,7 @@ services:
       CLAMAV_REST_TIMEOUT_SECONDS: "10"
       CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS: "3600"
       CLAMAV_REST_REPORT_MAX_JOBS: "5000"
-      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-framework}"
+      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-none}"
     volumes:
       - ./conf:/app/conf
       - ./data:/app/data
@@ -269,7 +269,7 @@ SPRING_DATASOURCE_USERNAME=clamav
 SPRING_DATASOURCE_PASSWORD=YOUR_PRIVATE_PASSWORD
 CLAMAV_REST_URL=
 CLAMAV_REST_API_KEY=
-SERVER_FORWARD_HEADERS_STRATEGY=framework
+SERVER_FORWARD_HEADERS_STRATEGY=none
 ```
 
 These IP addresses illustrate a **private** LAN layout; substitute addresses actually reachable *from inside the Web UI container*. Create database `clamav` and a dedicated SQL account with appropriate schema DDL permissions **before** deploying. Use SQL TLS and protect DB port 5432. For an upstream compatible REST scanner, set `CLAMAV_REST_URL=http://REST_HOST:3000` and corresponding API key (or leave blank if none). Do **not** point `CLAMAV_REST_URL` at this GUI or its `/api/v1` endpoint.
@@ -300,36 +300,48 @@ These modes are easy to confuse:
 | **Server-path scan** | User-supplied path already on the server | **Yes** | Usually the server path |
 | **Watcher-triggered path** | Path found by polling an allowed directory | **Yes** | Usually the watched path |
 
-To use native uploaded-path scans with **bundled** ClamD, add to its service:
+To use native uploaded-path scans with **bundled** ClamD, use the UID-aligned scanner build and read-only upload mount. Private uploads require the daemon to run as UID 10001; [migration details](UPLOAD_RETENTION.md):
 
 ```yaml
 services:
   clamav-web-client:
     environment:
+      CLAMAV_UPLOAD_DIR: "/app/data/uploads"
       CLAMAV_UPLOAD_PATH_SCAN_ENABLED: "true"
       CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM: "false"
     volumes:
       - ./data:/app/data
       - ./scandir:/scandir:ro
   clamav-server:
+    image: clamav-server:1.4.6-uid10001-local
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: Dockerfile.clamd
     volumes:
-      - ./data:/app/data:ro
+      - type: bind
+        source: ./data/uploads
+        target: /app/data/uploads
+        read_only: true
+        bind:
+          create_host_path: false
       - ./scandir:/scandir:ro
 ```
 
-This fragment is shipped as [`shared-paths.override.yaml`](../examples/compose/shared-paths.override.yaml). To apply it to Compose A, create `./scandir` and run:
+The equivalent working override is shipped as [`shared-paths.override.yaml`](../examples/compose/shared-paths.override.yaml). To apply it to Compose A, create `./scandir` and run:
 
 ```bash
 mkdir -p scandir
+sudo install -d -o 10001 -g 10001 -m 0700 data/uploads
 docker compose -f docker-compose.yaml -f examples/compose/shared-paths.override.yaml config --quiet
-docker compose -f docker-compose.yaml -f examples/compose/shared-paths.override.yaml up -d
+docker compose -f docker-compose.yaml -f examples/compose/shared-paths.override.yaml up -d --build
 ```
 
 When composing volumes, inspect the merged configuration carefully; Compose merges mounts by target and multiple files can override existing entries. Prefer a single fully assembled Compose file for production. Path scans require `/scandir` to be an **allowed scan root**, configured under **Configuration Center → Scanning → `app.allowedScanRoots`** (default `/scandir`). Both **physical mount visibility** and **policy permission** are required. A file accessible only in the user's browser or only on the host will not be scannable by the Java container. If ClamD is remote, arrange compatible shared storage or use INSTREAM.
 
 **Quarantine write implications:** `:ro` `/scandir` permits scans but prevents moving original server files into quarantine. An infected **uploaded copy** can be quarantined in the Web UI's writable `/app/data`. If you deliberately want infected original PATH/WATCH files moved, permit the necessary controlled writes on the source and quarantine filesystem and test permissions. Keep quarantine **outside all watched roots**. Do not silently grant broad host filesystem write access to achieve this.
 
-**ClamdTop diagnostic:** If filenames show in development but not production, compare (1) upload mode env variables, (2) identical `/app/data` mounts in Web UI and ClamD, (3) both containers' actual storage paths, (4) whether a fallback to INSTREAM happened, and (5) whether the endpoint is a remote daemon without shared storage. `CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM=true` allows fallback when configured but can make ClamdTop show streams. It does **not** make arbitrary server paths remotely visible.
+**ClamdTop diagnostic:** If filenames show in development but not production, compare (1) upload mode env variables, (2) identical **upload-subdirectory** mounts in Web UI and ClamD (never the whole private data directory), (3) both containers' actual storage paths and the daemon UID, (4) whether a fallback to INSTREAM happened, and (5) whether the endpoint is a remote daemon without shared storage. `CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM=true` allows fallback when configured but can make ClamdTop show streams. It does **not** make arbitrary server paths remotely visible.
 
 ## 6. Build, verify or publish the current source
 
@@ -364,16 +376,20 @@ For a fresh installation, complete `/setup/` and select **Start application** fi
 1. Open `/login` through the appropriate origin, preferably HTTPS (e.g. `https://clamav.example.com/login`). Login form fields are **Username** and **Password**.
 2. On the first empty database, retrieve `/app/data/bootstrap-admin-password` as in Section 3; sign in as `admin`.
 3. In **Admin → Users** change the initial admin password. For each additional account, the **Add user** form has **Username**, **Password (12+ characters)**, **Role** (`VIEWER`, `OPERATOR`, `ADMIN`) and **Enabled**. Click **Create user**.
-4. Existing user rows expose **New password (12+ characters) → Reset** and **Delete**. Treat destructive actions cautiously; retain a working local administrator for break-glass recovery.
+4. Existing user rows expose **Change access → Role / Account → Save access**, **New password → Reset password**, **Revoke sessions** and **Delete**. Deletion, disabling, role changes and password resets revoke all existing sessions for the account after commit. A failed/rolled-back change leaves sessions intact. The last enabled local administrator is protected.
 5. Log out and verify the new credentials, then remove the bootstrap password file. `CLAMAV_BOOTSTRAP_ADMIN_PASSWORD` is not a post-install password reset mechanism.
 
-Roles govern routes and API operations. The UI applies CSRF protection on browser forms. Session expiry/logout limits sessions, but saving a changed LDAP/OIDC provider does not forcibly revoke all previously issued sessions. Avoid disabling every local admin before validating alternative sign-in.
+Roles govern routes and API operations. The UI applies CSRF protection on browser forms. The next request from a revoked session receives `401 session_expired` for APIs or redirects to `/login?expired` for browser navigation. Local account state is also rechecked on each authenticated browser request. Sessions expire after 30 minutes idle or one hour since login by default; background refreshes cannot extend the absolute age. Edit both durations under **Configuration Center → Network → Reverse proxy & session security → Advanced** and recreate the application.
+
+For an external user, remove access at the LDAP/OIDC provider, then select **External user sessions → Revoke sessions** on this page. Remote group memberships refresh on sign-in and are otherwise bounded by the absolute lifetime. Active provider configuration changes invalidate external sessions; Configuration Center changes require their displayed restart. Revocation and the session registry are per instance. See [session behavior, settings, limitations and tests](SESSION_REVOCATION.md).
 
 ## 8. Dashboard, Main and native ClamdTop
 
 **Dashboard:** Open `/dashboard` for recent jobs, detections, ClamD status and optional REST scanner summary. The data in *Jobs* is from scans submitted through the Web UI, its API, CLI or MCP; it is **not** a universal history of every other system's direct ClamD operations.
 
 **Main:** At `/main`, select the endpoint then **Refresh** to fetch daemon PING, VERSION and parsed/raw STATS. Connection failures can be network issues, disabled endpoint, missing signature database or a wrong TCP/socket target.
+
+Each health snapshot shares a five-second network budget across these commands, including a three-second DNS/connect limit. A stalled endpoint returns a visible error while the scheduler's other threads continue their work. Scans have a separate long timeout; both TCP and Unix transports enforce deadlines and a 4 MiB reply limit. See [deployment settings and failure behavior](CLAMD_TIMEOUTS.md).
 
 **ClamdTop:** At `/clamdtop` choose **Endpoint**, then **Connect** for an interactive native `clamdtop` terminal; **Disconnect** closes it. The terminal uses WebSocket path `/ws/clamdtop` and a PTY helper. Proxies must allow HTTP/1.1 upgrades. It samples the actual daemon, so activity from independent ClamD clients may be visible even though that activity isn't imported into Web UI jobs. ClamdTop's daemon filename display depends on scan command mode (Section 5). Terminal layout is designed to fit the panel's full width.
 
@@ -391,17 +407,21 @@ At `/scan` two independent forms are available:
 |  | **Queue path scan** | Adds an asynchronous server-path job |
 | **Recent jobs** | List/link | Open a submitted job, including result and error details |
 
-Uploads are limited by the minimum of proxy body-size, Spring servlet multipart limit, `app.upload.maxBytes`, and ClamD stream/file size limits. Default application maximum is **2 GiB** but that is not proof your proxy, memory/disk or `clamd.conf` can actually scan a 2 GiB file. Input paths are checked against canonical allowed roots to block trivial `..`/symlink escape. ClamD exclusion rules may further restrict files if observed and inherited.
+Uploads are limited by the minimum of proxy body-size, Spring servlet multipart limit, `app.upload.maxBytes`, and ClamD stream/file size limits. Default application maximum is **2 GiB** but that is not proof your proxy, memory/disk or `clamd.conf` can actually scan a 2 GiB file. Input paths are screened lexically against trusted configured/canonical roots before target resolution, then checked canonically to block `..`/symlink escape. Missing and denied paths show one generic error without exposing private path existence. Configured root aliases and in-root aliases work; arbitrary aliases outside every allowed root are rejected. See [path validation privacy](SCAN_PATH_PRIVACY.md). ClamD exclusion rules may further restrict files if observed and inherited.
+
+Long submitted filenames, including 400-character names, are supported as job labels; storage uses a bounded ASCII name. Copying and SHA-256 hashing happen together before a short database transaction inserts the complete batch, so slow file copies do not reserve application database connections. Failed batches retain the cleanup guarantees described in [upload retention](UPLOAD_RETENTION.md). See [filename bounds and transaction tests](UPLOAD_FILENAMES.md).
 
 **Results:** Accepted requests enter `QUEUED`, then `RUNNING`, then `FINISHED` with a verdict such as `OK`, `VIRUS_FOUND`, or `ERROR`. A queued job may show no final duration. Job progress is **state polling**, not per-byte percent complete. Closing the browser does not cancel the accepted server job. When a client times out, look up the original job ID before resubmitting.
 
 ## 10. Jobs, history, verdicts, retention and quarantine
 
+**Uploaded copies:** clean files are deleted after completion by default, and infected copies are quarantined or deleted. Hourly retention expires managed orphan/completed copies after 24 hours while protecting active work. Job/audit history pruning is independently opt-in. See [all retention settings and native scanner migration](UPLOAD_RETENTION.md).
+
 At `/jobs` browse the managed job history. The table refreshes automatically every two seconds while listed jobs are queued/running and every five seconds otherwise. Final statuses/verdicts appear without navigation; the last table is retained during transient errors. Polling pauses in background tabs and stops when leaving the page. Returning through the sidebar fetches a fresh page. Open `/jobs/{id}` to see the type (`UPLOAD`, `PATH`, `WATCH`), requested target, selected endpoint, submitter, submission/start/finish timestamps, status, verdict, detections and error details. A positive signature is different from an actual quarantine move. The app persists data in SQL; there is no claim of indefinite automated purging or a built-in legal hold/archive workflow.
 
 **Quarantine setup:** Go to **Configuration Center → Scanning → Quarantine**. Set `app.quarantine.enabled=true` and `app.storage.quarantineDir=./data/quarantine` (or another **writable persisted path**), review and apply; restart when indicated. Protect host access to this folder. The operation may move a saved upload or writable server-side source on positive detection. An original file sitting on the uploading user's Mac is **not** moved. Read-only server path mounts cannot move their original files. No supported browser quarantine restore/download screen is provided; any restore must follow an operator-controlled filesystem/forensics procedure.
 
-In the v1 API/MCP diagnostics, quarantine evidence may be `PENDING`, `RECORDED`, `NOT_RECORDED`, `NOT_APPLICABLE` or `UNKNOWN`. `RECORDED` means a path was recorded in job evidence, **not** that the file was independently reverified as present. Older PATH/WATCH jobs can have incomplete evidence. A `VIRUS_FOUND` verdict does **not** guarantee successful quarantine.
+In the job APIs/MCP diagnostics, quarantine evidence may be `PENDING`, `RECORDED`, `FAILED`, `NOT_RECORDED`, `NOT_APPLICABLE` or `UNKNOWN`. `RECORDED` means a path was recorded in job evidence, **not** that the file was independently reverified as present. `FAILED` includes error code `QUARANTINE_FAILED` and a safe public message; the job detail page also shows a warning. The verdict remains `VIRUS_FOUND` so clients still recognize the detection. Older PATH/WATCH jobs can have incomplete evidence. A `VIRUS_FOUND` verdict does **not** guarantee successful quarantine. New quarantine filenames are short opaque IDs, independent of the source filename; the original upload label remains on its job.
 
 ## 11. Configuration Center — scan policy and notification fields
 
@@ -411,11 +431,15 @@ Use **Administration → Configuration center**. Scan policy, storage, workers, 
 | `app.allowedScanRoots` | `/scandir` | Comma-separated absolute server roots allowed for PATH/WATCH scans. Docker mounts must independently expose them |
 | `app.upload.maxBytes` | `2147483648` | Application max input in bytes, not a guarantee ClamD accepts the size |
 | `app.concurrentScans` | `2` | Scan worker concurrency; **restart** to resize active pool |
-| `app.storage.uploadDir` | `./data/uploads` | Server-side saved uploads; persist `/app/data` |
+| `app.storage.uploadDir` | `./data/uploads` | Temporary uploaded copies; private POSIX directory/files (`0700`/`0600`) |
+| `app.uploads.deleteClean` | `true` | Remove clean copies after completion |
+| `app.uploads.retentionHours` | `24` | Expire managed orphans/completed copies; active uploads protected |
+| `app.history.jobsRetentionDays` | `0` | Optional completed job history pruning; 0 keeps history |
+| `app.history.auditRetentionDays` | `0` | Optional SQL audit history pruning; 0 keeps history |
 | `app.storage.quarantineDir` | `./data/quarantine` | Destination for infected server files; writable and outside watched input roots |
 | `app.quarantine.enabled` | `false` | Whether an eligible positive scan triggers a quarantine attempt |
 | `app.watch.enabled` | `false` | Global switch for watched-directory polling |
-| `app.watch.pollSeconds` | `30` | Requested polling interval, while the scheduler wakes on a 30-second cadence |
+| `app.watch.pollSeconds` | `30` | Requested polling interval, with a one-second scheduler tick |
 | `app.webhook.enabled` | `false` | Direct managed scan completion notification on/off |
 | `app.webhook.url` / **Webhook URL** | Empty | Write-only receiver URL; blank edit retains previously saved value |
 | **Clear the saved credential** | Unchecked | Explicitly clears the webhook URL and disables delivery after review/apply |
@@ -471,8 +495,6 @@ A Unix socket requires mounting the containing directory at the same path and gr
 
 ## 13. API Scan and API Reports — optional **external** REST scanner
 
-For the complete external REST Compose example, both GUI and environment setup, built-in API usage and upload-limit units, see [Web UI API and REST deployment](REST_API_DEPLOYMENT.md).
-
 These two pages become meaningful when a **separate compatible REST scanning service** exists and `CLAMAV_REST_URL` is configured. They are **not** alternate views of local `/api/v1` managed jobs. Their backend processes jobs, statistics and webhook delivery independently.
 
 **To enable:** configure the upstream host and credentials in **Configuration Center → Connections → External REST scanner**, review/apply and restart when indicated. Authoritative deployment overrides remain an alternative (Section 20.5). Then open:
@@ -494,13 +516,16 @@ Use when incoming files already land **inside the Web UI's server-side filesyste
 | **Toggle** | Enable/disable an existing watched record without deleting it |
 | **Delete** | Remove the watch registration; not a command to delete source files |
 
-The implementation uses periodic file inspection (not OS inotify). It remembers file size/mtime to avoid repeatedly submitting unchanged entries. The scheduler wakes on a **30-second cadence**; configured `app.watch.pollSeconds` adjusts the intended interval. Each pass is bounded to around **depth five** and **1,000 regular files**, so a huge changing tree is not guaranteed to be scanned fully in one pass. Inherited `ExcludePath` policy can filter entries. New jobs have type `WATCH`. Test a small directory, verify the new job, then confirm an unchanged file does not flood the queue. Quarantine original files requires explicit write access and storage planning.
+The implementation uses periodic file inspection (not OS inotify). A one-second scheduler tick honors `app.watch.pollSeconds` (30–3600 seconds). Each due poll traverses the complete watched tree, with no file-count or depth cap; overlapping polls are prevented, so a large traversal may extend the effective interval. Directory symlinks are not followed; file symlinks must resolve inside allowed roots. Current allowed-root, endpoint and inherited `ExcludePath` policy still apply.
+
+File size/mtime fingerprints load in one query per watched directory. A `WATCH` job and its submitted fingerprint commit in the same per-file transaction; failed creation or marker writes leave the file eligible for retry without another file change. A queue failure after commit leaves a durable QUEUED job for the existing queue reconciler. WARN logs identify failing/skipped paths, and each completed directory traversal logs submission and failure counts. Hourly cleanup removes fingerprints for paths confirmed absent, using database batches without a fixed total limit. A fingerprint records submitted work; the Scan Jobs verdict is the scan result. See [watcher reliability and recovery](WATCHER_RELIABILITY.md), including how to request a full rescan of legacy cached files. Quarantine original files requires explicit write access and storage planning.
 
 ## 15. Authentication Management — provider tests, saves and recovery
 
 Open **Configuration Center → Identity & API**. The former Authentication page redirects here and no longer has a separate writer. **Test connection** checks an unsaved draft; it never saves. **Review changes → Apply** saves configuration, followed by restart to activate provider changes. Explicit deployment values remain authoritative and locked. Keep an enabled local recovery administrator; local authentication is independent of external provider availability.
 
-New central identity credentials use `conf/configuration-center.key` and encrypted central storage. Existing encrypted SQL provider rows are preserved and read with their matching `conf/auth-settings.key` (or configured legacy key). An untouched bind/client secret is retained, including during a partial central edit. Back up both keys and the database; no credential migration or rotation is required merely to upgrade. All provider options use the same runtime validation.
+New central identity credentials use `conf/configuration-center.key` and encrypted central storage. Existing encrypted SQL provider rows are preserved and read with their matching `conf/auth-settings.key` (or configured legacy key). An untouched bind/client secret is retained when the destination and bind/client identity are unchanged. Changing LDAP URL, StartTLS, base DN, manager DN or referrals, or OIDC issuer or client ID, requires re-entering the credential before Test or Save, including for disabled providers and setup/recovery. See [provider secret protection](PROVIDER_SECRET_BINDING.md) for file-backed credentials and encryption compatibility. Back up both keys and the database; no credential migration or rotation is required merely to upgrade. All provider options use the same runtime validation.
+
 ### 15.1 LDAP / Active Directory — every UI field
 
 | Configuration Center → LDAP field | Example / meaning |
@@ -522,7 +547,7 @@ New central identity credentials use `conf/configuration-center.key` and encrypt
 | **Connect timeout (ms)** | Normally `5000`, UI 1000–30000 |
 | **Read timeout (ms)** | Normally `5000`, UI 1000–30000 |
 | **LDAP referrals** | Ignore / Follow / Throw; directory-specific |
-| **Bind password** | Write-only; blank preserves saved value |
+| **Bind password** | Write-only; blank preserves saved value only when LDAP destination and bind identity are unchanged |
 | **StartTLS** | Required when using plain `ldap://` URL without LDAPS |
 | **Search nested groups** | Use if roles are inherited through nested memberships |
 | **Pool LDAP connections** | Optional; restrict to appropriate LDAPS configuration |
@@ -577,7 +602,7 @@ Register an **OIDC confidential authorization-code** application in your identit
 | **Enable OIDC login** | Display/enable the SSO option |
 | **HTTPS issuer URL** | E.g. `https://auth.example.com/application/o/clamav/` (provider-specific) |
 | **Client ID** | Confidential client identifier from IdP |
-| **Client secret** | Write-only; blank retains encrypted prior value |
+| **Client secret** | Write-only; blank retains encrypted prior value only when issuer and client ID are unchanged |
 | **Requested scopes** | Comma-separated, normally `openid,profile,email,groups` |
 | **Group claim path** | JWT/userinfo claim containing groups, normally `groups` |
 | **Viewer groups** | Claim values mapped to VIEWER |
@@ -598,10 +623,11 @@ services:
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID: "clamav-webui"
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:?Set in private .env}"
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_SCOPE: "openid,profile,email,groups"
-      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "${CLAMAV_TRUSTED_PROXY_CIDRS:?Set exact proxy IP/CIDR}"
 ```
 
-Or use application namespace `CLAMAV_IDENTITY_OIDC_*` including `CLIENT_SECRET_FILE`, issuer, scopes, group roles, claim and logout controls. Do not configure two conflicting secret sources. The standard Spring registration name `oidc` is bridged internally to the actual callback registration name `clamav`. **Behind a reverse proxy**, the packaged `framework` default recognizes HTTPS automatically. Ensure the trusted proxy **overwrites** any externally supplied Forwarded / X-Forwarded-* headers and direct backend access is restricted. Wrong forwarded scheme/host causes invalid callback redirects or HTTP/HTTPS loops. Claims must actually include the mapped group names—requesting the `groups` scope does not magically create a group claim in every IdP (especially Google). Test with a low-privilege account before mapping administrators.
+Or use application namespace `CLAMAV_IDENTITY_OIDC_*` including `CLIENT_SECRET_FILE`, issuer, scopes, group roles, claim and logout controls. Do not configure two conflicting secret sources. The standard Spring registration name `oidc` is bridged internally to the actual callback registration name `clamav`. **Behind a reverse proxy**, explicitly select `native` and allowlist the actual proxy peer using `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES`; the default `none` ignores forwarded headers. Ensure the trusted proxy **overwrites** any externally supplied Forwarded / X-Forwarded-* headers and direct backend access is restricted. Wrong forwarded scheme/host causes invalid callback redirects or HTTP/HTTPS loops. Claims must actually include the mapped group names—requesting the `groups` scope does not magically create a group claim in every IdP (especially Google). Test with a low-privilege account before mapping administrators.
 
 ### 15.3 Provider precedence, identity separation, recovery
 
@@ -609,6 +635,7 @@ Or use application namespace `CLAMAV_IDENTITY_OIDC_*` including `CLIENT_SECRET_F
 - Explicit `CLAMAV_IDENTITY_LDAP_*` bootstrap variables override `SECURITY_LDAP_*` compatibility aliases. The OIDC compatibility bridge supports standard Spring client settings.
 - A successful LDAP bind/OIDC discovery is **not** an authorization-mapping validation; login and group claims must still be exercised end-to-end.
 - The system keeps local accounts for break-glass access and stores external identities separately; it does not store LDAP/OIDC passwords as local password hashes.
+- Local form and HTTP Basic share an account-wide counter across IPs: five failed passwords within 15 minutes cause a 15-minute lockout. Basic requests return `429 login_locked` with `Retry-After`, including with a correct password during lockout. Successful authentication before lockout resets the counter. LDAP has an independent account budget. [See details and regression tests](BASIC_AUTH_LOCKOUT.md).
 - Login lockout and browser sessions are per application instance; there is no supported distributed identity/session cluster.
 
 ## 16. API Tokens, `/api/v1`, legacy API, scope and curl examples
@@ -621,11 +648,13 @@ Under **Admin → API Tokens** `/admin/api-tokens` use:
 | **Expires in hours** | TTL, UI range **1–8760** |
 | **Scopes** | Choose minimum capabilities from the six v1 scopes below |
 | **Allowed endpoint IDs** | Comma-separated numeric IDs, optional; empty means any endpoint allowed by policy |
-| **Allowed server path roots** | Comma-separated permitted server roots; **required for `scan:path`** |
+| **Existing server directory roots** | Comma-separated existing absolute directories within global scan roots; aliases resolve to canonical roots; **required for `scan:path`** |
 | **Create API token** | Issues one-time secret; copy securely, it will not be displayed again |
 | **Issued credentials / Revoke** | Review metadata and explicitly invalidate a leaked/obsolete credential |
 
 Only the token **hash** persists. Use the returned secret as `Authorization: Bearer TOKEN` over HTTPS. A scoped token cannot log into Admin pages or mint new tokens, even if it can scan or read jobs. Endpoint/path restrictions intersect with global policy.
+
+With nonempty roots, `jobs:read` shows PATH/WATCH jobs whose recorded canonical targets are inside those roots, plus uploads submitted by that same token. Lists, details, progress and pagination totals all apply this rule. `audit:read` is limited to events linked to visible jobs; unlinked administrative or missing-job events are hidden. Without roots, path submissions remain denied, while history reads retain endpoint-wide visibility. Administrator/session access is unchanged. See [the full policy and upgrade behavior](TOKEN_PATH_SCOPES.md), including reissuing older credentials whose roots were stored as unresolved aliases. The token table displays effective stored roots.
 
 | Scope | Grants |
 |---|---|
@@ -676,7 +705,7 @@ Tokens are **not** a CSRF bypass for browser sessions. Legacy routes under `/api
 
 ### 16.1 API behavior and safety
 
-`api.v1.scan-rate-limit-per-minute` defaults **30 per instance**; `api.v1.max-page-size` defaults **100**. Database health is independent of ClamD health; `health/live` is not proof the daemon works. ClamD health reports signature freshness based on configured database timezone/age threshold; invalid timestamps are UNKNOWN, not fabricated fresh. Expired/revoked tokens cease to authenticate. API return values and error codes should be checked explicitly rather than assuming HTTP 200 on queued scan submission.
+`api.v1.scan-rate-limit-per-minute` defaults **30 per authenticated subject per 60-second window, per instance**; `api.v1.max-page-size` defaults **100**. Database health is independent of ClamD health; `health/live` is not proof the daemon works. ClamD health reports signature freshness based on configured database timezone/age threshold; invalid timestamps are UNKNOWN, not fabricated fresh. Expired/revoked tokens cease to authenticate. Login and scan limiter stores are bounded and expire idle state. Scan buckets use token/account identity after authentication and IP only for anonymous requests; local browser and Basic scans share one account budget. At capacity, live budgets remain and new keys are rejected until space is released. See [bounded throttling](BOUNDED_LIMITERS.md) for settings, overload behavior and tests. API return values and error codes should be checked explicitly rather than assuming HTTP 200 on queued scan submission.
 
 ## 17. Audit Log and accountability
 
@@ -811,7 +840,7 @@ The reference below distinguishes Docker environment variables from property key
 | `CLAMAV_BOOTSTRAP_ADMIN_PASSWORD` | Unset generates password file; first-run-only, minimum 12 chars |
 | `TZ` | Container timezone; examples `Europe/Bucharest`; independently check daemon signature timestamp timezone |
 | `SERVER_PORT` | `8080` application listener; host `ports:` mapping controls external port |
-| `SERVER_FORWARD_HEADERS_STRATEGY` | `framework` by default in the application and Compose; `none` explicitly disables forwarded-header trust; `native` remains available for deliberate container-specific configuration |
+| `SERVER_FORWARD_HEADERS_STRATEGY` | `none` by default; `native` requires an explicit actual-proxy allowlist; legacy `framework` trusts every sender and needs migration |
 | `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE` | `2048MB` default |
 | `SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE` | `2048MB` default |
 | `SERVER_TOMCAT_MAX_SWALLOW_SIZE` | `2048MB` default |
@@ -863,7 +892,9 @@ Secret encryption bootstrap: `CLAMAV_AUTH_SETTINGS_KEY_FILE` (persistent raw key
 | `clamav.metrics.clamd-poll-ms` | `30000` ms |
 | `clamav.metrics.clamd-max-endpoints` | `12` (clamped to 1–12) |
 | `clamav.metrics.clamd-initial-delay-ms` | `5000` ms |
-| `api.v1.scan-rate-limit-per-minute` | `30` per instance |
+| `api.v1.scan-rate-limit-per-minute` | `30` per subject per 60-second window, per instance |
+| `api.v1.scan-rate-limit-max-entries` | `10000`; new subjects throttled at capacity |
+| `clamav.security.login.max-entries` | `10000`; new accounts throttled at capacity |
 | `api.v1.max-page-size` | `100` |
 | `api.v1.clamd.database-timezone` | `UTC` by default; change if daemon VERSION timestamp is from another timezone |
 | `api.v1.clamd.max-database-age-hours` | `168` |
@@ -959,32 +990,25 @@ docker compose logs --tail=200 clamav-web-client
 
 ## 22. Reverse proxy, certificates, secrets and network security
 
-### 22.1 Built-in HTTPS recognition for Bearer tokens behind a proxy
+### 22.1 Safe HTTPS recognition behind a proxy
 
-The application packages
-`server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}`.
-A normal Docker build enables HTTPS recognition for TLS-terminating reverse
-proxies and Kubernetes Ingress:
+The packaged default is `server.forward-headers-strategy=none` (issue #13).
+Direct clients cannot forge their socket IP or HTTPS status with forwarded
+headers. For TLS termination select `native` and set
+`SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` to the actual proxy address/CIDR seen
+by the application. Both internal and additional trusted peers default to
+`(?!)`, which trusts nobody. Native mode alone therefore ignores all peers.
 
-```bash
-docker build --pull -t clamav-web-client:2.1.0-local .
-```
+The proxy must overwrite incoming forwarded headers and be the only permitted
+backend entry point. Use `X-Forwarded-Proto` and `X-Forwarded-For`; RFC `Forwarded`
+alone is not interpreted in native mode. Replace old explicit `framework`
+overrides in Compose, external Spring configuration or saved GUI settings.
+Use the external HTTPS URL in `clamctl`, MCP and API clients. See
+[the complete proxy settings, migration and examples](REVERSE_PROXY_TLS.md).
 
-The image also runs as UID/GID `10001:10001`. Both fixes are in the source;
-no helper script or `--trusted-proxy` flag is required. Compose examples use the
-same `framework` default. Remove an old explicit
-`SERVER_FORWARD_HEADERS_STRATEGY=none` override to inherit it. To deliberately
-ignore forwarded headers for direct access, set that variable to `none` and
-use direct HTTPS for machine credentials.
-
-The proxy must replace incoming `Forwarded` and `X-Forwarded-*` headers and be
-the only permitted backend entry point. Use the external HTTPS URL in
-`clamctl`, MCP and API clients. See [Reverse proxy TLS](REVERSE_PROXY_TLS.md).
-
-A `403 tls_required` / `Bearer tokens require HTTPS` behind a TLS-terminating
-proxy means the original HTTPS scheme is missing or a runtime setting disabled
-forwarding. The Bearer filter still requires HTTPS, valid credentials and the
-necessary scopes. Client certificate flags do not change server scheme recognition.
+A `403 tls_required` behind a TLS proxy means native forwarding is not enabled,
+the actual socket peer is not allowlisted, or the proxy is not sending an HTTPS
+scheme. Token validity, scopes and revocation remain enforced.
 
 ### 22.2 Nginx and network configuration
 
@@ -1020,7 +1044,7 @@ server {
 }
 ```
 
-`proxy_pass` addresses **the Docker host reachable from Nginx**, not blindly `localhost` when proxy and UI run on different machines. The packaged `framework` default requires the proxy to be the exclusive inbound path and replace untrusted headers. This Nginx example assumes it is the TLS edge; configure an explicit trust chain for multiple proxies. The proxy must support `/ws/clamdtop` upgrades. Set upload limit appropriately for real capacity, not just the application's 2 GiB default.
+`proxy_pass` addresses **the Docker host reachable from Nginx**, not blindly `localhost` when proxy and UI run on different machines. Native proxy mode requires an explicit proxy allowlist, an exclusive proxy path and replacement of untrusted forwarded headers. This Nginx example assumes it is the TLS edge; configure an explicit trust chain for multiple proxies. The proxy must support `/ws/clamdtop` upgrades. Set upload limit appropriately for real capacity, not just the application's 2 GiB default.
 
 **Network hardening:** restrict `clamd:3310` to trusted internal clients only; restrict SQL 5432/3306 and management 9091 similarly. When using remote ClamD, verify firewall/ACL, correct host and storage policy. Make `./conf`, `.env`, LDAP bind secret files, OIDC client secrets and token files owner-readable only. Back up `conf/auth-settings.key` safely. Trust private CAs in the **Java JVM** when it connects to LDAPS/OIDC/HTTPS REST, and separately trust the Web UI certificate CA in `clamctl`/MCP clients. A trusted CA alone is not sufficient: hostname/SAN verification must also succeed. Avoid global `verify=false` or insecure HTTP redirects.
 
@@ -1116,7 +1140,7 @@ The provided source has tests and security verification notes, but a test report
 | Nginx `502` and `conf/integrations.properties: Operation not permitted` | Backend startup failed while setting owner-only permissions; migrate existing `conf`/`data` ownership to UID/GID 10001. `writable=true` alone does not prove ownership. See `NON_ROOT_CONTAINER.md` |
 | curl error 60 with a local/self-signed HTTPS certificate | Trust the correct local CA/server certificate using `--cacert` and match the URL to its SAN; public DNS is not required. See `UPDATE_AND_VERIFY.md` |
 | Login page loops or SSO redirect wrong | Check HTTPS hostname, trusted proxy headers (`SERVER_FORWARD_HEADERS_STRATEGY`), exact OIDC `/login/oauth2/code/clamav` callback |
-| `403 tls_required` for Bearer tokens behind HTTPS proxy | Use the packaged `framework` default, remove old `none` overrides, and verify the trusted edge sends HTTPS scheme and blocks direct backend access; see Section 22.1 |
+| `403 tls_required` for Bearer tokens behind HTTPS proxy | Explicitly select `native`, allowlist the actual proxy peer, and verify the proxy sends HTTPS scheme and blocks direct backend access; see Section 22.1 |
 | Cannot log in as `admin` | Check persistent H2/SQL database, use actual bootstrap file for *new DB only*, local account status. Do not delete database to reinitialize |
 | Web UI starts but cannot scan | Check endpoint Enabled, ClamD host/port **from inside container**, daemon signatures, SQL readiness and policy |
 | ClamdTop black/blank or Connect fails | WebSocket `/ws/clamdtop` upgrade, proxy timeouts, native binary availability in image, daemon network/socket permissions |
@@ -1124,7 +1148,7 @@ The provided source has tests and security verification notes, but a test report
 | `Can't access file`/path rejected | `/scandir` not mounted on UI or ClamD, mount is different absolute path, `app.allowedScanRoots`, permissions/symlink, inherited `ExcludePath` |
 | File too large | Proxy limit, Spring multipart ceiling, `app.upload.maxBytes`, ClamD `StreamMaxLength`/`MaxFileSize`/`MaxScanSize`, available disk |
 | Jobs persist after client timeout | Expected asynchronous behavior; query job ID before retry, `--wait` needs jobs:read |
-| Watch sends no jobs | `app.watch.enabled`, watched row Enabled, allowed mount, no change in mtime/size, 30s polling/depth/1,000-entry bound |
+| Watch sends no jobs | `app.watch.enabled`, watched row/endpoint Enabled, allowed mount, unchanged mtime/size, configured poll interval, watcher WARN logs and QUEUED job reconciliation; see [watcher recovery](WATCHER_RELIABILITY.md) |
 | `VIRUS_FOUND` but no quarantine file | Disabled quarantine, read-only original source, directory permission, recorded evidence not proof of filesystem move |
 | REST monitor unconfigured/unavailable | `CLAMAV_REST_URL` points to missing/non-compatible external scanner, wrong API key/path, upstream connectivity |
 | Webhook doesn't arrive | Direct vs upstream REST webhook, address policy/private receiver opt-in, timeout or queue-drop warnings, receiver status; see `WEBHOOK_RESILIENCE.md`; no durable retry queue |

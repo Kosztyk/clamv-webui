@@ -1,0 +1,96 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15"
+  ],
+  "verified_date": "2026-11-10",
+  "application_version": "2.1.0",
+  "scanner_image": {
+    "image": "clamav/clamav:1.4.6@sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9",
+    "tag": "1.4.6",
+    "digest": "sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ],
+    "source": "https://registry-1.docker.io/v2/clamav/clamav/manifests/1.4.6",
+    "verified_date": "2026-11-10",
+    "image_source": "https://docs.clamav.net/manual/Installing/Docker.html"
+  },
+  "compose_contracts": {
+    "result": "passed",
+    "checks": 32,
+    "renderer": "Official Docker Compose v5.7.0 config --format json",
+    "scenarios": [
+      "root",
+      "root with shared paths",
+      "standalone INSTREAM",
+      "standalone with shared paths",
+      "optional loopback-only publication"
+    ],
+    "assertions": [
+      "No default scanner host ports",
+      "No scanner mounts of /, /app, /app/data or /app/conf",
+      "Read-only upload subdirectory at the exact app path",
+      "No silent root-owned upload directory creation",
+      "Version/digest pin",
+      "Optional blank REST URL",
+      "Loopback-only opt-in port"
+    ]
+  },
+  "eicar_runtime": {
+    "result": "passed",
+    "engine": "Real ClamAV 1.4.6 official Linux package",
+    "engine_package_sha256": "d3ee9e401974855a1edc1761b1425417d126de618d5f0c91cd51209f69f6fcc2",
+    "signature_database": "A local fixture containing only the harmless EICAR test signature; no live signature download",
+    "runner": "scripts/test-eicar-native.py --isolate",
+    "pipeline": "Unchanged executable application JAR and real ClamD in separate restricted bubblewrap Linux filesystems, running scripts/smoke-eicar.sh",
+    "assertions": [
+      "EICAR VIRUS_FOUND and signature persisted",
+      "SCAN_UPLOAD audit visible",
+      "Native MULTISCAN path scanning, INSTREAM fallback disabled",
+      "Actual Web UI H2 database inaccessible to ClamD",
+      "Actual generated bootstrap password inaccessible to ClamD",
+      "Upload mount enforced read-only by Linux"
+    ]
+  },
+  "deployment_helper": {
+    "result": "passed",
+    "scenarios": 11,
+    "method": "Actual Bash helper with a simulated Docker CLI"
+  },
+  "previous_java_validation": {
+    "result": "Retained; no main Java/resources changed",
+    "matching_main_files": 774,
+    "tests": 638,
+    "passed": 633,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "record": "docs/security/basic-auth-lockout-validation.json"
+  },
+  "docker_ci": {
+    "workflow": ".github/workflows/phase0-ci.yml",
+    "local_result": "not_run",
+    "reason": "No Docker Engine/CLI is available in this environment",
+    "checks": [
+      "Build application image with Maven verify",
+      "Run real scanner image and EICAR smoke",
+      "Inspect live host port bindings and mounts",
+      "Confirm Web UI H2/bootstrap files exist and cannot be read in the scanner"
+    ]
+  },
+  "limits": [
+    "The Linux filesystem EICAR test does not execute the pinned Docker image or validate Docker networking.",
+    "The pinned Alpine scanner manifest is linux/amd64; other architectures require a verified suitable image.",
+    "The Java verification results are retained from the unchanged issues #13/#14 build, not rerun for Compose-only edits."
+  ],
+  "database_migrations": "None"
+}

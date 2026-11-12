@@ -1,0 +1,192 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15",
+    "https://github.com/Kosztyk/clamv-webui/issues/16",
+    "https://github.com/Kosztyk/clamv-webui/issues/17",
+    "https://github.com/Kosztyk/clamv-webui/issues/18",
+    "https://github.com/Kosztyk/clamv-webui/issues/19",
+    "https://github.com/Kosztyk/clamv-webui/issues/20",
+    "https://github.com/Kosztyk/clamv-webui/issues/21",
+    "https://github.com/Kosztyk/clamv-webui/issues/22",
+    "https://github.com/Kosztyk/clamv-webui/issues/23",
+    "https://github.com/Kosztyk/clamv-webui/issues/24"
+  ],
+  "application_version": "2.1.0",
+  "verified_at_utc": "2026-11-10T22:08:53.603618+00:00",
+  "java_verification": {
+    "command": "mvn verify",
+    "result": "passed",
+    "jdk": 21,
+    "tests": 847,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 842,
+    "new_test_cases": 15,
+    "new_cases": {
+      "lexical_screening_uniform_errors_and_aliases": 9,
+      "real_authenticated_path_privacy_integration": 6
+    },
+    "focused_regression_cases": 43,
+    "skip_reason": "Five existing UnixClamdClientTest cases require AF_UNIX sockets prohibited by this environment."
+  },
+  "packaged_http_checks": {
+    "result": "passed",
+    "total": 78,
+    "path_privacy": {
+      "checks": 17,
+      "passed": 17,
+      "assertions": [
+        "A real operator session authenticates",
+        "Administrator can issue a token through an alias inside the configured canonical root",
+        "The token root remains pinned to its canonical directory",
+        "Operator page uses one safe error for rejected target 1",
+        "Operator page uses one safe error for rejected target 2",
+        "Operator page uses one safe error for rejected target 3",
+        "Operator page uses one safe error for rejected target 4",
+        "Operator page uses one safe error for rejected target 5",
+        "Operator page uses one safe error for rejected target 6",
+        "/api/scan/path with session has identical public failures for existing/missing and escape targets",
+        "/api/v1/scans/paths with session has identical public failures for existing/missing and escape targets",
+        "/api/scan/path with Basic has identical public failures for existing/missing and escape targets",
+        "Restricted token cannot distinguish existing/missing global, tenant or symlink-denied targets",
+        "Rejected requests create no queued scan jobs",
+        "The configured root alias accepts an allowed operator scan",
+        "A canonical permitted token path still queues successfully",
+        "An in-root alias still queues successfully without widening the grant"
+      ],
+      "scope": "Real executable JAR, Tomcat, operator form session/Basic/Bearer and isolated H2/files. Synthetic ClamD replies and explicit loopback trusted native proxy headers; no external TLS/IdP/Docker runtime."
+    },
+    "token_path_scopes": {
+      "result": "passed",
+      "checks": 25,
+      "runner": "tools/verify-token-path-scopes.py",
+      "backend": "Real packaged Spring application and H2 with synthetic ClamD verdicts",
+      "transport": "Loopback trusted native proxy-header fixture; no external TLS or daemon",
+      "assertions": [
+        {
+          "description": "Administrator issues tenant A"
+        },
+        {
+          "description": "Administrator issues tenant B"
+        },
+        {
+          "description": "Administrator issues endpoint history"
+        },
+        {
+          "description": "Alias root is returned and stored as the canonical directory"
+        },
+        {
+          "description": "Scoped token submits a permitted canonical path"
+        },
+        {
+          "description": "Scoped token submits a permitted canonical path"
+        },
+        {
+          "description": "Scoped token submits its own upload"
+        },
+        {
+          "description": "Scoped token submits its own upload"
+        },
+        {
+          "description": "Authorized job remains readable after the synthetic worker result"
+        },
+        {
+          "description": "Authorized job remains readable after the synthetic worker result"
+        },
+        {
+          "description": "Authorized job remains readable after the synthetic worker result"
+        },
+        {
+          "description": "Authorized job remains readable after the synthetic worker result"
+        },
+        {
+          "description": "Root-scoped job list excludes another root and another token upload",
+          "visible_jobs": 2
+        },
+        {
+          "description": "Hidden signatures and upload labels do not leak into the authorized list"
+        },
+        {
+          "description": "Pagination totals and records contain only visible jobs"
+        },
+        {
+          "description": "Details/progress rejects a hidden path or foreign upload"
+        },
+        {
+          "description": "Details/progress rejects a hidden path or foreign upload"
+        },
+        {
+          "description": "Details/progress rejects a hidden path or foreign upload"
+        },
+        {
+          "description": "Details/progress rejects a hidden path or foreign upload"
+        },
+        {
+          "description": "Empty-root history credentials retain explicit endpoint-wide reads",
+          "visible_jobs": 4
+        },
+        {
+          "description": "Linked audit records obey the same job visibility and exclude administrative events"
+        },
+        {
+          "description": "Retargeting the original alias does not expand the pinned grant"
+        },
+        {
+          "description": "Existing canonical in-root history remains accessible after alias retargeting"
+        },
+        {
+          "description": "Bearer token cannot bypass v1 restrictions through legacy job routes"
+        },
+        {
+          "description": "Administrator token page explains and displays the effective root policy"
+        }
+      ]
+    },
+    "configuration_center": {
+      "runner": "tools/verify-configuration-center.py",
+      "passed": 36
+    }
+  },
+  "behavior": {
+    "shared_message": "Path is not allowed or does not exist",
+    "target_resolution_order": "Normalize lexically; resolve only trusted configured roots; check configured/canonical prefixes; resolve eligible target; check canonical containment.",
+    "outside_target_lookup": "Unit test verifies no toRealPath/getFileSystem call on a lexically denied target.",
+    "error_details": "Shared validation message omits rejected target and underlying filesystem exception cause.",
+    "symlinks": "Existing, dangling and looping escapes denied; configured root aliases and allowed in-root aliases supported.",
+    "outside_aliases": "Arbitrary aliases outside every configured/canonical root denied even if they point inward.",
+    "administrator_token_root_selection": "Administrator-chosen root aliases still resolve to canonical directories; global containment enforced before grant issuance.",
+    "browser": "Same generic errorMsg for all tested rejected targets.",
+    "legacy_session_basic": "Same generic 400 invalid_request status/payload for rejected paths.",
+    "v1_session": "Generic 400 invalid_request; envelope timestamp varies normally.",
+    "restricted_bearer": "Uniform generic 403 forbidden for missing, global-root, symlink and token-root denials; envelope timestamp varies normally.",
+    "rejected_jobs": "No scan job created by tested denials; mocked execution receives no denied work.",
+    "pinned_paths": "Canonical authorization handoff and queued PATH/WATCH revalidation from #21 retained.",
+    "daemon_exclusions": "Global path containment precedes submitted-spelling and canonical daemon exclusion checks.",
+    "configuration_fields": 117,
+    "schema_migration_required": false,
+    "new_runtime_dependencies": []
+  },
+  "verification_limits": {
+    "integration_execution": "Path privacy MVC integration uses actual authentication/path/job services and H2, with ScanExecutionService mocked to verify rejection before queueing.",
+    "packaged_execution": "Real JAR/Tomcat/H2/files and synthetic ClamD wire replies; explicit loopback trusted proxy headers for Basic/Bearer HTTPS checks.",
+    "browser_ui": "Server-rendered operator HTML checked through MockMvc and real HTTP. No new headless browser interaction run for #24.",
+    "docker_native_engine_external_services": "No new Docker, native engine, live LDAP/OIDC or external SQL deployment run. Earlier scoped reports are retained.",
+    "filesystem_mutation": "This change does not provide filesystem snapshot isolation. Existing execution-time redirect checks remain active.",
+    "response_comparison": "Compares public errors/statuses, excluding the v1 timestamp and unrelated changing browser/CSRF content.",
+    "api_compatibility": "Restricted Bearer missing-path submissions now return 403 instead of 400. Arbitrary outside aliases are no longer valid scan input."
+  },
+  "packaging": {
+    "baseline_source_files": 1113,
+    "all_baseline_paths_retained": true,
+    "root": "clamv-webui-v2.1.0",
+    "manifest": "SOURCE_MANIFEST.sha256",
+    "jar_source_resources_checked": 653,
+    "jar_resource_mismatches": 0,
+    "source_privacy_audit": "Final ZIP checked with tools/audit-source-package.py and private deny input.",
+    "publisher_check": "Final ZIP checked with publish-clamav-webui.sh --check.",
+    "complete_source_files": 1118
+  }
+}

@@ -3,6 +3,8 @@ package info.trizub.clamav.webclient.service;
 import info.trizub.clamav.webclient.model.AppUser;
 import info.trizub.clamav.webclient.model.Role;
 import info.trizub.clamav.webclient.repo.AppUserRepository;
+import info.trizub.clamav.webclient.security.LocalAccountChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,10 +29,12 @@ public class UserService {
     private String configuredBootstrapPassword = "";
     private final AppUserRepository repo;
     private final PasswordEncoder encoder;
+    private final ApplicationEventPublisher events;
 
-    public UserService(AppUserRepository repo, PasswordEncoder encoder) {
+    public UserService(AppUserRepository repo, PasswordEncoder encoder, ApplicationEventPublisher events) {
         this.repo = repo;
         this.encoder = encoder;
+        this.events = events;
     }
 
     @Transactional
@@ -100,7 +104,7 @@ public class UserService {
         AppUser u = new AppUser();
         u.setUsername(username);
         u.setPasswordHash(encoder.encode(rawPassword));
-        u.setRoles(authorities);
+        u.setRoles(validatedRoles(authorities));
         u.setEnabled(enabled);
         return repo.save(u);
     }
@@ -108,12 +112,9 @@ public class UserService {
     @Transactional
     public void deleteUser(Long id) {
         AppUser target = repo.findById(id).orElseThrow();
-        if (target.getRoles().contains(Role.ADMIN.asAuthority()) && target.isEnabled()
-                && repo.findAll().stream().noneMatch(u -> !u.getId().equals(id)
-                    && u.isEnabled() && u.getRoles().contains(Role.ADMIN.asAuthority()))) {
-            throw new IllegalArgumentException("Cannot delete the last enabled administrator");
-        }
+        requireAnotherAdmin(target);
         repo.deleteById(id);
+        events.publishEvent(new LocalAccountChanged(id));
     }
 
     @Transactional
@@ -122,6 +123,34 @@ public class UserService {
         AppUser u = repo.findById(id).orElseThrow();
         u.setPasswordHash(encoder.encode(newPassword));
         repo.save(u);
+        events.publishEvent(new LocalAccountChanged(id));
+    }
+
+    @Transactional
+    public void updateAccess(Long id, Set<String> authorities, boolean enabled) {
+        Set<String> roles = validatedRoles(authorities);
+        AppUser user = repo.findById(id).orElseThrow();
+        if (user.isEnabled() == enabled && user.getRoles().equals(roles)) return;
+        if (!enabled || !roles.contains(Role.ADMIN.asAuthority())) requireAnotherAdmin(user);
+        user.setRoles(roles);
+        user.setEnabled(enabled);
+        repo.save(user);
+        events.publishEvent(new LocalAccountChanged(id));
+    }
+
+    private void requireAnotherAdmin(AppUser target) {
+        if (target.getRoles().contains(Role.ADMIN.asAuthority()) && target.isEnabled()
+                && repo.findAll().stream().noneMatch(u -> !u.getId().equals(target.getId())
+                    && u.isEnabled() && u.getRoles().contains(Role.ADMIN.asAuthority()))) {
+            throw new IllegalArgumentException("Cannot delete, disable or demote the last enabled administrator");
+        }
+    }
+
+    private static Set<String> validatedRoles(Set<String> authorities) {
+        Set<String> allowed = Set.of(Role.ADMIN.asAuthority(), Role.OPERATOR.asAuthority(), Role.VIEWER.asAuthority());
+        if (authorities == null || authorities.isEmpty() || !allowed.containsAll(authorities))
+            throw new IllegalArgumentException("Choose at least one supported role");
+        return new java.util.HashSet<>(authorities);
     }
 
     @Transactional

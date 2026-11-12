@@ -1,0 +1,53 @@
+<div th:fragment="job">
+    <h4>Job details</h4>
+
+    <div th:if="${job == null}" class="alert alert-warning">
+        Job not found.
+    </div>
+
+    <div th:if="${job != null}" class="card mb-3">
+        <div class="card-body">
+            <div class="row small">
+                <div class="col-md-4"><strong>Id:</strong> <span th:text="${job.id}"></span></div>
+                <div class="col-md-4"><strong>Type:</strong> <span th:text="${job.type}"></span></div>
+                <div class="col-md-4"><strong>Status:</strong> <span th:text="${job.status}"></span></div>
+
+                <div class="col-md-4"><strong>Verdict:</strong> <span th:text="${job.verdict}"></span></div>
+                <div class="col-md-8"><strong>Target:</strong> <span th:text="${job.target}"></span></div>
+
+                <div class="col-md-4"><strong>Endpoint:</strong> <span th:text="${job.endpoint != null ? job.endpoint.name : ''}"></span></div>
+                <div class="col-md-4"><strong>User:</strong> <span th:text="${job.submittedBy}"></span></div>
+                <div class="col-md-4"><strong>Submitted:</strong> <span th:text="${job.submittedAt}"></span></div>
+
+                <div class="col-md-4"><strong>Started:</strong> <span th:text="${job.startedAt}"></span></div>
+                <div class="col-md-4"><strong>Finished:</strong> <span th:text="${job.finishedAt}"></span></div>
+                <div class="col-md-4"><strong>Size:</strong> <span th:text="${job.sizeBytes}"></span></div>
+
+                <div class="col-12 mt-2" th:if="${job.errorMessage != null}">
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong>
+                        <pre class="small mb-0" th:text="${job.errorMessage}"></pre>
+                    </div>
+                </div>
+
+                <div class="col-12 mt-2" th:if="${job.foundVirusesJson != null}">
+                    <div class="alert alert-warning">
+                        <strong>Found viruses:</strong>
+                        <pre class="small mb-0" th:text="${job.foundVirusesJson}"></pre>
+                    </div>
+                </div>
+
+                <div class="col-12 mt-2" th:if="${job.quarantinePath != null}">
+                    <div class="alert alert-info">
+                        <strong>Quarantine:</strong> <span th:text="${job.quarantinePath}"></span>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <a th:href="@{/jobs}" href="#" class="btn btn-sm btn-outline-secondary">Back</a>
+                    <a th:href="@{/jobs}" href="#" class="btn btn-sm btn-outline-primary">Refresh list</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

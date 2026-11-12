@@ -11,6 +11,16 @@ import static org.assertj.core.api.Assertions.*;
 
 class ConfigurationCoreTest {
     @TempDir Path folder;
+    @Test void sessionLifetimeBoundsAreSeparateFromProbeDurationBounds() {
+        assertThat(ConfigurationCatalog.validate(ConfigurationCatalog.get("clamav.security.session.max-age"), "1h")).isEqualTo("1h");
+        assertThat(ConfigurationCatalog.validate(ConfigurationCatalog.get("server.servlet.session.timeout"), "30m")).isEqualTo("30m");
+        for (String value : List.of("0s", "25h", "-1s")) {
+            assertThatThrownBy(() -> ConfigurationCatalog.validate(ConfigurationCatalog.get("clamav.security.session.max-age"), value))
+                .isInstanceOf(IllegalArgumentException.class);
+        }
+        assertThatThrownBy(() -> ConfigurationCatalog.validate(ConfigurationCatalog.get("server.servlet.session.timeout"), "7s"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
     ConfigurationStore store() { return new ConfigurationStore(folder.resolve("center.properties"),folder.resolve("center.key")); }
     ConfigurationEngine engine(MockEnvironment env,ConfigurationStore store) {
         env.getPropertySources().addLast(new ConfigurationSource(store));

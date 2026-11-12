@@ -1,0 +1,7 @@
+# Optional host-only ClamD diagnostics. ClamD has no authentication.
+# docker compose -f docker-compose.yml -f examples/compose/clamd-loopback.override.yaml up -d
+# Never bind this port to 0.0.0.0 or an untrusted LAN/public interface.
+services:
+  clamav-server:
+    ports:
+      - "127.0.0.1:3310:3310"

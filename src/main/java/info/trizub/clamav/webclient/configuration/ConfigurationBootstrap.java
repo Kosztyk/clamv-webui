@@ -77,6 +77,7 @@ public final class ConfigurationBootstrap {
         String prefix=environment.getProperty("server.servlet.context-path","");
         int port=environment.getProperty("server.port",Integer.class,8080);
         String bind=environment.getProperty("server.address","0.0.0.0");
+        var proxyHeaders=new RecoveryProxyHeaders(environment);
         HttpServer server=HttpServer.create(new InetSocketAddress(bind,port),16);
         CountDownLatch start=new CountDownLatch(1);
         var workers=new ThreadPoolExecutor(2,4,30,TimeUnit.SECONDS,new ArrayBlockingQueue<>(16),r->{Thread t=new Thread(r,"configuration-setup-http");t.setDaemon(true);return t;},new ThreadPoolExecutor.AbortPolicy());
@@ -85,11 +86,9 @@ public final class ConfigurationBootstrap {
                 try {
                     String path=exchange.getRequestURI().getPath().substring((prefix+"/setup").length());
                     if(path.isEmpty()) { exchange.getResponseHeaders().set("Location",prefix+"/setup/");exchange.sendResponseHeaders(302,-1);exchange.close();return; }
-                    Map<String,String> headers=new HashMap<>();exchange.getRequestHeaders().forEach((k,v)->{if(!v.isEmpty())headers.put(k.toLowerCase(Locale.ROOT),v.get(0));});
-                    boolean secure="https".equalsIgnoreCase(headers.get("x-forwarded-proto")) && !"none".equals(environment.getProperty("server.forward-headers-strategy","framework"));
-                    // RFC Forwarded support for a trusted edge using the standard format.
-                    if(!secure && !"none".equals(environment.getProperty("server.forward-headers-strategy","framework")))
-                        secure=headers.getOrDefault("forwarded","").toLowerCase(Locale.ROOT).matches(".*(?:^|[;, ])proto=\"?https\"?(?:[;, ].*|$)");
+                    Map<String,String> headers=new HashMap<>();exchange.getRequestHeaders().forEach((k,v)->{if(!v.isEmpty())headers.put(k.toLowerCase(Locale.ROOT),String.join(",",v));});
+                    boolean secure=exchange instanceof com.sun.net.httpserver.HttpsExchange
+                            || proxyHeaders.isSecure(exchange.getRemoteAddress().getAddress(),headers);
                     var response=protocol.handle(new ConfigurationSetupProtocol.Request(exchange.getRequestMethod(),path,headers,
                             exchange.getRequestBody().readNBytes(65537),exchange.getRemoteAddress().getAddress().getHostAddress(),secure));
                     exchange.getResponseHeaders().set("Content-Type",response.contentType());exchange.getResponseHeaders().set("Cache-Control","no-store");

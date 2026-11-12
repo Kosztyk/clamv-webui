@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<section th:fragment="summary" class="card mb-3 rest-panel" data-rest-summary>
+  <div class="card-body">
+    <div class="rest-heading"><div><h4>REST API activity</h4><p class="text-muted small">API lifetime totals and current queue. Direct GUI scans are counted separately.</p></div>
+      <a sec:authorize="hasAnyRole('OPERATOR','ADMIN')" class="btn btn-sm btn-outline-primary" th:href="@{/api-reports}">API reports</a></div>
+    <div data-rest-status role="status" class="small text-muted">Connecting to REST API…</div>
+    <div data-rest-metrics class="rest-metrics"></div>
+    <div data-rest-retention class="small text-muted mt-2"></div>
+  </div>
+</section>
+<section th:fragment="health" class="card mb-3 rest-panel" data-rest-health>
+  <div class="card-body"><h4>REST API engine &amp; signatures</h4>
+    <div data-rest-health-content role="status">Checking connection…</div>
+    <p class="small text-muted mt-2">This connection is configured separately from the selected clamd endpoint. Use the same daemon for matching ClamTop telemetry.</p>
+  </div>
+</section>
+<section th:fragment="jobs" class="card mb-3 rest-panel" data-rest-jobs data-page-size="10">
+  <div class="card-body"><div class="rest-heading"><h4>REST API scan jobs</h4><a class="btn btn-sm btn-outline-primary" th:href="@{/api-reports}">Filter &amp; export reports</a></div>
+    <p class="small text-muted">Includes synchronous and asynchronous scans from every client of the configured API. Updates every 5 seconds.</p>
+    <div data-rest-jobs-message role="status"></div><div data-rest-job-table></div>
+    <div class="rest-pagination"><button type="button" class="btn btn-sm btn-outline-secondary" data-rest-prev>Previous</button><span data-rest-page></span><button type="button" class="btn btn-sm btn-outline-secondary" data-rest-next>Next</button></div>
+    <div data-rest-detail hidden class="rest-detail mt-3"></div>
+  </div>
+</section>
+<section th:fragment="audit" class="card mb-3 rest-panel">
+  <div class="card-body"><h4>API scan history &amp; audit</h4>
+    <p>API submissions, report exports and webhook retries made here are recorded in the audit log below. Scans submitted by other clients appear in API reports with their request ID; the API does not record their GUI user or IP.</p>
+    <a class="btn btn-sm btn-outline-primary" th:href="@{/api-reports}">Open API history</a>
+  </div>
+</section>
+<section th:fragment="monitor" class="rest-monitor-strip" data-rest-summary data-rest-compact>
+  <strong>REST API queue</strong><span data-rest-status role="status">Connecting…</span><span data-rest-metrics></span>
+  <a sec:authorize="hasAnyRole('OPERATOR','ADMIN')" th:href="@{/api-reports}">Jobs &amp; reports</a>
+  <span class="small">ClamTop below monitors the selected daemon. API scans use INSTREAM; original filenames are in API jobs.</span>
+</section>
+<section th:fragment="scan" class="card mb-3 rest-panel">
+  <div class="card-body"><h4>Scan through the REST API</h4><p>Queue an asynchronous upload, follow file progress, and include it in API history and reports.</p>
+    <a class="btn btn-primary" th:href="@{/api-reports}">Open API scans</a>
+  </div>
+</section>
+<section th:fragment="reports" data-rest-reports>
+  <div class="card mb-3"><div class="card-body"><h4>API reports &amp; analytics</h4>
+    <p class="text-muted">Activity from the configured ClamAV REST API, including external applications. Direct GUI jobs remain on Scan jobs.</p>
+    <p th:unless="${restApiEnabled}" class="alert alert-warning">Set CLAMAV_REST_URL in Docker Compose to enable this integration. Add CLAMAV_REST_API_KEY if the API requires authentication.</p>
+  </div></div>
+  <div th:replace="~{fragments/rest-api :: summary}"></div>
+  <section class="card mb-3"><div class="card-body"><h5>Submit an API scan</h5>
+    <form data-rest-upload class="rest-upload">
+      <label>Files<input type="file" name="files" class="form-control" multiple required></label>
+      <label>Webhook<select name="webhookId" class="form-select" data-rest-webhooks><option value="">API default (if configured)</option></select></label>
+      <button type="submit" class="btn btn-primary">Queue API scan</button>
+    </form><div data-rest-upload-status role="status" class="small mt-2"></div>
+    <p class="small text-muted mt-2">The GUI streams the upload to the API. Scanning continues after acceptance. GUI upload limits and API file/count/queue limits both apply.</p>
+  </div></section>
+  <section class="card mb-3 rest-panel" data-rest-jobs data-page-size="25"><div class="card-body">
+    <h5>Jobs &amp; history</h5>
+    <form data-rest-filters class="rest-filters">
+      <label>View<select name="view" class="form-select"><option value="jobs">All jobs (live)</option><option value="history">Finished history</option></select></label>
+      <label>Status<select name="status" class="form-select"><option value="">All</option><option>queued</option><option>running</option><option>completed</option><option>failed</option></select></label>
+      <label>Mode<select name="mode" class="form-select"><option value="">All</option><option value="sync">Synchronous</option><option value="async">Asynchronous</option></select></label>
+      <label>Detection<select name="infected" class="form-select"><option value="">All</option><option value="true">Has infected files</option><option value="false">Completed clean</option></select></label>
+      <label>From (your timezone)<input type="datetime-local" name="from" class="form-control"></label>
+      <label>To (your timezone)<input type="datetime-local" name="to" class="form-control"></label>
+      <label>Exact request ID<input name="request_id" maxlength="128" class="form-control" placeholder="Optional correlation ID"></label>
+      <button type="submit" class="btn btn-primary">Apply filters</button>
+    </form>
+    <div data-rest-jobs-message role="status" class="my-2"></div><div data-rest-job-table></div>
+    <div class="rest-pagination"><button type="button" class="btn btn-sm btn-outline-secondary" data-rest-prev>Previous</button><span data-rest-page></span><button type="button" class="btn btn-sm btn-outline-secondary" data-rest-next>Next</button></div>
+    <div data-rest-detail hidden class="rest-detail mt-3"></div>
+    <hr><div class="rest-actions"><button type="button" class="btn btn-outline-primary" data-rest-analyze>Generate analytics</button><button type="button" class="btn btn-outline-secondary" data-rest-export="csv">Export CSV</button><button type="button" class="btn btn-outline-secondary" data-rest-export="json">Export JSON</button></div>
+    <p class="text-muted small mt-2">Reports use the applied filters and finished jobs only. Dates filter job creation time. Daily totals use UTC. Exports include each file's verdict and detections.</p>
+    <div data-rest-report-status role="status"></div><div data-rest-analytics></div>
+  </div></section>
+</section>
+</body></html>

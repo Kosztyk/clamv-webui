@@ -1,0 +1,77 @@
+<div th:fragment="admin-users" data-ui-build="2.3.4" data-page="users">
+    <h4>Admin: Users</h4>
+    <div class="alert alert-warning small">
+        On first run, read the generated admin password from <code>data/bootstrap-admin-password</code>. Rotate it after sign-in.
+    </div>
+
+    <div class="card mb-3 p-3">
+        <h6>Create user</h6>
+        <form method="post" th:action="@{/admin/users/create}" action="/admin/users/create" class="row g-2 align-items-end">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+            <div class="col-md-3">
+                <label class="form-label">Username</label>
+                <input class="form-control" name="username" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Password</label>
+                <input class="form-control" name="password" type="password" required />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Role</label>
+                <select class="form-select" name="role">
+                    <option value="VIEWER">VIEWER</option>
+                    <option value="OPERATOR">OPERATOR</option>
+                    <option value="ADMIN">ADMIN</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Enabled</label>
+                <select class="form-select" name="enabled">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100">Create</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead>
+            <tr>
+                <th>Id</th>
+                <th>Username</th>
+                <th>Roles</th>
+                <th>Enabled</th>
+                <th>Created</th>
+                <th>Last login</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="u : ${users}">
+                <td th:text="${u.id}"></td>
+                <td th:text="${u.username}"></td>
+                <td th:text="${u.roles}"></td>
+                <td th:text="${u.enabled}"></td>
+                <td th:text="${u.createdAt}"></td>
+                <td th:text="${u.lastLoginAt}"></td>
+                <td>
+                    <form th:action="@{'/admin/users/' + ${u.id} + '/reset'}" method="post" class="d-inline">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                        <input name="newPassword" class="form-control form-control-sm d-inline" style="width: 180px;" placeholder="new password" />
+                        <button class="btn btn-sm btn-outline-primary">Reset</button>
+                    </form>
+
+                    <form th:action="@{'/admin/users/' + ${u.id} + '/delete'}" method="post" class="d-inline">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete user?')">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

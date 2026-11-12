@@ -1,140 +1,159 @@
-# Bearer authentication behind a TLS-terminating proxy — issue #11
+# Forwarded-header trust and proxy TLS — issues #11 and #13
 
-Reverse proxy HTTPS recognition is enabled in the application source by default:
+Direct access ignores forwarded headers by default:
 
 ```properties
-server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}
+server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:none}
+server.tomcat.remoteip.internal-proxies=${SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES:(?!)}
+server.tomcat.remoteip.trusted-proxies=${SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES:(?!)}
 ```
 
-A normal build packages this configuration into the JAR:
+A direct HTTP client cannot change `getRemoteAddr()` or `isSecure()` with
+`X-Forwarded-For`, `X-Forwarded-Proto` or RFC `Forwarded`. This protects login
+lockout, scan rate limiting, audit IP addresses and HTTPS requirements. Direct
+GUI setup remains available with its existing explicit HTTP confirmation.
+Bearer tokens and legacy Basic authentication continue to require HTTPS.
+
+## Enable a TLS-terminating proxy explicitly
+
+Use Tomcat's native `RemoteIpValve` and allowlist only the actual proxy socket
+addresses. If the application sees its proxy as `172.30.0.10`, for example:
+
+```yaml
+environment:
+  SERVER_FORWARD_HEADERS_STRATEGY: native
+  SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "172.30.0.10/32"
+  SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES: "(?!)"
+  SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
+```
+
+Replace the example with the actual socket peer seen by the backend. Docker
+NAT, a host proxy or Kubernetes networking can change that address. Prefer fixed
+proxy IPs and exact IPv4 `/32` or IPv6 `/128` entries. The bundled Tomcat accepts
+comma-separated CIDRs or a single regular expression. The default `(?!)`
+expression matches nobody, so native mode alone trusts neither loopback nor
+private networks. Never leave the allowlist blank, use `.*`, or allow an entire
+client LAN.
+
+Configuration Center exposes these settings under Network → Reverse proxy &
+session security. Changes require an application restart. Explicit deployment
+settings retain precedence over GUI settings.
+
+The opt-in override requires an explicit proxy address:
 
 ```bash
-docker build --pull -t clamav-web-client:2.1.0-local .
+export CLAMAV_TRUSTED_PROXY_CIDRS='172.30.0.10/32'
+docker compose -f docker-compose.yml \
+  -f examples/compose/reverse-proxy.override.yaml up -d --force-recreate clamav-web-client
 ```
 
-No helper script, `--trusted-proxy` option, custom build argument or environment
-opt-in is needed. Nginx, Traefik, HAProxy and Kubernetes Ingress can terminate
-TLS and forward HTTP to application port 8080. Spring processes RFC 7239
-`Forwarded` and legacy `X-Forwarded-*` headers before the security filters, so
-`request.isSecure()` reflects the original HTTPS connection.
+Keep the backend reachable only through the proxy, using a firewall, private
+container network or Kubernetes NetworkPolicy. A loopback host port binding can
+suit a proxy on the Docker host, but verify the peer address the container sees;
+it may differ from `127.0.0.1`.
 
-The Dockerfile also contains issue #10's `USER 10001:10001` fix. Both changes
-apply when building directly from this complete source archive.
+## Proxy header handling
 
-## Existing runtime settings
+The first trusted edge must discard client-supplied forwarding information and
+write its own values. Do not append arbitrary incoming `X-Forwarded-For` at a
+single edge. Native mode uses `X-Forwarded-Proto` and `X-Forwarded-For`; RFC
+`Forwarded` alone is not interpreted. Headers from unlisted socket peers are
+ignored even with native mode enabled.
 
-The root Compose, standalone/remote examples and example environment file all
-default to `framework`. If an older deployment explicitly supplies
-`SERVER_FORWARD_HEADERS_STRATEGY=none` or
-`--server.forward-headers-strategy=none`, remove that override to use the new
-default. Higher-priority environment settings, command-line arguments and
-external Spring configuration still apply normally.
-
-An explicit `SERVER_FORWARD_HEADERS_STRATEGY=framework` remains supported for
-compatibility. The reverse-proxy Compose override and helper's legacy
-`--trusted-proxy` option are optional ways to set the already-enabled default.
-They do not patch source code or add fixes to an image.
-
-## Proxy trust boundary
-
-With `framework` enabled, forwarded headers are trusted input. Make the
-proxy/Ingress the exclusive path to the backend, using the appropriate
-firewall, loopback binding or Kubernetes NetworkPolicy. Spring does not itself
-prove that a request sender is your proxy.
-
-The trusted edge must remove incoming `Forwarded` and `X-Forwarded-*` values and
-write the correct scheme/host/client information. For a simple Nginx HTTPS
-virtual host, put the following in its proxy location:
+For a simple Nginx HTTPS virtual host, use this in its proxy location:
 
 ```nginx
 proxy_pass http://127.0.0.1:8080;
 proxy_http_version 1.1;
 proxy_set_header Host $host;
 proxy_set_header Forwarded "";
-proxy_set_header X-Forwarded-Proto https;
-proxy_set_header X-Forwarded-Host $host;
-proxy_set_header X-Forwarded-Port 443;
 proxy_set_header X-Forwarded-For $remote_addr;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header X-Forwarded-Port $server_port;
+proxy_set_header X-Forwarded-By "";
 proxy_set_header X-Forwarded-Prefix "";
 proxy_set_header X-Forwarded-Ssl "";
 ```
 
-Keep the existing `/ws/clamdtop` WebSocket Upgrade/Connection directives. Adjust
-the backend address/port for your deployment. The example assumes Nginx is the
-TLS edge; multi-proxy installations must establish their own trust chain.
+Adjust the upstream and allowlist the actual Nginx peer. Retain WebSocket
+Upgrade/Connection handling for `/ws/clamdtop`, upload limits and certificate
+configuration. This assumes Nginx is the TLS edge. For multiple proxies, restrict
+every trusted hop and preserve only information generated by those hops. Apply
+the same rule to Traefik, HAProxy and Kubernetes Ingress.
+
+## Upgrade an existing deployment
+
+Older versions selected `framework` automatically. Explicit old settings still
+win over the new default, including saved Configuration Center values. Check
+Compose and its overrides, `.env`, external Spring configuration, command-line
+arguments and Network settings:
+
+- Direct access: select `none`.
+- TLS proxy: replace `framework` with `native` and configure the proxy allowlist.
+- Restart/recreate the Web UI after applying startup settings.
+
+The optional `build-and-start.sh --trusted-proxy` helper now requires
+`CLAMAV_TRUSTED_PROXY_CIDRS` and writes native mode with that allowlist. An older
+managed framework override requires an explicit migration choice. A normal
+Docker build needs no helper:
+
+```bash
+docker build --pull -t clamav-web-client:2.1.0-local .
+```
+
+Legacy `framework` remains an explicit compatibility option for the main Spring
+server. It trusts headers from every sender and requires an isolated backend;
+migrate to native mode. The independent first-run/recovery listener only treats
+a forwarded HTTPS header as secure in native mode from an allowlisted peer.
+Otherwise explicit HTTP confirmation remains required. Recovery rate limiting
+continues to use the socket peer.
+
+The distributable root Compose uses environment placeholders for the uploaded
+installation's PostgreSQL credentials and optional endpoints. Keep your
+existing deployment's database URL, credentials, mounts and truststore settings;
+apply the forwarding changes without replacing your deployment values. Use
+`docker-compose.minimal.yaml` for a fresh Configuration Center installation.
 
 ## Kubernetes
 
-The built image declares numeric UID/GID 10001, and proxy support is packaged
-in its JAR; no forwarding environment variable is required. For example:
+Allowlist only actual Ingress peers and use a NetworkPolicy that only permits
+those peers to reach the backend. Avoid broad pod/client network trust. The
+image still runs as UID/GID 10001. Provision writable `/app/conf` and `/app/data`
+volumes with the correct ownership; see [non-root deployment](NON_ROOT_CONTAINER.md).
 
-```yaml
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 10001
-  runAsGroup: 10001
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop: [ALL]
+## Verification
+
+Real embedded-server tests cover default direct access, spoofed IP and HTTPS
+headers, unlisted peers, native mode without an allowlist, and an allowlisted
+proxy. Existing token validity, scope and revocation checks remain covered.
+Recovery tests cover peer trust, malformed allowlists, IPv4/IPv6 and mixed
+schemes. Run:
+
+```bash
+mvn -Dtest='ApiToken*IntegrationTest,RecoveryProxyHeadersTest' test
 ```
 
-This is the application container's security context. Provision writable
-`/app/conf` and `/app/data` volumes using an appropriate pod `fsGroup` or storage
-ownership policy; see [non-root deployment](NON_ROOT_CONTAINER.md). Configure
-the Ingress to forward HTTPS and restrict backend access to the Ingress.
+This direct request must return `403 tls_required` with the default settings:
 
-For pre-existing configuration files, group access from `fsGroup` alone is not
-enough for the application to change owner-only file modes. Provision those files
-with UID 10001 ownership as described in the non-root guide.
-
-## Direct access opt-out and token checks
-
-An installation that does not use a trusted proxy can explicitly ignore all
-forwarded headers:
-
-```yaml
-environment:
-  SERVER_FORWARD_HEADERS_STRATEGY: none
+```bash
+curl -i -H 'Authorization: Bearer invalid-diagnostic-token' \
+  -H 'X-Forwarded-For: 1.2.3.4' -H 'X-Forwarded-Proto: https' \
+  http://127.0.0.1:8080/api/v1/health/live
 ```
 
-In that opt-out mode a direct HTTP client cannot satisfy the HTTPS check by
-sending `X-Forwarded-Proto: https` or `Forwarded: proto=https`. Configure direct
-HTTPS to use Bearer credentials without a proxy. Spring's `native` mode remains
-available for deliberate container-specific configurations.
-
-The Bearer filter always requires `request.isSecure()`. Plain HTTP without a
-forwarded HTTPS scheme is rejected, as are forwarded HTTP, invalid or revoked
-tokens and insufficient scopes. The `tls_required` response identifies the
-forwarded HTTPS scheme and runtime overrides as troubleshooting points.
-
-## Verify through the deployment HTTPS endpoint
-
-Public DNS is not required. A LAN IP or local DNS name works when the client
-trusts the certificate and the address matches its certificate SAN. For a local
-CA or a directly self-signed certificate, use curl's `--cacert` or the CLI's
-`--ca-file`; see [local HTTPS verification](UPDATE_AND_VERIFY.md#3-verify-https-through-the-reverse-proxy).
-Use a fake token for a diagnostic that skips certificate verification; do not
-disable verification for real credentials.
-
-Use a token with `health:read` and call:
+After configuring the actual proxy, use its public HTTPS URL and a valid token
+with `health:read` to get `200`:
 
 ```bash
 curl -H "Authorization: Bearer $CLAMAV_API_TOKEN" \
   https://clamav.example.com/api/v1/health/live
 ```
 
-Use the external HTTPS URL in `clamctl config set-server` and MCP configuration.
-The HTTP hop from the trusted TLS edge to the backend is not a client URL.
+Use `--cacert` for an internal CA; see [local HTTPS checks](UPDATE_AND_VERIFY.md).
+A `403 tls_required` behind a proxy means native mode, the socket-peer allowlist
+or the original HTTPS header needs correction. Invalid tokens over recognized
+HTTPS return `401 invalid_token`; insufficient scopes remain `403`.
 
-## Regression coverage
-
-`ApiTokenProxyTlsIntegrationTest` starts real embedded Tomcat with **no
-forwarding property override** and tests the configuration packaged by a normal
-build. It verifies both header formats, plain/forwarded HTTP rejection, invalid
-tokens, scopes and revocation. `ApiTokenDirectTlsIntegrationTest` explicitly
-selects `none` and verifies that both forwarded-header formats are ignored.
-
-Run `mvn -B -ntp verify`. Results and Docker-runtime limitations are recorded in
-[proxy TLS validation](security/proxy-tls-validation.json). See also
-[Spring Boot proxy guidance](https://docs.spring.io/spring-boot/how-to/webserver.html#howto.webserver.use-behind-a-proxy-server)
-and [Spring forwarded-header security](https://docs.spring.io/spring-framework/reference/web/webmvc/filters.html#filters-forwarded-headers).
+References: [Spring Boot proxy configuration](https://docs.spring.io/spring-boot/4.0/how-to/webserver.html),
+[Tomcat Remote IP Valve](https://tomcat.apache.org/tomcat-11.0-doc/config/valve.html#Remote_IP_Valve).

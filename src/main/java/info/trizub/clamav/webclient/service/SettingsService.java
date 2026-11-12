@@ -83,6 +83,10 @@ public class SettingsService {
              * That forced remote clamd deployments to keep attempting SCAN against a
              * pathname that exists only in the web container.
              */
+            // Secure defaults for new installations: uploads can be scanned over
+            // INSTREAM without exposing private files or sharing a filesystem with
+            // clamd. Preserve saved GUI settings on upgrades and honor explicit
+            // deployment overrides; never silently rewrite operator preferences.
             applyEnvironmentOverride(
                     UPLOAD_PATH_SCAN_ENABLED,
                     ENV_UPLOAD_PATH_SCAN_ENABLED,
@@ -250,6 +254,15 @@ public class SettingsService {
 
     public Path uploadDir() {
         return Paths.get(resolved(UPLOAD_DIR, "./data/uploads")).toAbsolutePath().normalize();
+    }
+
+    public boolean deleteCleanUploads() {return Boolean.parseBoolean(resolved("app.uploads.deleteClean","true"));}
+    public long uploadRetentionHours() {return retention("app.uploads.retentionHours",24,1,8760);}
+    public long jobRetentionDays() {return retention("app.history.jobsRetentionDays",0,0,3650);}
+    public long auditRetentionDays() {return retention("app.history.auditRetentionDays",0,0,3650);}
+    private long retention(String key,long fallback,long min,long max) {
+        try {long value=Long.parseLong(resolved(key,Long.toString(fallback)));return value>=min && value<=max?value:fallback;}
+        catch(NumberFormatException ex) {return fallback;}
     }
 
     public boolean uploadPathScanEnabled() {

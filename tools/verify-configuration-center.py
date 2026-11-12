@@ -35,7 +35,7 @@ def free_port():
 
 
 class Application:
-    def __init__(self, jar, folder, extra=(), forwarded=True):
+    def __init__(self, jar, folder, extra=(), forwarded=True, defer_polls=True):
         self.folder = folder
         self.forwarded = forwarded
         self.port = free_port()
@@ -58,8 +58,9 @@ class Application:
                        and key not in ('JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS')}
         self.log = (folder / 'process.log').open('ab')
         self.process = subprocess.Popen(['java', '-jar', str(jar), f'--server.port={self.port}',
-            '--server.address=127.0.0.1', '--clamav.config.initial-delay-ms=3600000',
-            '--clamav.metrics.clamd-initial-delay-ms=3600000',
+            '--server.address=127.0.0.1',
+            *(['--clamav.config.initial-delay-ms=3600000', '--clamav.metrics.clamd-initial-delay-ms=3600000'] if defer_polls else []),
+            *(['--server.forward-headers-strategy=native', '--server.tomcat.remoteip.internal-proxies=127.0.0.1/32'] if forwarded else []),
             f'--clamav.bootstrap.admin.password={ADMIN_PASSWORD}', *extra], cwd=folder,
             env=environment, stdout=self.log, stderr=subprocess.STDOUT)
 

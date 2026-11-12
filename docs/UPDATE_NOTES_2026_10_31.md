@@ -28,7 +28,7 @@ Setup and Configuration Center support direct HTTP on the published application 
 | Area | Result |
 |---|---|
 | Container identity (#10) | Numeric `USER 10001:10001`; writable image-owned `conf`/`data`; root-owned, read-only application JAR; native ClamdTop retained |
-| Reverse-proxy TLS (#11) | `server.forward-headers-strategy` defaults to `framework`; HTTPS forwarded by the trusted edge is recognized before `/api/v1` Bearer authentication |
+| Reverse-proxy TLS (#11), trust boundary (#13) | Forwarded headers default to `none`; TLS termination requires explicit `native` mode and an allowlist of proxy peers |
 | Notification isolation (#12) | Two dedicated delivery workers and a queue of 100 pending events; network latency does not occupy scan workers |
 | Delivery bounds (#12) | Defaults: 5s connect, 10s read, 5s DNS, 20s total active delivery deadline |
 | Webhook address policy (#12) | Private destinations blocked by default; explicit internal opt-in; metadata/link-local protection, validated DNS addresses and disabled redirects |
@@ -44,10 +44,11 @@ Setup and Configuration Center support direct HTTP on the published application 
   Files whose private permissions the app sets also need UID 10001 ownership.
   Image ownership does not replace host/PVC ownership. See
   [the permission migration](NON_ROOT_CONTAINER.md).
-- No new environment fields are required to enable the fixes. Remove an old
-  explicit `SERVER_FORWARD_HEADERS_STRATEGY=none` override to use proxy support.
-  The trusted proxy must overwrite forwarded headers and be the exclusive path
-  to the backend.
+- Issue #13 supersedes the earlier automatic proxy trust: direct access uses
+  `none`. Proxy deployments must opt into `native` and supply the proxy allowlist.
+  Replace older explicit `framework` overrides. The proxy must overwrite
+  forwarded headers and be the exclusive path to the backend; see
+  [migration instructions](REVERSE_PROXY_TLS.md).
 - To use an internal webhook receiver, explicitly set
   `CLAMAV_WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true`. Metadata and other prohibited
   destinations remain blocked. The UI and private ClamD/SQL connections are

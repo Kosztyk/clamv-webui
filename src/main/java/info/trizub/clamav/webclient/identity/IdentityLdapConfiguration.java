@@ -6,6 +6,9 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.RegisterSessionAuthenticationStrategy;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.context.annotation.Configuration;
@@ -23,12 +26,14 @@ public class IdentityLdapConfiguration {
     /** Always install the LDAP login filter; no LDAP traffic occurs until enabled. */
     @Bean
     UsernamePasswordAuthenticationFilter ldapLoginFilter(IdentityProperties properties, ExternalIdentityMapper mapper,
-                AuthenticationSuccessHandler successHandler, LoginAttemptService attempts, AuthenticationSettingsService settings) {
+                AuthenticationSuccessHandler successHandler, LoginAttemptService attempts, AuthenticationSettingsService settings,
+                SessionRegistry sessionRegistry) {
         UsernamePasswordAuthenticationFilter filter = new UsernamePasswordAuthenticationFilter(
             new ProviderManager(new DynamicLdapAuthenticationProvider(settings, mapper)));
         filter.setFilterProcessesUrl("/login/ldap");
         filter.setSecurityContextRepository(new HttpSessionSecurityContextRepository());
-        filter.setSessionAuthenticationStrategy(new ChangeSessionIdAuthenticationStrategy());
+        filter.setSessionAuthenticationStrategy(new CompositeSessionAuthenticationStrategy(List.of(
+            new ChangeSessionIdAuthenticationStrategy(), new RegisterSessionAuthenticationStrategy(sessionRegistry))));
         filter.setAuthenticationSuccessHandler(successHandler);
         filter.setAuthenticationFailureHandler((request, response, failure) -> {
             attempts.fail("ldap", request.getParameter("username"), request.getRemoteAddr());

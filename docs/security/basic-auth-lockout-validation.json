@@ -1,0 +1,148 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14"
+  ],
+  "verified_date": "2026-11-10",
+  "application_version": "2.1.0",
+  "maven_verify": {
+    "result": "passed",
+    "tests": 638,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 633,
+    "skipped_tests": [
+      "UnixClamdClientTest.multiscanReadsAllNullDelimitedResultsUntilConnectionClose",
+      "UnixClamdClientTest.nonResponsiveSocketTimesOutAndClosesWithoutHangingAWorker",
+      "UnixClamdClientTest.pingVersionAndStatsUseTheMountedSocketAndCorrectTerminators",
+      "UnixClamdClientTest.cleanErrorsAndEmptyRepliesAreDistinct",
+      "UnixClamdClientTest.instreamSendsLengthPrefixedChunksAndAZeroTerminatorThenReturnsDetections"
+    ]
+  },
+  "security_test_classes": [
+    {
+      "class": "RecoveryProxyHeadersTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "LoginAttemptServiceTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "ApiTokenDirectTlsIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "ApiTokenNativeWithoutAllowlistIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "ApiTokenProxyTlsIntegrationTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "ApiTokenUntrustedProxyIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "BasicAuthenticationLockoutIntegrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "packaged_basic_authentication": {
+    "result": "passed",
+    "checks": 17,
+    "command": "python3 scripts/test-basic-lockout-runtime.py"
+  },
+  "packaged_forwarding_and_recovery": {
+    "result": "passed",
+    "checks": 9,
+    "command": "python3 scripts/test-forwarded-header-runtime.py"
+  },
+  "packaged_configuration_center": {
+    "result": "passed",
+    "checks": 36,
+    "command": "python3 tools/verify-configuration-center.py"
+  },
+  "policy": {
+    "failure_limit": 5,
+    "failure_window_seconds": 900,
+    "lockout_seconds_from_threshold": 900,
+    "key": "realm and normalized username, independent of remote address",
+    "local_basic_and_form_share_budget": true,
+    "ldap_realm_independent": true,
+    "successful_authentication_resets_counter": true,
+    "blocked_requests_extend_lockout": false,
+    "storage": "in-process memory; restart resets counters"
+  },
+  "acceptance_criteria": [
+    {
+      "case": "Five failed Basic passwords across client IPs",
+      "failed_attempt_status": 401,
+      "subsequent_correct_password_status": 429,
+      "retry_after_header": true,
+      "result": "passed"
+    },
+    {
+      "case": "Correct password during lockout on a different protected route",
+      "status": 429,
+      "result": "passed"
+    },
+    {
+      "case": "Four failed Basic passwords, successful Basic login, four further failures, successful Basic login",
+      "success_status": 200,
+      "result": "passed"
+    },
+    {
+      "case": "Three Basic plus two local form failures share a single threshold",
+      "next_basic_status": 429,
+      "form_redirect": "/login?locked",
+      "result": "passed"
+    },
+    {
+      "case": "Successful local form login clears Basic failures",
+      "result": "passed"
+    },
+    {
+      "case": "Clock-controlled expiry and blocked attempts not extending the interval",
+      "result": "passed"
+    },
+    {
+      "case": "OIDC-style success without a form username does not reset the literal null account",
+      "result": "passed"
+    },
+    {
+      "case": "Forwarded header protection from issue #13 retained",
+      "result": "passed"
+    }
+  ],
+  "scope": {
+    "http_tests": "Real HTTP to embedded Tomcat and the packaged executable JAR; form cross-checks also use MockMvc",
+    "docker_image_build": "Not executed; Docker CLI unavailable",
+    "cross_vendor_db_profile": "Not invoked; no database implementation changes",
+    "database_migrations": "No changes",
+    "external_identity_provider_tests": "No real LDAP/OIDC provider testing added"
+  }
+}

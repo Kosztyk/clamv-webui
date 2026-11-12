@@ -1,24 +1,26 @@
-target
-data
 .git
+.gitignore
 .github
-*.zip
+.idea
+.vscode
+*.iml
+.DS_Store
+
+# Build artifacts
+target
+*.jar
+*.war
+*.ear
+
+# Runtime data; never send uploads/quarantine/H2 DB into Docker build context
+data
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Local-only files
 .env
-conf/clamav-web-client.properties
+*.log
 
-# Never put authentication encryption keys / Docker secrets into image layers
-conf/auth-settings.key
-.secrets
-conf/*.key
-
-# No runtime config, CA, truststore or secrets may enter the Docker build context.
-# Runtime /app/conf is a bind-mounted volume; Dockerfile does not copy conf/.
+# Exclude runtime configuration and secrets
 conf/
-
-# The server image only needs Java sources; standalone CLI binaries are separate.
-cli/dist/
-
-# Exclude populated environment variants and mounted deployment secrets.
-.env.*
-secrets/
-certificates/

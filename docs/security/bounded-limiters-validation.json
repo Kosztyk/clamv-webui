@@ -1,0 +1,152 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15",
+    "https://github.com/Kosztyk/clamv-webui/issues/16",
+    "https://github.com/Kosztyk/clamv-webui/issues/17",
+    "https://github.com/Kosztyk/clamv-webui/issues/18",
+    "https://github.com/Kosztyk/clamv-webui/issues/19",
+    "https://github.com/Kosztyk/clamv-webui/issues/20",
+    "https://github.com/Kosztyk/clamv-webui/issues/21",
+    "https://github.com/Kosztyk/clamv-webui/issues/22",
+    "https://github.com/Kosztyk/clamv-webui/issues/23"
+  ],
+  "application_version": "2.1.0",
+  "verified_at_utc": "2026-11-10T21:37:21.188813+00:00",
+  "java_verification": {
+    "command": "mvn verify",
+    "result": "passed",
+    "jdk": 21,
+    "tests": 832,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 827,
+    "new_test_cases": 31,
+    "new_cases": {
+      "bounded_store": 6,
+      "login_ttl_capacity": 5,
+      "scan_identity_capacity_window": 9,
+      "full_security_chain": 6,
+      "configuration_consumer_binding": 1,
+      "generic_persistence_precedence_for_two_capacity_fields": 4
+    },
+    "skip_reason": "Five existing UnixClamdClientTest cases require AF_UNIX sockets prohibited by this execution environment."
+  },
+  "memory_and_work_bounds": {
+    "result": "passed",
+    "million_key_tests": [
+      {
+        "scenario": "one million distinct login usernames",
+        "capacity": 8,
+        "remaining_records": 8,
+        "active_lockout_retained": true
+      },
+      {
+        "scenario": "one million rotating anonymous Authorization headers",
+        "capacity": 8,
+        "remaining_scan_buckets": 1,
+        "accepted": 2
+      },
+      {
+        "scenario": "one million distinct scan peers",
+        "capacity": 8,
+        "remaining_scan_buckets": 8,
+        "protected_budget_retained": true
+      },
+      {
+        "scenario": "one million store keys",
+        "capacity": 8,
+        "remaining_records": 8,
+        "expiry_buckets": 1
+      }
+    ],
+    "scope": "Structural entry/index bounds, concurrency and expiry assertions; not a standalone process-RSS benchmark.",
+    "request_expiry_work": "At most 16 indexed expired entries at capacity, plus the requested key; no full-map traversal.",
+    "scheduled_expiry_work": "At most 1024 entries per store per one-second task invocation.",
+    "capacity_admission": "Keep live protection; reject untracked subjects until a slot expires or a tracked login succeeds.",
+    "keys": "Fixed-length username/principal/IP digests or immutable numeric account/token IDs; raw Authorization headers are not retained."
+  },
+  "packaged_http_checks": {
+    "result": "passed",
+    "total": 72,
+    "bounded_limiters": {
+      "checks": 19,
+      "passed": 19,
+      "assertions": [
+        "Authenticated token keeps one budget across header case and peer changes, request 1",
+        "Authenticated token keeps one budget across header case and peer changes, request 2",
+        "Authenticated token keeps one budget across header case and peer changes, request 3",
+        "Rate rejection supplies bounded Retry-After and no-store",
+        "Another token behind the same proxy IP has an independent budget",
+        "Basic authentication obtains the normal CSRF cookie/token",
+        "Basic account budget survives header case and peer changes, request 1",
+        "Basic account budget survives header case and peer changes, request 2",
+        "Basic account budget survives header case and peer changes, request 3",
+        "Full three-entry scan cache rejects an untracked token instead of evicting an active budget",
+        "Capacity churn does not reset the first token budget",
+        "Full scan cache leaves authenticated health reads available",
+        "Rotating invalid Bearer credentials are rejected before scan allocation",
+        "First tracked failure is recorded for random-one",
+        "First tracked failure is recorded for random-two",
+        "First tracked failure is recorded for random-three",
+        "Full login cache fails closed for an untracked account even with the correct password",
+        "Existing authenticated browser session remains usable during login-cache saturation",
+        "Login-cache saturation does not bypass the independent scan budget"
+      ],
+      "scope": "Real packaged JAR, Spring Security and isolated H2. Synthetic ClamD replies and explicit loopback trusted native proxy headers; no external TLS/IdP/Docker runtime."
+    },
+    "basic_lockout": {
+      "runner": "scripts/test-basic-lockout-runtime.py",
+      "passed": 17
+    },
+    "configuration_center": {
+      "runner": "tools/verify-configuration-center.py",
+      "passed": 36
+    }
+  },
+  "behavior": {
+    "default_login_capacity": 10000,
+    "default_scan_capacity": 10000,
+    "capacity_range": [
+      1,
+      100000
+    ],
+    "password_lockout": "Existing account-wide five failures/15-minute policy retained; local form and Basic share the local realm, LDAP separate realm in same bounded store.",
+    "login_key_length_limit": 1024,
+    "scan_window_seconds": 60,
+    "scan_default_attempts_per_subject": 30,
+    "scan_identity": "Post-authentication immutable local account ID or token ID; source-qualified external principal; anonymous IP fallback.",
+    "invalid_early_credentials": "Rejected by authentication/TLS/CSRF before scan allocation; no scan is admitted.",
+    "full_store": "New keys are throttled; tracked live budgets and existing authenticated browser sessions remain intact.",
+    "form_rejection": "302 /login?locked",
+    "basic_rejection": "429 login_locked with Retry-After",
+    "scan_rejection": "429 rate_limited with Retry-After and Cache-Control: no-store",
+    "counter_overflow": "Rejected scan count saturates at limit + 1; deadline does not slide.",
+    "configuration_center_fields": 117,
+    "schema_migration_required": false,
+    "new_runtime_dependencies": []
+  },
+  "verification_limits": {
+    "network_fixture": "Current packaged checks use isolated H2 and a synthetic ClamD peer, with explicit loopback trusted native proxy headers where TLS identity is needed.",
+    "browser_ui": "No new headless browser interaction run for #23; capacity fields exercised through generic configuration persistence/precedence and actual consumer tests. Configuration Center packaged HTTP checks passed.",
+    "external_identities": "No live remote LDAP/OIDC server in current validation; source-qualified principal identity behavior tested with synthetic authentication.",
+    "docker_and_native_clamav": "Not rerun for #23; retained earlier reports keep their original scope.",
+    "external_sql": "Current packaged state uses H2. Existing schema/probe tests run in Maven; no new live external SQL deployment.",
+    "per_instance": "Caches reset on restart and are not shared across replicas; no supported distributed session/queue/limiter cluster added.",
+    "saturation_availability": "A flood can temporarily reject a legitimate untracked account until a slot is released. Defaults are 10000 per store; capacity warnings are bounded and ingress abuse controls remain appropriate.",
+    "password_delay": "Existing fixed five-attempt/15-minute policy retained; no progressive sleep/backoff mechanism is introduced."
+  },
+  "packaging": {
+    "baseline_source_files": 1105,
+    "all_baseline_paths_retained": true,
+    "root": "clamv-webui-v2.1.0",
+    "manifest": "SOURCE_MANIFEST.sha256",
+    "jar_resources_compared_to_current_source": 653,
+    "jar_resource_mismatches": 0,
+    "source_privacy_audit": "Final ZIP checked with tools/audit-source-package.py and the private deny input.",
+    "publisher_check": "Final ZIP checked with publish-clamav-webui.sh --check.",
+    "complete_source_files": 1113
+  }
+}

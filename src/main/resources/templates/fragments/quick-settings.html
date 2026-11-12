@@ -1,0 +1,16 @@
+<div th:fragment="quick-settings">
+    <div class="card">
+        <div class="card-body">
+            <h4 class="card-title">Quick settings</h4>
+            <p class="text-muted mb-2">Some settings are stored in <code>conf/clamav-web-client.properties</code>.</p>
+            <ul class="small">
+                <li><strong>Allowed scan roots:</strong> <span th:text="${settings != null ? settings['app.allowedScanRoots'] : ''}">/scandir</span></li>
+                <li><strong>Upload max bytes:</strong> <span th:text="${settings != null ? settings['app.upload.maxBytes'] : ''}">2147483648</span></li>
+                <li><strong>Concurrent scans:</strong> <span th:text="${settings != null ? settings['app.concurrentScans'] : ''}">2</span> (restart required to apply)</li>
+                <li><strong>Quarantine enabled:</strong> <span th:text="${settings != null ? settings['app.quarantine.enabled'] : ''}">false</span></li>
+                <li><strong>Webhook enabled:</strong> <span th:text="${settings != null ? settings['app.webhook.enabled'] : ''}">false</span></li>
+                <li><strong>Watch enabled:</strong> <span th:text="${settings != null ? settings['app.watch.enabled'] : ''}">false</span></li>
+            </ul>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/header :: head}"></head>
+
+<body class="no-sidebar">
+<div class="app-shell">
+
+    <!-- Left navigation -->
+
+    <!-- Main area -->
+    <main class="app-main">
+        <header class="app-topbar">
+            <div class="app-title">
+                <div class="app-title__name">ClamAV Web UI</div>
+                <div class="app-title__subtitle">Scan, quarantine, jobs, audit</div>
+            </div>
+
+            <div class="app-topbar__right">
+                <div class="topbar-item" th:replace="~{fragments/language :: language}"></div>
+
+                <div class="topbar-item" sec:authorize="isAuthenticated()">
+                    <span class="muted">User:</span>
+                    <span class="me-2" sec:authentication="name">user</span>
+                </div>
+
+                <div class="topbar-item">
+                    <span class="muted me-2">Theme</span>
+                    <label class="switch" title="Toggle dark/light">
+                        <input id="themeToggle" type="checkbox" />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <form class="d-inline" sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
+  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+  <button type="submit" class="btn btn-sm btn-outline-light">Logout</button>
+</form>
+            </div>
+        </header>
+
+        <div class="tabs-wrap" th:replace="~{fragments/tabs :: tabs}"></div>
+
+        <section class="app-content">
+            <div th:if="${errorMsg != null}" class="alert alert-danger" th:text="${errorMsg}">Error</div>
+
+            <div th:switch="${action}">
+                <div th:case="'dashboard'" th:replace="~{fragments/dashboard-overview :: dashboardOverview}"></div>
+                <div th:case="'main'" th:replace="~{fragments/main-health :: mainHealth}"></div>
+                <div th:case="'scan'" th:replace="~{fragments/scan :: scan}"></div>
+                <div th:case="'jobs'" th:replace="~{fragments/jobs :: jobs}"></div>
+                <div th:case="'job'" th:replace="~{fragments/job :: job}"></div>
+                <div th:case="'settings'" th:replace="~{fragments/settings-page :: settings-page}"></div>
+                <div th:case="'endpoints'" th:replace="~{fragments/admin-endpoints :: admin-endpoints}"></div>
+                <div th:case="'users'" th:replace="~{fragments/admin-users :: admin-users}"></div>
+                <div th:case="'watch'" th:replace="~{fragments/admin-watch :: admin-watch}"></div>
+                <div th:case="'audit'" th:replace="~{fragments/admin-audit :: admin-audit}"></div>
+                <div th:case="*">
+                    <div class="panel">
+                        <div class="panel-body">
+                            <div class="text-muted">Choose a tab.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="app-footer" th:replace="~{fragments/footer :: footer}"></div>
+        </section>
+    </main>
+
+</div>
+</body>
+</html>

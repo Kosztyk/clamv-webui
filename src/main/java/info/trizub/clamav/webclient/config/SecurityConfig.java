@@ -11,8 +11,16 @@ import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInit
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import info.trizub.clamav.webclient.security.ApiTokenAuthenticationFilter;
 import info.trizub.clamav.webclient.security.LegacyBasicTlsFilter;
+import info.trizub.clamav.webclient.security.BasicLoginLockoutFilter;
 import info.trizub.clamav.webclient.security.ScanRateLimitFilter;
+import info.trizub.clamav.webclient.security.SessionAccessService;
+import info.trizub.clamav.webclient.security.SessionValidationFilter;
+import info.trizub.clamav.webclient.security.SessionRejectionHandler;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -20,7 +28,6 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,8 +45,9 @@ public class SecurityConfig {
 
     @Bean
     AuthenticationSuccessHandler authenticationSuccessHandler(UserService userService, AuditService audit,
-            LoginAttemptService attempts, ExternalIdentityService externalIdentities) {
+            LoginAttemptService attempts, ExternalIdentityService externalIdentities, SessionAccessService sessions) {
         return (request, response, authentication) -> {
+            sessions.authenticated(request.getSession());
             attempts.success(request.getServletPath().equals("/login/ldap") ? "ldap" : "local",
                     request.getParameter("username"), request.getRemoteAddr());
             userService.markLogin(authentication.getName());
@@ -66,6 +74,10 @@ public class SecurityConfig {
         FilterRegistrationBean<LegacyBasicTlsFilter> bean = new FilterRegistrationBean<>(filter);
         bean.setEnabled(false); return bean;
     }
+    @Bean FilterRegistrationBean<BasicLoginLockoutFilter> basicLockoutRegistration(BasicLoginLockoutFilter filter) {
+        FilterRegistrationBean<BasicLoginLockoutFilter> bean = new FilterRegistrationBean<>(filter);
+        bean.setEnabled(false); return bean;
+    }
     @Bean FilterRegistrationBean<ScanRateLimitFilter> rateFilterRegistration(ScanRateLimitFilter filter) {
         FilterRegistrationBean<ScanRateLimitFilter> bean = new FilterRegistrationBean<>(filter);
         bean.setEnabled(false); return bean;
@@ -76,14 +88,24 @@ public class SecurityConfig {
         bean.setEnabled(false); return bean;
     }
 
+    @Bean FilterRegistrationBean<SessionValidationFilter> sessionValidationRegistration(SessionValidationFilter filter) {
+        FilterRegistrationBean<SessionValidationFilter> bean = new FilterRegistrationBean<>(filter);
+        bean.setEnabled(false); return bean;
+    }
+
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http, AuthenticationSuccessHandler successHandler,
              ApiTokenAuthenticationFilter tokenFilter, LegacyBasicTlsFilter tlsFilter, ScanRateLimitFilter rateFilter,
+             BasicLoginLockoutFilter basicLoginLockoutFilter,
              IdentityProperties identity, ExternalIdentityMapper mapper,
              ObjectProvider<UsernamePasswordAuthenticationFilter> ldapFilter,
              ObjectProvider<ClientRegistrationRepository> clientRegistrations,
-             LoginLockoutFilter loginLockoutFilter, LoginAttemptService attempts) throws Exception {
+             LoginLockoutFilter loginLockoutFilter, LoginAttemptService attempts,
+             SessionRegistry sessionRegistry, SessionValidationFilter sessionValidationFilter) throws Exception {
         http
+            // Track every browser login without introducing a concurrent-login limit.
+            .sessionManagement(session -> session.maximumSessions(-1).sessionRegistry(sessionRegistry)
+                .expiredSessionStrategy(event -> SessionRejectionHandler.reject(event.getRequest(), event.getResponse())))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/login").permitAll()
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/icons/**", "/webfonts/**", "/flags/**", "/favicon.ico", "/error", "/setLocale", "/login/ldap", "/oauth2/**", "/login/oauth2/**").permitAll()
@@ -113,7 +135,7 @@ public class SecurityConfig {
                     response.sendRedirect(request.getContextPath() + "/login?error");
                 })
             )
-            .httpBasic(Customizer.withDefaults())
+            .httpBasic(basic -> basic.authenticationDetailsSource(BasicLoginLockoutFilter.Details::new))
             .exceptionHandling(ex -> ex
                 .defaultAuthenticationEntryPointFor((req, res, err) -> {
                     res.setStatus(401); res.setContentType("application/json"); res.setHeader("Cache-Control", "no-store");
@@ -138,7 +160,10 @@ public class SecurityConfig {
             .addFilterBefore(loginLockoutFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(tlsFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(rateFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(rateFilter, AuthorizationFilter.class)
+            .addFilterBefore(basicLoginLockoutFilter, BasicAuthenticationFilter.class)
+            // Validate cached privileges before CSRF or an authentication filter can use the session.
+            .addFilterBefore(sessionValidationFilter, CsrfFilter.class)
             .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin())); // H2 console
 
         // Both filters are always wired; runtime provider settings may be activated via Admin UI.

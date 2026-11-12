@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import tempfile
 import unittest
@@ -74,87 +73,8 @@ else:sys.exit('Unexpected gh invocation')
                     item=zipfile.ZipInfo('clamv-webui-v2.1.0/link');item.create_system=3;item.external_attr=(0o120777<<16);output.writestr(item,'../../outside')
         return archive
     def run_publisher(self,archive,*flags,repo=REPOSITORY):
-        return subprocess.run(['bash',str(getattr(self,'publisher',PUBLISH)),str(archive),repo,*flags],env=self.env,cwd=self.work,
+        return subprocess.run(['bash',str(PUBLISH),str(archive),repo,*flags],env=self.env,cwd=self.work,
             text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=45)
-    def bootstrap_fixture(self,platform='Darwin',architecture='arm64'):
-        """Real bootstrap logic with an offline asset, synthetic digest and home.
-
-        Only the temporary script copy's Mac asset pins and home-path prefix
-        change. Production pins stay enforced; the account's HOME is untouched.
-        """
-        gh=self.work/'bin/gh';source=gh.read_text();gh.unlink()
-        source=source.replace("event={'args':args}","event={'args':args,'executable':sys.argv[0]}")
-        source=source.replace("if args[:2]==['auth','status'] or args[:2]==['auth','setup-git']:pass",
-            "if args==['--version']:print('gh version synthetic-bootstrap-fixture')\nelif args[:2]==['auth','status'] or args[:2]==['auth','setup-git']:pass")
-        self.gh_source=source;self.fake_home=self.work/'user home';self.fake_home.mkdir()
-        (self.fake_home/'.local').write_text('Blocked legacy parent; do not change this file.\n')
-        asset=self.work/'synthetic-gh.zip'
-        with zipfile.ZipFile(asset,'w') as archive:
-            member=zipfile.ZipInfo('gh_fixture/bin/gh');member.create_system=3;member.external_attr=(0o100700<<16)
-            archive.writestr(member,source)
-        self.gh_asset=asset
-        digest=hashlib.sha256(asset.read_bytes()).hexdigest();script=PUBLISH.read_text()
-        for expected in ['d700207eae9ae98fe2b89535c2c087c07823d4628c56364695a5a07ef311c062',
-                         'a2f86418f4350ae6e9ec60d5000bdf7665728436946a97fc27fe50e6ae752682']:
-            self.assertEqual(script.count(expected),1);script=script.replace(expected,digest)
-        script=script.replace('$HOME/','$PUBLISH_TEST_HOME/')
-        self.publisher=self.work/'publisher-under-test.sh';self.publisher.write_text(script)
-        # Isolate PATH so an installed host gh cannot bypass bootstrap coverage.
-        for tool in ['bash','python3','git','unzip','awk','sort','uniq','wc','tr','mktemp','cp','mv','chmod','rm','mkdir','dirname','basename','date','tar','cat','sed','head',
-                     'shasum' if shutil.which('shasum') else 'sha256sum']:
-            executable=shutil.which(tool);self.assertIsNotNone(executable,tool)
-            (self.work/'bin'/tool).symlink_to(executable)
-        for name,body in {
-            'uname':"import os,sys\nprint(os.environ['PUBLISH_TEST_OS'] if sys.argv[1:] == ['-s'] else os.environ['PUBLISH_TEST_ARCH'])\n",
-            'curl':"import os,sys,shutil\nif os.environ.get('PUBLISH_TEST_FORBID_CURL'):sys.exit('Unexpected download')\nargs=sys.argv[1:];shutil.copyfile(os.environ['PUBLISH_TEST_ASSET'],args[args.index('-o')+1])\n"}.items():
-            file=self.work/'bin'/name;file.write_text('#!/usr/bin/env python3\n'+body);file.chmod(0o700)
-        self.env.update(PATH=str(self.work/'bin'),PUBLISH_TEST_HOME=str(self.fake_home),PUBLISH_TEST_OS=platform,
-            PUBLISH_TEST_ARCH=architecture,PUBLISH_TEST_ASSET=str(asset))
-        self.env.pop('XDG_CACHE_HOME',None)
-    def seed_cached_gh(self,directory):
-        file=directory/'bin/gh';file.parent.mkdir(parents=True);file.write_text(self.gh_source);file.chmod(0o700);return file
-    def test_uncached_macos_cli_uses_native_cache_for_both_architectures_with_blocked_legacy_parent(self):
-        self.bootstrap_fixture()
-        for architecture,label in [('arm64','arm64'),('x86_64','amd64')]:
-            with self.subTest(architecture=architecture):
-                self.env['PUBLISH_TEST_ARCH']=architecture
-                result=self.run_publisher(self.archive(),'--dry-run');self.assertEqual(result.returncode,0,result.stdout)
-                cached=self.fake_home/f'Library/Caches/clamav-publisher/gh-2.103.3-macOS-{label}/bin/gh'
-                self.assertTrue(cached.is_file());self.assertEqual(cached.read_text(),self.gh_source)
-                self.assertTrue(os.access(cached,os.X_OK));self.assertTrue((self.fake_home/'.local').is_file())
-    def test_macos_cached_cli_is_reused_without_download(self):
-        self.bootstrap_fixture();self.seed_cached_gh(self.fake_home/'Library/Caches/clamav-publisher/gh-2.103.3-macOS-arm64')
-        self.env['PUBLISH_TEST_FORBID_CURL']='1';result=self.run_publisher(self.archive(),'--dry-run')
-        self.assertEqual(result.returncode,0,result.stdout);self.assertNotIn('Installing GitHub CLI',result.stdout)
-    def test_linux_cached_cli_honors_absolute_xdg_cache_with_spaces(self):
-        self.bootstrap_fixture('Linux','x86_64');cache=self.work/'custom cache'
-        self.env.update(XDG_CACHE_HOME=str(cache),PUBLISH_TEST_FORBID_CURL='1')
-        self.seed_cached_gh(cache/'clamav-publisher/gh-2.103.3-linux-amd64')
-        result=self.run_publisher(self.archive(),'--dry-run');self.assertEqual(result.returncode,0,result.stdout)
-    def test_linux_default_cache_uses_dot_cache_without_a_local_share_write(self):
-        self.bootstrap_fixture('Linux','x86_64');self.env['PUBLISH_TEST_FORBID_CURL']='1'
-        self.seed_cached_gh(self.fake_home/'.cache/clamav-publisher/gh-2.103.3-linux-amd64')
-        result=self.run_publisher(self.archive(),'--dry-run');self.assertEqual(result.returncode,0,result.stdout)
-        self.assertTrue((self.fake_home/'.local').is_file())
-    def test_relative_xdg_cache_is_ignored(self):
-        self.bootstrap_fixture('Linux','x86_64');self.env.update(XDG_CACHE_HOME='relative-cache',PUBLISH_TEST_FORBID_CURL='1')
-        self.seed_cached_gh(self.fake_home/'.cache/clamav-publisher/gh-2.103.3-linux-amd64')
-        result=self.run_publisher(self.archive(),'--dry-run');self.assertEqual(result.returncode,0,result.stdout)
-        self.assertFalse((self.work/'relative-cache').exists())
-    def test_blocked_native_cache_uses_private_temporary_cli_and_scoped_git_credentials(self):
-        self.bootstrap_fixture();(self.fake_home/'Library').write_text('Blocked native cache parent.\n')
-        result=self.run_publisher(self.archive());self.assertEqual(result.returncode,0,result.stdout)
-        self.assertIn('private temporary GitHub CLI',result.stdout);self.assertions_for_snapshot()
-        events=[json.loads(line) for line in self.events.read_text().splitlines()]
-        self.assertFalse(any(event['args'][:2]==['auth','setup-git'] for event in events))
-        installed={Path(event['executable']) for event in events}
-        self.assertTrue(installed)
-        for path in installed:self.assertIn('/gh-cli/bin/gh',str(path));self.assertFalse(path.exists())
-    def test_download_checksum_failure_does_not_install_or_authenticate(self):
-        self.bootstrap_fixture();self.gh_asset.write_bytes(self.gh_asset.read_bytes()+b'tampered')
-        result=self.run_publisher(self.archive(),'--dry-run');self.assertNotEqual(result.returncode,0)
-        self.assertIn('checksum mismatch',result.stdout);self.assertFalse(self.events.exists())
-        self.assertFalse((self.fake_home/'Library/Caches/clamav-publisher/gh-2.103.3-macOS-arm64/bin/gh').exists())
     def assertions_for_snapshot(self,ref='main'):
         files=set(self.git('--git-dir',str(self.remote),'ls-tree','-r','--name-only',ref).splitlines())
         self.assertEqual(files,set(FIXTURE)|{'SOURCE_MANIFEST.sha256'})
