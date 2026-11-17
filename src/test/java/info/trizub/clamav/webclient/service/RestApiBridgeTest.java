@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +86,32 @@ class RestApiBridgeTest {
   }
 
   @Test
+  void keepsRawPathAndEncodesQueryValuesOnTheConfiguredOrigin() throws Exception {
+    HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    AtomicReference<URI> target = new AtomicReference<>();
+    server.createContext(
+        "/",
+        exchange -> {
+          target.set(exchange.getRequestURI());
+          exchange.sendResponseHeaders(200, 2);
+          try (var out = exchange.getResponseBody()) {
+            out.write("{}".getBytes(StandardCharsets.UTF_8));
+          }
+        });
+    server.start();
+    try {
+      RestApiBridge bridge = fixture(server, "/tenant%2Fblue");
+      var response = bridge.read("jobs", Map.of("search", "//127.0.0.1:1/path?x=1&extra=#item"));
+      assertThat(response.status()).isEqualTo(200);
+      assertThat(target.get().getRawPath()).isEqualTo("/tenant%2Fblue/api/v1/jobs");
+      assertThat(target.get().getRawQuery())
+          .isEqualTo("search=%2F%2F127.0.0.1%3A1%2Fpath%3Fx%3D1%26extra%3D%23item");
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
   void rejectsOversizedDeclaredAndChunkedUpstreamResponsesWith502() throws Exception {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext(
@@ -149,9 +176,13 @@ class RestApiBridgeTest {
   }
 
   private static RestApiBridge fixture(HttpServer server) {
+    return fixture(server, "");
+  }
+
+  private static RestApiBridge fixture(HttpServer server, String basePath) {
     return new RestApiBridge(
         new ObjectMapper(),
-        "http://127.0.0.1:" + server.getAddress().getPort(),
+        "http://127.0.0.1:" + server.getAddress().getPort() + basePath,
         "",
         "x-api-key",
         "FILES",

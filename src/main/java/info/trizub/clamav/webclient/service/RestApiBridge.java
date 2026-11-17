@@ -32,7 +32,7 @@ public class RestApiBridge {
 
   private final ObjectMapper mapper;
   private final HttpClient client;
-  private final String baseUrl;
+  private final URI baseUri;
   private final String apiKey;
   private final String authMode;
   private final String formKey;
@@ -64,9 +64,10 @@ public class RestApiBridge {
       @Value("${CLAMAV_REST_SCAN_HISTORY_PATH:/api/v1/scan-history}") String scanHistoryPath,
       @Value("${CLAMAV_REST_WEBHOOK_FIELD:webhookId}") String webhookField) {
     this.mapper = mapper;
-    this.baseUrl = baseUrl == null ? "" : baseUrl.strip().replaceAll("/+$", "");
+    String normalizedBaseUrl = baseUrl == null ? "" : baseUrl.strip().replaceAll("/+$", "");
     this.apiKey = apiKey == null ? "" : apiKey;
-    RestTransportPolicy.validate(this.baseUrl, this.apiKey, allowInsecure);
+    RestTransportPolicy.validate(normalizedBaseUrl, this.apiKey, allowInsecure);
+    this.baseUri = normalizedBaseUrl.isBlank() ? null : URI.create(normalizedBaseUrl);
     this.authMode = authMode;
     this.formKey = formKey.matches("[A-Za-z][A-Za-z0-9_-]{0,50}") ? formKey : "FILES";
     this.webhookField =
@@ -93,16 +94,14 @@ public class RestApiBridge {
             .connectTimeout(this.timeout)
             .followRedirects(HttpClient.Redirect.NEVER)
             .build();
-    if (!this.baseUrl.isBlank()) {
-      URI uri = URI.create(this.baseUrl);
-      if (!("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
-          || uri.getHost() == null
-          || uri.getUserInfo() != null
-          || uri.getFragment() != null
-          || uri.getQuery() != null) {
-        throw new IllegalArgumentException(
-            "CLAMAV_REST_URL must be an http(s) origin or base path without credentials or query");
-      }
+    if (baseUri != null
+        && (!("http".equals(baseUri.getScheme()) || "https".equals(baseUri.getScheme()))
+            || baseUri.getHost() == null
+            || baseUri.getUserInfo() != null
+            || baseUri.getFragment() != null
+            || baseUri.getQuery() != null)) {
+      throw new IllegalArgumentException(
+          "CLAMAV_REST_URL must be an http(s) origin or base path without credentials or query");
     }
   }
 
@@ -159,7 +158,7 @@ public class RestApiBridge {
   }
 
   public boolean configured() {
-    return !baseUrl.isBlank()
+    return baseUri != null
         && (environment == null
             || environment.getProperty("clamav.rest.enabled", Boolean.class, true));
   }
@@ -172,7 +171,7 @@ public class RestApiBridge {
     if (!configured())
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE, "External ClamAV REST API is not configured");
-    StringBuilder builder = new StringBuilder(baseUrl).append(path);
+    StringBuilder builder = new StringBuilder(baseUri.toString()).append(path);
     if (params != null && !params.isEmpty()) {
       builder.append('?');
       boolean first = true;
@@ -188,6 +187,14 @@ public class RestApiBridge {
   }
 
   private HttpRequest.Builder headers(URI uri, Duration requestTimeout) {
+    // Credentials may only be sent to the deployment-configured origin.
+    if (uri.getRawUserInfo() != null
+        || !baseUri.getScheme().equals(uri.getScheme())
+        || baseUri.getPort() != uri.getPort()
+        || !baseUri.getHost().equals(uri.getHost())) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY, "External REST API target does not match the configured origin");
+    }
     HttpRequest.Builder request =
         HttpRequest.newBuilder(uri).timeout(requestTimeout).header("Accept", "application/json");
     if (!apiKey.isBlank()) {
