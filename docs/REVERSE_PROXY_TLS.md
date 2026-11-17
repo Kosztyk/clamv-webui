@@ -36,8 +36,10 @@ private networks. Never leave the allowlist blank, use `.*`, or allow an entire
 client LAN.
 
 Configuration Center exposes these settings under Network → Reverse proxy &
-session security. Changes require an application restart. Explicit deployment
-settings retain precedence over GUI settings.
+session security. When editing an allowlist, enter comma-separated CIDRs or
+`(?!)` to trust no peers. Existing saved regular expressions stay in effect
+until the allowlist is edited. Changes require an application restart. Explicit
+deployment settings retain precedence and also accept Tomcat regular expressions.
 
 The opt-in override requires an explicit proxy address:
 

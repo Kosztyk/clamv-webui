@@ -74,6 +74,10 @@ public final class ConfigurationCatalog {
     return result;
   }
 
+  static boolean isProxyAllowlist(String key) {
+    return key.startsWith("server.tomcat.remoteip.") && key.endsWith("-proxies");
+  }
+
   public static String validate(ConfigurationSetting field, String submitted) {
     if (submitted == null
         || submitted.length() > (field.secret() ? 4096 : 2048)
@@ -83,16 +87,13 @@ public final class ConfigurationCatalog {
       throw invalid(field, "invalid length or control characters");
     String value = field.secret() ? submitted : submitted.trim();
     try {
-      if (field.key().startsWith("server.tomcat.remoteip.") && field.key().endsWith("-proxies")) {
-        if (value.isBlank())
-          throw invalid(field, "use (?!) to trust nobody, or explicit proxy addresses");
-        if (value.contains("/")) {
-          for (String network : value.split(",", -1)) {
-            if (!network.trim().matches("[0-9A-Fa-f:.]+/[0-9]{1,3}"))
-              throw invalid(field, "use numeric CIDRs");
-            new org.apache.catalina.util.NetMask(network.trim());
-          }
-        } else java.util.regex.Pattern.compile(value);
+      if (isProxyAllowlist(field.key()) && !value.equals("(?!)")) {
+        for (String network : value.split(",", -1)) {
+          String cidr = network.trim();
+          if (!cidr.matches("(?:[0-9.]+|[0-9A-Fa-f]*:[0-9A-Fa-f:.]*)/[0-9]{1,3}"))
+            throw invalid(field, "use numeric CIDRs or (?!) to trust nobody");
+          new org.apache.catalina.util.NetMask(cidr);
+        }
       }
       if (field.key().equals("app.webhook.signing-secret")
           && !value.isBlank()
@@ -134,7 +135,10 @@ public final class ConfigurationCatalog {
           && field.key().endsWith("_PATH")
           && (!value.startsWith("/")
               || value.startsWith("//")
-              || value.matches(".*[?#:\\\\].*")
+              || value.indexOf('?') >= 0
+              || value.indexOf('#') >= 0
+              || value.indexOf(':') >= 0
+              || value.indexOf('\\') >= 0
               || value.contains("..")))
         throw invalid(field, "use an absolute API path without traversal or a query");
       if (field.key().startsWith("CLAMAV_REST_") && field.key().endsWith("_PATH"))
@@ -258,11 +262,20 @@ public final class ConfigurationCatalog {
       throw invalid(field, "use an HTTP(S) address without credentials or a query");
   }
 
+  private static boolean hasNetworkUserInfo(String url) {
+    int start = url.indexOf("://") + 3;
+    int end = url.indexOf('/', start);
+    int at = url.indexOf('@', start);
+    return at >= 0 && (end < 0 || at < end);
+  }
+
   public static void checkJdbc(String url) {
     String lower = url.toLowerCase(Locale.ROOT);
-    if (!(lower.startsWith("jdbc:postgresql://")
-        || lower.startsWith("jdbc:mysql://")
-        || lower.startsWith("jdbc:mariadb://")
+    boolean network =
+        lower.startsWith("jdbc:postgresql://")
+            || lower.startsWith("jdbc:mysql://")
+            || lower.startsWith("jdbc:mariadb://");
+    if (!(network
         || lower.startsWith("jdbc:h2:file:")
         || lower.matches("jdbc:h2:mem:[a-z0-9_-]+(?:;.*)?")))
       throw new IllegalArgumentException("Database URL: unsupported JDBC connection");
@@ -270,7 +283,7 @@ public final class ConfigurationCatalog {
             ".*(?:[;?&])(?:init|runscript|autoconvert|auto_server|password|user|trace_level_file|trace_level_system_out)\\s*=.*")
         || lower.contains("\\n")
         || lower.contains("\\r")
-        || lower.matches("jdbc:(?:postgresql|mysql|mariadb)://[^/]*@.*"))
+        || (network && hasNetworkUserInfo(lower)))
       throw new IllegalArgumentException(
           "Database URL: use dedicated credential fields and safe connection options");
     if (lower.startsWith("jdbc:h2:"))

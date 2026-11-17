@@ -190,6 +190,11 @@ public final class ConfigurationEngine {
     for (var entry : submitted.entrySet()) {
       var field = ConfigurationCatalog.get(entry.getKey());
       if (field.secret() && (entry.getValue() == null || entry.getValue().isBlank())) continue;
+      // Existing proxy regexes remain valid until the allowlist is changed.
+      if (ConfigurationCatalog.isProxyAllowlist(field.key())
+          && Objects.equals(before.get(field.key()), entry.getValue())) {
+        continue;
+      }
       String value = ConfigurationCatalog.validate(field, entry.getValue());
       if (!field.secret()
           && Objects.equals(before.get(field.key()), value)

@@ -101,6 +101,7 @@ class ConfigurationAllFieldsTest {
     if (key.startsWith("spring.servlet.multipart.")) return "8MB";
     if (key.equals("management.server.port")) return "9091";
     if (key.equals("server.servlet.context-path")) return "/scanner";
+    if (ConfigurationCatalog.isProxyAllowlist(key)) return "192.0.2.10/32,2001:db8::10/128";
     if (key.equals("app.allowedScanRoots")) return folder.toString();
     if (key.equals("clamav.service.host")) return "daemon.example.test";
     if (key.equals("center.clamd.name")) return "Primary scanner";
@@ -160,6 +161,34 @@ class ConfigurationAllFieldsTest {
     restarted.getPropertySources().addLast(new ConfigurationSource(reopened));
     assertThat(new ConfigurationEngine(restarted, reopened, Map::of).values(false).get(field.key()))
         .isEqualTo(normalized);
+  }
+
+  @Test
+  void keepsExistingProxyRegexWhenReviewingOtherSettings() {
+    String key = "server.tomcat.remoteip.internal-proxies";
+    String previous = "192\\.0\\.2\\.10";
+    var store = store();
+    store.save("0", Map.of(key, previous), Set.of(), true, "fixture");
+    var engine = new ConfigurationEngine(new MockEnvironment(), store(), Map::of);
+    var review =
+        engine.review("1", Map.of(key, previous, "server.servlet.session.timeout", "7m"), Set.of());
+    assertThat(review.summary()).extracting(ConfigurationEngine.Change::key).doesNotContain(key);
+    assertThatThrownBy(() -> engine.review("1", Map.of(key, "(a+)+"), Set.of()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("use numeric CIDRs");
+  }
+
+  @Test
+  void jdbcCredentialsAreRejectedInTheAuthority() {
+    for (String driver : List.of("postgresql", "mysql", "mariadb")) {
+      String prefix = "jdbc:" + driver + "://";
+      assertThatThrownBy(
+              () -> ConfigurationCatalog.checkJdbc(prefix + "scanner:secret@db.example.test/db"))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("dedicated credential fields");
+      assertThatCode(() -> ConfigurationCatalog.checkJdbc(prefix + "db.example.test/scan@history"))
+          .doesNotThrowAnyException();
+    }
   }
 
   @ParameterizedTest(name = "deployment override: {0}")
