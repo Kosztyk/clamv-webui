@@ -29,6 +29,9 @@ public class UserService {
 
   private static final Logger log = LoggerFactory.getLogger(UserService.class);
   private static final Pattern LOCAL_USERNAME = Pattern.compile("[a-z0-9._-]{3,64}");
+  private static final String ADMIN_AUTHORITY = Role.ADMIN.asAuthority();
+  private static final Set<String> LOCAL_AUTHORITIES =
+      Set.of(ADMIN_AUTHORITY, Role.OPERATOR.asAuthority(), Role.VIEWER.asAuthority());
 
   @Value("${clamav.bootstrap.admin.password:}")
   private String configuredBootstrapPassword = "";
@@ -51,7 +54,7 @@ public class UserService {
       // Do not silently turn an existing unassigned account into an administrator.
       var enabledAdmins =
           repo.findAll().stream()
-              .filter(u -> u.isEnabled() && u.getRoles().contains(Role.ADMIN.asAuthority()))
+              .filter(u -> u.isEnabled() && u.getRoles().contains(ADMIN_AUTHORITY))
               .toList();
       if (enabledAdmins.isEmpty()) {
         throw new IllegalStateException(
@@ -98,8 +101,7 @@ public class UserService {
       }
       admin.setUsername("admin");
       admin.setPasswordHash(encoder.encode(password));
-      admin.setRoles(
-          Set.of(Role.ADMIN.asAuthority(), Role.OPERATOR.asAuthority(), Role.VIEWER.asAuthority()));
+      admin.setRoles(LOCAL_AUTHORITIES);
       repo.save(admin);
     }
   }
@@ -155,7 +157,7 @@ public class UserService {
   @Transactional
   public void deleteUser(Long id) {
     AppUser target = repo.findById(id).orElseThrow();
-    requireAnotherAdmin(target);
+    requireEnabledAdminAfterChange(target, false);
     repo.deleteById(id);
     events.publishEvent(new LocalAccountChanged(id));
   }
@@ -173,33 +175,37 @@ public class UserService {
   public void updateAccess(Long id, Set<String> authorities, boolean enabled) {
     Set<String> roles = validatedRoles(authorities);
     AppUser user = repo.findById(id).orElseThrow();
+    requireEnabledAdminAfterChange(user, enabled && roles.contains(ADMIN_AUTHORITY));
     if (user.isEnabled() == enabled && user.getRoles().equals(roles)) return;
-    if (!enabled || !roles.contains(Role.ADMIN.asAuthority())) requireAnotherAdmin(user);
     user.setRoles(roles);
     user.setEnabled(enabled);
     repo.save(user);
     events.publishEvent(new LocalAccountChanged(id));
   }
 
-  private void requireAnotherAdmin(AppUser target) {
-    if (target.getRoles().contains(Role.ADMIN.asAuthority())
-        && target.isEnabled()
-        && repo.findAll().stream()
-            .noneMatch(
+  private void requireEnabledAdminAfterChange(AppUser target, boolean keepsAdminAccess) {
+    if (keepsAdminAccess || !target.isEnabled() || !target.getRoles().contains(ADMIN_AUTHORITY)) {
+      return;
+    }
+    boolean anotherAdmin =
+        repo.findAll().stream()
+            .anyMatch(
                 u ->
                     !u.getId().equals(target.getId())
                         && u.isEnabled()
-                        && u.getRoles().contains(Role.ADMIN.asAuthority()))) {
+                        && u.getRoles().contains(ADMIN_AUTHORITY));
+    if (!anotherAdmin) {
       throw new IllegalArgumentException(
           "Cannot delete, disable or demote the last enabled administrator");
     }
   }
 
   private static Set<String> validatedRoles(Set<String> authorities) {
-    Set<String> allowed =
-        Set.of(Role.ADMIN.asAuthority(), Role.OPERATOR.asAuthority(), Role.VIEWER.asAuthority());
-    if (authorities == null || authorities.isEmpty() || !allowed.containsAll(authorities))
+    if (authorities == null
+        || authorities.isEmpty()
+        || !LOCAL_AUTHORITIES.containsAll(authorities)) {
       throw new IllegalArgumentException("Choose at least one supported role");
+    }
     return new java.util.HashSet<>(authorities);
   }
 

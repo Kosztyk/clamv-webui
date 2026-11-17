@@ -49,6 +49,7 @@ public final class UploadAdmissionFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
+    boolean scanOperator = authenticatedScanOperator();
     String type = request.getContentType();
     if (type == null
         || !type.toLowerCase(java.util.Locale.ROOT).startsWith("multipart/form-data")) {
@@ -59,7 +60,7 @@ public final class UploadAdmissionFilter extends OncePerRequestFilter {
     if (length >= 0) {
       long ceiling = maxRequestBytes;
       Integer count = numericParameter(request.getQueryString(), "uploadFileCount", 10000);
-      if (count != null && count > 0 && authenticatedScanOperator()) {
+      if (scanOperator && count != null && count > 0) {
         try {
           Long id = endpointId(request.getQueryString());
           ClamdEndpoint endpoint = id == null ? endpoints.defaultEndpoint() : endpoints.get(id);

@@ -43,7 +43,8 @@ public class SessionAccessService {
   }
 
   public boolean managed(Authentication authentication) {
-    if (authentication == null || !authentication.isAuthenticated()) return false;
+    if (authentication == null) return false;
+    if (!authentication.isAuthenticated()) return false;
     Object principal = authentication.getPrincipal();
     return principal instanceof LocalUserDetails
         || principal instanceof ExternalLdapPrincipal

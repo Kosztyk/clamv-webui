@@ -47,6 +47,15 @@ public class WebUiController {
 
   private static final Logger log = LoggerFactory.getLogger(WebUiController.class);
 
+  private static final Map<String, Set<String>> USER_ROLES =
+      Map.of(
+          Role.ADMIN.name(),
+          Set.of(Role.ADMIN.asAuthority(), Role.OPERATOR.asAuthority(), Role.VIEWER.asAuthority()),
+          Role.OPERATOR.name(),
+          Set.of(Role.OPERATOR.asAuthority(), Role.VIEWER.asAuthority()),
+          Role.VIEWER.name(),
+          Set.of(Role.VIEWER.asAuthority()));
+
   // Each tab is rendered as its own page template under templates/pages/.
   // This prevents duplicated/stacked sections across tabs.
   private static final String PAGE_DASHBOARD = "pages/dashboard";
@@ -426,21 +435,8 @@ public class WebUiController {
       HttpServletRequest req,
       RedirectAttributes redirect) {
     try {
-      if (role == null
-          || !Set.of("VIEWER", "OPERATOR", "ADMIN").contains(role.toUpperCase(Locale.ROOT)))
-        throw new IllegalArgumentException("Select a valid user role");
-      Set<String> roles = new HashSet<>();
-      // role parameter represents minimum role
-      if ("ADMIN".equalsIgnoreCase(role)) {
-        roles.add(Role.ADMIN.asAuthority());
-        roles.add(Role.OPERATOR.asAuthority());
-        roles.add(Role.VIEWER.asAuthority());
-      } else if ("OPERATOR".equalsIgnoreCase(role)) {
-        roles.add(Role.OPERATOR.asAuthority());
-        roles.add(Role.VIEWER.asAuthority());
-      } else {
-        roles.add(Role.VIEWER.asAuthority());
-      }
+      Set<String> roles = role == null ? null : USER_ROLES.get(role.toUpperCase(Locale.ROOT));
+      if (roles == null) throw new IllegalArgumentException("Select a valid user role");
       var created = userService.createUser(username, password, roles, enabled);
       audit.record(auth, req, "USER_CREATE", created.getUsername(), "SUCCESS", null);
     } catch (IllegalArgumentException | org.springframework.dao.DataIntegrityViolationException e) {
