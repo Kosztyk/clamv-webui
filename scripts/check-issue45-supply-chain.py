@@ -103,8 +103,13 @@ def check_gates():
            'Tag-gated GitHub prerelease also blocks CRITICAL CVEs')
     ensure(release.index('Block release on known CRITICAL') < release.index('Create DRAFT GitHub release'),
            'Tag-gated release is scanned before publication')
-    ensure('docker build --progress plain --tag clamav-web-client:issue45-ci .' in source and
-           'image-ref: clamav-web-client:issue45-ci' in source, 'Trivy scans the built candidate, not another image')
+    commands = source.replace('\\\n', '')
+    candidate_build = re.search(
+        r'(?m)^[ \t]*docker build --progress plain[^\n]* --tag clamav-web-client:issue45-ci \.$',
+        commands,
+    )
+    ensure(candidate_build is not None and 'image-ref: clamav-web-client:issue45-ci' in source,
+           'Trivy scans the built candidate image')
 
 
 def main():
