@@ -153,6 +153,11 @@ Codes are `POLICY_REJECTED`, `NO_ELIGIBLE_FILES`, `CONFIGURATION_UNAVAILABLE`,
 ID to investigate private diagnostic details in server logs. The bridge does not
 make historical quarantine state more certain than the server record allows.
 
+In 2.1.0, `GET /api/v1/jobs` and `GET /api/v1/jobs/{id}` can return the
+`FAILED` quarantine status and the `QUARANTINE_FAILED` error code. Regenerate
+clients that validate these fields against the closed enums from earlier
+OpenAPI documents.
+
 An error object alongside `VIRUS_FOUND` reports incomplete quarantine, not a
 replacement scan verdict. CLI/MCP consumers must continue treating the malware
 detection as positive. See [upload and quarantine behavior](UPLOAD_FILENAMES.md).

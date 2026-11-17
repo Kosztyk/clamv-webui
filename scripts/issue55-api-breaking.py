@@ -17,6 +17,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = 'src/main/resources/openapi/clamav-v1.yaml'
+REVIEWED_WARNINGS = ROOT / 'config/oasdiff-reviewed-warnings.txt'
 
 
 def git_read(repo: Path, ref: str) -> str:
@@ -53,16 +54,19 @@ def compare(repo: Path, spec: Path, previous: str, tool: str,
         for label, ref in historical:
             baseline = Path(tmp) / f'{label}.yaml'
             baseline.write_text(git_read(repo,ref), encoding='utf-8')
-            args = [tool, 'breaking', '--fail-on', 'WARN', str(baseline),str(spec)]
+            args = [tool, 'breaking', '--fail-on', 'WARN', str(baseline), str(spec),
+                    '--warn-ignore', str(REVIEWED_WARNINGS)]
             command = subprocess.run(args,capture_output=True,text=True)
             output = (command.stdout + '\n' + command.stderr).strip()
             (report_dir / f'{label}.txt').write_text(
-                f'Baseline: {ref}\nCandidate: {spec}\nCommand: oasdiff breaking --fail-on WARN <baseline> <candidate>\n\n{output}\n',
+                f'Baseline: {ref}\nCandidate: {spec}\n'
+                f'Command: oasdiff breaking --fail-on WARN <baseline> <candidate> '
+                f'--warn-ignore {REVIEWED_WARNINGS.relative_to(ROOT)}\n\n{output}\n',
                 encoding='utf-8')
             if command.returncode:
                 failures.append(f'{label} ({ref}): oasdiff exit {command.returncode}; {output[-1200:]}')
             else:
-                print(f'PASS: no ERR/WARN-level breaking changes versus {label} {ref}')
+                print(f'PASS: no unreviewed ERR/WARN-level changes versus {label} {ref}')
     return failures
 
 

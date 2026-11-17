@@ -20,7 +20,7 @@ def check(ci_path:Path, release_path:Path):
     assert {'changes','cli-test'} <= set(jobs['cli-build']['needs']), 'Build must depend on successful CLI tests'
     assert {'changes','cli-build'} <= set(jobs['cli-integration']['needs']), 'Integration must exercise tested build artifacts'
     test=jobs['cli-test']
-    assert {'ubuntu-24.04','macos-14','windows-2022'} == set(test['strategy']['matrix']['os']), 'Go CI must test 3 OS families'
+    assert {'ubuntu-24.04','macos-15','windows-2022'} == set(test['strategy']['matrix']['os']), 'Go CI must test 3 OS families'
     teststeps='\n'.join(str(step.get('run','')) for step in test['steps'])
     for term in ('go test -count=1 ./...', 'go vet ./...', 'go test -race -count=1 ./...',
                  'staticcheck@2026.1','govulncheck@v1.1.4', 'staticcheck" ./...', 'govulncheck" ./...'):

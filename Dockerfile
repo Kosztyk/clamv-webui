@@ -12,9 +12,9 @@ RUN mvn -B -q verify
 # Do not install clamd/freshclam, their services, or signature databases in the web image.
 FROM eclipse-temurin:21-jre-noble@sha256:cd35bb33859641c5374415826a5951845104093eaa401cbe9d3d9023444f1c13 AS clamdtop-extract
 RUN set -eux; \
-    apt-get update; \
+    apt-get update -o Acquire::Retries=0; \
     cd /tmp; \
-    apt-get download clamav-daemon; \
+    apt-get download clamav-daemon -o Acquire::Retries=0; \
     dpkg-deb --extract ./clamav-daemon_*.deb /clamdtop-extracted; \
     test -x /clamdtop-extracted/usr/bin/clamdtop; \
     test ! -e /clamdtop-extracted/usr/bin/freshclam; \
@@ -29,10 +29,11 @@ WORKDIR /app
 # a small curl-based HTTP probe. libclamav is installed ONLY if clamdtop links it.
 COPY --from=clamdtop-extract --chown=0:0 --chmod=0555 /clamdtop-extracted/usr/bin/clamdtop /usr/bin/clamdtop
 COPY --from=clamdtop-extract --chown=0:0 --chmod=0444 /clamdtop-extracted/usr/share/doc/clamav-daemon/copyright /usr/share/doc/clamav-daemon/copyright
+# Update APT for CVE-2026-109518 and disable download retries during the upgrade.
 RUN set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-       libncurses6 libtinfo6 util-linux ncurses-term curl; \
+    apt-get update -o Acquire::Retries=0; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o Acquire::Retries=0 \
+       apt libncurses6 libtinfo6 util-linux ncurses-term curl; \
     if ldd /usr/bin/clamdtop | grep -q 'libclamav.so.12 => not found'; then \
        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libclamav12; \
     fi; \

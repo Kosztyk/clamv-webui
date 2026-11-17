@@ -32,7 +32,8 @@ import xyz.capybara.clamav.Platform;
 
 @SpringBootTest(
     properties = {
-      "spring.datasource.url=jdbc:h2:mem:token-path-scopes;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;IGNORECASE=TRUE",
+      // H2's regular mode supports VARCHAR_IGNORECASE during schema migrations.
+      "spring.datasource.url=jdbc:h2:mem:token-path-scopes;DB_CLOSE_DELAY=-1;IGNORECASE=TRUE",
       "clamav.bootstrap.admin.password=PathScopeLocalAdmin456789",
       "clamav.metrics.clamd-initial-delay-ms=3600000",
       "clamav.config.initial-delay-ms=3600000"
