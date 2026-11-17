@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Base64;
@@ -140,17 +141,17 @@ class Issue57H2UpgradeFixtureTest {
         flyway.validateWithResult().validationSuccessful, "Flyway history validation failed");
     try (Connection conn = DriverManager.getConnection(url, "sa", "")) {
       assertEquals(before, snapshot(conn), "V4 -> current migration changed historical data");
-      for (String provider : List.of("ldap", "oidc")) {
-        try (Statement statement = conn.createStatement();
-            ResultSet rs =
-                statement.executeQuery(
-                    "SELECT encrypted_secret FROM auth_provider_settings WHERE provider='"
-                        + provider
-                        + "'")) {
-          assertTrue(rs.next());
-          assertEquals(
-              provider.equals("ldap") ? ldapSecret : oidcSecret,
-              decrypt(key, provider, rs.getString(1)));
+      try (PreparedStatement statement =
+          conn.prepareStatement(
+              "SELECT encrypted_secret FROM auth_provider_settings WHERE provider=?")) {
+        for (String provider : List.of("ldap", "oidc")) {
+          statement.setString(1, provider);
+          try (ResultSet rs = statement.executeQuery()) {
+            assertTrue(rs.next());
+            assertEquals(
+                provider.equals("ldap") ? ldapSecret : oidcSecret,
+                decrypt(key, provider, rs.getString(1)));
+          }
         }
       }
       try (Statement st = conn.createStatement();

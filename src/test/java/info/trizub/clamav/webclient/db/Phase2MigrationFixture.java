@@ -216,25 +216,33 @@ final class Phase2MigrationFixture {
   }
 
   static void verifyTokenRoundTrip(Connection c) throws Exception {
-    try (Statement st = c.createStatement()) {
-      ResultSet rs =
-          st.executeQuery(
-              "SELECT count(*) FROM api_credentials WHERE token_hash='" + "a".repeat(64) + "'");
-      rs.next();
-      boolean exists = rs.getInt(1) > 0;
-      rs.close();
-      if (!exists) {
-        st.executeUpdate(
-            "INSERT INTO api_credentials(label,token_hash,prefix,scopes,created_at) VALUES ("
-                + "'migration-token','"
-                + "a".repeat(64)
-                + "','test','jobs:read','2026-10-28 18:30:00.123456')");
+    String tokenHash = "a".repeat(64);
+    boolean exists;
+    try (PreparedStatement select =
+        c.prepareStatement("SELECT count(*) FROM api_credentials WHERE token_hash=?")) {
+      select.setString(1, tokenHash);
+      try (ResultSet rs = select.executeQuery()) {
+        rs.next();
+        exists = rs.getInt(1) > 0;
       }
-      try (ResultSet check =
-          st.executeQuery(
-              "SELECT scopes FROM api_credentials WHERE token_hash='" + "a".repeat(64) + "'")) {
-        if (!check.next() || !"jobs:read".equals(check.getString(1)))
+    }
+    if (!exists) {
+      try (PreparedStatement insert =
+          c.prepareStatement(
+              "INSERT INTO api_credentials(label,token_hash,prefix,scopes,created_at)"
+                  + " VALUES ('migration-token',?,'test','jobs:read',"
+                  + "'2026-10-28 18:30:00.123456')")) {
+        insert.setString(1, tokenHash);
+        insert.executeUpdate();
+      }
+    }
+    try (PreparedStatement select =
+        c.prepareStatement("SELECT scopes FROM api_credentials WHERE token_hash=?")) {
+      select.setString(1, tokenHash);
+      try (ResultSet check = select.executeQuery()) {
+        if (!check.next() || !"jobs:read".equals(check.getString(1))) {
           throw new AssertionError("API token data not persisted");
+        }
       }
     }
   }
