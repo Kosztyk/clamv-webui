@@ -2,9 +2,9 @@
 
 ## GUI webhook
 
-Admin > Settings now exposes **Webhook notifications** with enabled/disabled selection and a write-only **Webhook URL** replacement input. The existing configuration keys are still `app.webhook.enabled` and `app.webhook.url`, persisted to `./conf/clamav-web-client.properties` through the existing SettingsService. Existing values are preserved when the URL field is left empty. Checking **Remove saved webhook URL** clears and disables it. An invalid URL or attempting to enable an empty URL is rejected without persisting other settings.
+Admin > Settings now exposes **Webhook notifications** with enabled/disabled selection and a write-only **Webhook URL** replacement input. The existing configuration keys are still `app.webhook.enabled` and `app.webhook.url`, persisted encrypted in Configuration Center (`conf/configuration-center.properties` plus `conf/configuration-center.key`). On upgrade, SettingsService migrates a legacy plaintext URL from `conf/clamav-web-client.properties` and removes the URL from that file after the encrypted write succeeds. Existing values are preserved when the URL field is left empty. Checking **Remove saved webhook URL** clears and disables it. An invalid URL or attempting to enable an empty URL is rejected without persisting other settings.
 
-The URL is never embedded into templates or into this source archive. Restrict read access to `./conf/clamav-web-client.properties`; avoid committing it to Git. Discord webhook URLs are credential-bearing. Rotate any webhook URL previously pasted into a shared channel.
+The URL is never embedded into templates or into this source archive. Keep the entire mounted `./conf` directory private and backed up. Runtime files are ignored by Git; only `conf/clamav-web-client.properties.example` is tracked. Discord webhook URLs are credential-bearing. Rotate any webhook URL previously pasted into a shared channel.
 
 This notification applies to **direct GUI scan jobs**. External REST API scans are processed by the separate REST server. Configure or select a webhook at that server and choose it from API Scan's webhook dropdown. Saving the GUI webhook does not automatically register it on the external REST server.
 

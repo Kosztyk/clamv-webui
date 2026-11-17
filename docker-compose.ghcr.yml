@@ -1,0 +1,21 @@
+# Example: pull a verified release image from GitHub Container Registry.
+# Set CLAMAV_WEBUI_RELEASE_VERSION=2.1.0 (or a later approved release)
+# and point CLAMAV_HOST at your existing reachable clamd instance.
+# The published Web UI image supports linux/amd64 and linux/arm64.
+# This example does not install a second ClamAV daemon.
+services:
+  clamav-web-client:
+    image: "ghcr.io/kosztyk/clamav-web-client:${CLAMAV_WEBUI_RELEASE_VERSION:?Set CLAMAV_WEBUI_RELEASE_VERSION to an approved version}"
+    pull_policy: always
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8080"
+    environment:
+      CLAMAV_HOST: "${CLAMAV_HOST:?Set CLAMAV_HOST to your clamd hostname or IP}"
+      CLAMAV_PORT: "${CLAMAV_PORT:-3310}"
+    volumes:
+      - ./conf:/app/conf
+      - ./data:/app/data
+    stop_grace_period: 60s

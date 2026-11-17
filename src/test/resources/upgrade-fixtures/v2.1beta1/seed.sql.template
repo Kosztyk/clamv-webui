@@ -1,0 +1,25 @@
+-- Issue #57: DATA fixture for the actual v2.1beta1 Flyway schema.
+-- Create the schema by starting the pinned previous-release Docker image FIRST.
+-- Runtime substitutions (never check resolved SQL into Git): __TOKEN_HASH__,
+-- __TOKEN_PREFIX__, __LDAP_CIPHER__, __OIDC_CIPHER__.
+-- Existing bootstrap admin's bcrypt digest is copied, not a plaintext password.
+INSERT INTO app_users (id, username, password_hash, enabled, created_at)
+  SELECT 5701, 'upgrade57-user', password_hash, TRUE, CURRENT_TIMESTAMP
+  FROM app_users WHERE username='admin';
+INSERT INTO app_user_roles (user_id, role) VALUES (5701, 'ROLE_OPERATOR');
+INSERT INTO app_user_roles (user_id, role) VALUES (5701, 'ROLE_VIEWER');
+INSERT INTO clamd_endpoints (id, name, host, port, platform, enabled)
+  VALUES (5702, 'upgrade57-endpoint', 'localhost', 3310, 'UNIX', TRUE);
+INSERT INTO scan_jobs (id, type, status, verdict, target, endpoint_id, submitted_by, submitted_at, started_at, finished_at)
+  VALUES ('upgrade57-job', 'UPLOAD', 'FINISHED', 'OK', 'upgrade57-file.txt',
+          5702, 'upgrade57-user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO audit_events (id, username, action, details, job_id)
+  VALUES (5703, 'upgrade57-user', 'SCAN_RESULT', 'upgrade57 historical audit', 'upgrade57-job');
+INSERT INTO api_credentials (label, token_hash, prefix, scopes, endpoint_ids, path_roots, created_at)
+  VALUES ('upgrade57-token', '__TOKEN_HASH__', '__TOKEN_PREFIX__',
+          'health:read,jobs:read,endpoints:read', '', '', CURRENT_TIMESTAMP);
+INSERT INTO auth_provider_settings (provider, settings_json, encrypted_secret, updated_at, updated_by)
+  VALUES ('ldap', '{"enabled":"false","url":"","baseDn":""}', '__LDAP_CIPHER__', CURRENT_TIMESTAMP, 'upgrade57-fixture');
+INSERT INTO auth_provider_settings (provider, settings_json, encrypted_secret, updated_at, updated_by)
+  VALUES ('oidc', '{"enabled":"false","issuer":"https://identity.example.test","clientId":"upgrade-fixture"}',
+          '__OIDC_CIPHER__', CURRENT_TIMESTAMP, 'upgrade57-fixture');

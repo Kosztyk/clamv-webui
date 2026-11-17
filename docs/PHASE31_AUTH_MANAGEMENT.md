@@ -26,7 +26,7 @@ placeholder semantics are in [LDAP configuration compatibility](LDAP_CONFIGURATI
 
 ## Credentials and rotation
 
-* Password/client secret inputs are write-only. Blank means **keep the existing secret**; replacing means new AES-256-GCM ciphertext is stored in PostgreSQL. No secret is rendered in the page or written into logs/audit.
+* Password/client secret inputs are write-only. Blank means **keep the existing secret when the destination and bind/client identity are unchanged**. Changes to those fields require credential re-entry before Test or Save; see [current provider secret protection](PROVIDER_SECRET_BINDING.md). New legacy SQL credentials use provider-bound AES-256-GCM ciphertext. No secret is rendered in the page or written into logs/audit.
 * The encryption key is stored separately in `./conf/auth-settings.key` (`/app/conf/auth-settings.key` in the container) with owner-read/write permissions. It is created on first secret save. Back it up with the database. Losing it prevents decrypting saved secrets; restore it, or recover by restoring database/key backup. Do not delete it on upgrade.
 * Alternatively set `CLAMAV_AUTH_SETTINGS_KEY` to a base64-encoded 32-byte key, or `CLAMAV_AUTH_SETTINGS_KEY_FILE` to a persistent/secret-mounted file holding that key. Keep it stable across restarts and rotate only in a coordinated recovery procedure.
 * Secret changes through the UI are rejected unless `HttpServletRequest.isSecure()` reports true. Access the application over HTTPS behind a trusted proxy and configure forwarded headers correctly. The legacy HTTP admin pages remain functional without exposing secrets.

@@ -1,9 +1,11 @@
 package info.trizub.clamav.webclient.model;
 
 public enum Role {
-    VIEWER, OPERATOR, ADMIN;
+  VIEWER,
+  OPERATOR,
+  ADMIN;
 
-    public String asAuthority() {
-        return "ROLE_" + name();
-    }
+  public String asAuthority() {
+    return "ROLE_" + name();
+  }
 }

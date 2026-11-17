@@ -1,0 +1,14 @@
+<div class="tabs" th:fragment="tabs">
+  <a class="tab-link" th:href="@{/dashboard}" href="/dashboard" th:classappend="${currentUri == '/dashboard'} ? ' active' : ''">Dashboard</a>
+  <a class="tab-link" th:href="@{/main}" href="/main" th:classappend="${currentUri == '/main'} ? ' active' : ''">Main</a>
+  <a class="tab-link" th:href="@{/scan}" href="/scan" th:classappend="${currentUri == '/scan'} ? ' active' : ''">Scan</a>
+  <a class="tab-link" th:href="@{/clamdtop}" href="/clamdtop" th:classappend="${currentUri == '/clamdtop'} ? ' active' : ''">Clamdtop</a>
+  <a class="tab-link" th:href="@{/jobs}" href="/jobs" th:classappend="${#strings.startsWith(currentUri, '/jobs')} ? ' active' : ''">Scan jobs</a>
+  <a class="tab-link" sec:authorize="hasAnyRole('OPERATOR','ADMIN')" th:href="@{/api-reports}" href="/api-reports" th:classappend="${currentUri == '/api-reports'} ? ' active' : ''">API reports</a>
+  <a class="tab-link" th:href="@{/admin/settings}" href="/admin/settings" th:classappend="${currentUri == '/admin/settings'} ? ' active' : ''">Settings</a>
+  <a class="tab-link" th:href="@{/admin/endpoints}" href="/admin/endpoints" th:classappend="${currentUri == '/admin/endpoints'} ? ' active' : ''">Endpoints</a>
+  <a class="tab-link" th:href="@{/admin/users}" href="/admin/users" th:classappend="${currentUri == '/admin/users'} ? ' active' : ''">Users</a>
+  <a class="tab-link" th:href="@{/admin/watch}" href="/admin/watch" th:classappend="${currentUri == '/admin/watch'} ? ' active' : ''">Watch</a>
+  <a class="tab-link" th:href="@{/admin/audit}" href="/admin/audit" th:classappend="${currentUri == '/admin/audit'} ? ' active' : ''">Audit</a>
+</div>
+<div class="pjax-progress" id="pjaxProgress" aria-hidden="true"><div class="pjax-progress__bar"></div></div>

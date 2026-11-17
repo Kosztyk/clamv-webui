@@ -9,12 +9,14 @@ import org.springframework.web.bind.annotation.*;
 @Controller
 @RequestMapping("/admin/settings/authentication")
 public class AuthenticationSettingsController {
-    @GetMapping
-    public String page() {
-        return "redirect:/admin/configuration-center?category=identity";
-    }
-    @PostMapping("/{provider}/{action}") @ResponseBody
-    public ResponseEntity<?> retired(@PathVariable String provider,HttpServletRequest request) {
-        return ConfigurationNavigation.moved(request,provider.equals("oidc")?"oidc":"ldap");
-    }
+  @GetMapping
+  public String page() {
+    return "redirect:/admin/configuration-center?category=identity";
+  }
+
+  @PostMapping("/{provider}/{action}")
+  @ResponseBody
+  public ResponseEntity<?> retired(@PathVariable String provider, HttpServletRequest request) {
+    return ConfigurationNavigation.moved(request, provider.equals("oidc") ? "oidc" : "ldap");
+  }
 }

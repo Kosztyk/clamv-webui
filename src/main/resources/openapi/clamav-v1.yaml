@@ -1,11 +1,19 @@
 openapi: 3.0.3
 info:
   title: ClamAV Web UI - Stable API
-  version: 1.2.0-mcp
+  version: "@@project.version@@"
   description: |
     First-party, versioned API. Bearer credentials must be transmitted over HTTPS.
-    Create tokens with an admin session and CSRF token. Existing /api routes remain
-    during migration. This API never returns local scan storage or quarantine paths.
+    Create tokens with an admin session and CSRF token. Legacy /api/** routes
+    are deprecated with a planned sunset of 2027-12-31 (no earlier than a major release).
+    Use the versioned paths below: /api/scan/upload -> /api/v1/scans/uploads,
+    /api/scan/path -> /api/v1/scans/paths, and /api/jobs -> /api/v1/jobs.
+    Legacy requests with an unknown endpoint return JSON 404; disabled scan endpoints
+    return JSON 400. This API never returns local scan storage or quarantine paths.
+    Nonempty token pathRoots restrict PATH/WATCH job reads to recorded canonical
+    targets in those roots and UPLOAD reads to this token's own uploads. Linked
+    audit events use the same visibility; page totals count only authorized rows.
+    Empty pathRoots deny path submission but leave history endpoint-scoped.
 servers:
   - url: /api/v1
 security:
@@ -28,6 +36,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [authenticated, principal, authentication]
                 properties:
                   authenticated: {type: boolean}
                   principal: {type: string}
@@ -45,6 +54,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [token, headerName, parameterName]
                 properties:
                   token: {type: string}
                   headerName: {type: string}
@@ -61,8 +71,8 @@ paths:
       tags: [Health]
       summary: Database connection readiness (not clamd)
       responses:
-        '200': {description: Database ready}
-        '503': {description: Database unavailable}
+        '200': {description: Database ready, content: {application/json: {schema: {$ref: '#/components/schemas/ComponentHealth'}}}}
+        '503': {description: Database unavailable, content: {application/json: {schema: {$ref: '#/components/schemas/ComponentHealth'}}}}
   /health/clamd:
     get:
       tags: [Health]
@@ -71,7 +81,7 @@ paths:
         - $ref: '#/components/parameters/endpointId'
       responses:
         '200': {description: Daemon reachable and signature database not known stale, content: {application/json: {schema: {$ref: '#/components/schemas/ClamdHealth'}}}}
-        '503': {description: Daemon unreachable or signatures stale}
+        '503': {description: Daemon unreachable or signatures stale, content: {application/json: {schema: {$ref: '#/components/schemas/ClamdHealth'}}}}
   /metrics/clamd:
     get:
       tags: [Health]
@@ -85,6 +95,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [endpointId, ok, threads, queue, pools, memory, checkedAt]
                 properties:
                   endpointId: {type: integer, format: int64}
                   ok: {type: boolean}
@@ -103,6 +114,7 @@ paths:
     get:
       tags: [Jobs]
       summary: Paginated, filtered jobs
+      description: Endpoint restrictions always apply. With nonempty pathRoots, only in-root PATH/WATCH jobs and this token's own API uploads are visible. Pagination and totals exclude unauthorized records.
       parameters:
         - {name: page, in: query, schema: {type: integer, minimum: 0, default: 0}}
         - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
@@ -118,14 +130,17 @@ paths:
       parameters: [{$ref: '#/components/parameters/jobId'}]
       responses:
         '200': {description: Safe job DTO, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
-        '404': {description: No such job}
+        '403': {description: "Scope, endpoint or job root/ownership restriction"}
+        '404': {$ref: '#/components/responses/NotFound'}
   /jobs/{id}/progress:
     get:
       tags: [Jobs]
       summary: Polling-friendly QUEUED/RUNNING/FINISHED status and verdict
+      description: Applies the same endpoint and root/ownership restrictions as job details and lists.
       parameters: [{$ref: '#/components/parameters/jobId'}]
       responses:
-        '200': {description: Status snapshot}
+        '200': {description: Status snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/JobProgress'}}}}
+        '403': {description: "Scope, endpoint or job root/ownership restriction"}
   /scans/uploads:
     post:
       tags: [Scanning]
@@ -143,7 +158,7 @@ paths:
                   type: array
                   items: {type: string, format: binary}
       responses:
-        '202': {description: Accepted; jobIds are generated in the local application}
+        '202': {description: Accepted; jobIds are generated in the local application, content: {application/json: {schema: {$ref: '#/components/schemas/UploadSubmission'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '429': {description: Scan rate limit exceeded}
   /scans/paths:
@@ -161,25 +176,26 @@ paths:
                 endpointId: {type: integer, format: int64}
                 path: {type: string, example: /scandir/sample.bin}
       responses:
-        '202': {description: Accepted, body includes jobId}
+        '202': {description: "Accepted, body includes jobId", content: {application/json: {schema: {$ref: '#/components/schemas/PathSubmission'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '403': {description: Token path restriction violation}
   /audit:
     get:
       tags: [Administration]
       summary: Admin role OR audit:read token, sanitized audit records
+      description: A token with nonempty pathRoots sees only events linked to its visible jobs. Unlinked, missing-job and out-of-root events are excluded from both records and page totals.
       parameters:
         - {name: page, in: query, schema: {type: integer, minimum: 0}}
         - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
       responses:
-        '200': {description: Sanitized audit events; no IP addresses or details}
+        '200': {description: Sanitized audit events; no IP addresses or details, content: {application/json: {schema: {$ref: '#/components/schemas/AuditPage'}}}}
         '403': {description: Insufficient privilege}
   /tokens:
     get:
       tags: [Administration]
       summary: Admin browser session only, metadata (never token secrets)
       responses:
-        '200': {description: Token metadata}
+        '200': {description: Token metadata, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Token'}}}}}
     post:
       tags: [Administration]
       summary: Admin browser session + CSRF required; secret shown exactly once
@@ -194,10 +210,10 @@ paths:
                 label: {type: string}
                 scopes: {type: array, items: {type: string, enum: [scan:upload, scan:path, jobs:read, endpoints:read, health:read, audit:read]}}
                 endpointIds: {type: array, items: {type: integer, format: int64}}
-                pathRoots: {type: array, items: {type: string}}
+                pathRoots: {type: array, items: {type: string}, description: Existing absolute directories inside global allowed roots. Symlink inputs are resolved and stored canonically. Nonempty roots also constrain job/audit visibility; empty roots deny scan:path submissions but permit endpoint-scoped history reads.}
                 expiresAt: {type: string, format: date-time}
       responses:
-        '201': {description: One-time secret and public token metadata}
+        '201': {description: One-time secret and public token metadata, content: {application/json: {schema: {$ref: '#/components/schemas/IssuedToken'}}}}
         '403': {description: Only administrators may issue credentials}
   /tokens/{id}:
     delete:
@@ -207,7 +223,7 @@ paths:
         - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
       responses:
         '204': {description: Revoked}
-        '404': {description: Not found}
+        '404': {$ref: '#/components/responses/NotFound'}
   /openapi.yaml:
     get:
       tags: [Administration]
@@ -223,13 +239,76 @@ components:
     jobId: {name: id, in: path, required: true, schema: {type: string}}
   responses:
     BadRequest: {description: Invalid request, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
-    Unauthorized: {description: Missing, invalid or expired bearer token}
+    Unauthorized: {description: "Missing, invalid or expired bearer token"}
+    NotFound: {description: Resource not found, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
   schemas:
+    UploadSubmission:
+      type: object
+      required: [created, jobIds]
+      properties:
+        created: {type: integer, minimum: 1}
+        jobIds: {type: array, items: {type: string}}
+    PathSubmission:
+      type: object
+      required: [jobId]
+      properties: {jobId: {type: string}}
+    JobProgress:
+      type: object
+      required: [jobId, status, completed, verdict, updatedAt]
+      properties:
+        jobId: {type: string}
+        status: {type: string, enum: [QUEUED, RUNNING, FINISHED]}
+        completed: {type: boolean}
+        verdict: {type: string, nullable: true, enum: [OK, VIRUS_FOUND, ERROR]}
+        updatedAt: {type: string, format: date-time}
+    Audit:
+      type: object
+      required: [id, at, actor, action]
+      properties:
+        id: {type: integer, format: int64}
+        at: {type: string, format: date-time}
+        actor: {type: string, nullable: true}
+        action: {type: string}
+        outcome: {type: string, nullable: true}
+        transport: {type: string, nullable: true}
+        endpointId: {type: integer, format: int64, nullable: true}
+        jobId: {type: string, nullable: true}
+    AuditPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Audit'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer, format: int64}
+        totalPages: {type: integer}
+    Token:
+      type: object
+      required: [id, label, prefix, scopes, endpointIds, pathRoots, createdAt]
+      properties:
+        id: {type: integer, format: int64}
+        label: {type: string}
+        prefix: {type: string}
+        scopes: {type: string}
+        endpointIds: {type: string}
+        pathRoots: {type: string}
+        createdAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time, nullable: true}
+        revokedAt: {type: string, format: date-time, nullable: true}
+        lastUsedAt: {type: string, format: date-time, nullable: true}
+    IssuedToken:
+      type: object
+      required: [token, secret]
+      properties:
+        token: {$ref: '#/components/schemas/Token'}
+        secret: {type: string}
     ComponentHealth:
       type: object
+      required: [status, component, at]
       properties: {status: {type: string}, component: {type: string}, at: {type: string, format: date-time}}
     ClamdHealth:
       type: object
+      required: [endpointId, endpoint, connectivity, signatureDatabaseFreshness, checkedAt]
       properties:
         endpointId: {type: integer, format: int64}
         endpoint: {type: string}
@@ -243,9 +322,11 @@ components:
         checkedAt: {type: string, format: date-time}
     Endpoint:
       type: object
+      required: [id, name, enabled]
       properties: {id: {type: integer, format: int64}, name: {type: string}, enabled: {type: boolean}}
     Job:
       type: object
+      required: [id, type, status, submittedAt, signatures, quarantineStatus]
       properties:
         id: {type: string}
         type: {type: string}
@@ -259,17 +340,18 @@ components:
         finishedAt: {type: string, format: date-time, nullable: true}
         signatures: {type: array, maxItems: 1000, items: {type: string, maxLength: 256}, description: Distinct sorted signature values only. Internal filenames and raw detection JSON are omitted. Missing/unreadable metadata produces an empty array.}
         durationMillis: {type: integer, format: int64, nullable: true, description: Execution duration from startedAt to finishedAt; queue time is excluded}
-        quarantineStatus: {type: string, enum: [PENDING, RECORDED, NOT_RECORDED, NOT_APPLICABLE, UNKNOWN], description: Recorded quarantine evidence only; no live filesystem check. PATH/WATCH history without a recorded location is UNKNOWN.}
+        quarantineStatus: {type: string, enum: [PENDING, RECORDED, FAILED, NOT_RECORDED, NOT_APPLICABLE, UNKNOWN], description: Recorded quarantine evidence only; no live filesystem check. FAILED is an observed quarantine error and preserves the VIRUS_FOUND verdict. PATH/WATCH history without recorded outcomes is UNKNOWN.}
         error: {$ref: '#/components/schemas/JobError'}
     JobError:
       type: object
       nullable: true
       required: [code, message]
       properties:
-        code: {type: string, enum: [POLICY_REJECTED, NO_ELIGIBLE_FILES, CONFIGURATION_UNAVAILABLE, LIMIT_EXCEEDED, SCAN_FAILED]}
+        code: {type: string, enum: [POLICY_REJECTED, NO_ELIGIBLE_FILES, CONFIGURATION_UNAVAILABLE, LIMIT_EXCEEDED, SCAN_FAILED, QUARANTINE_FAILED]}
         message: {type: string, description: Fixed public summary; raw daemon and exception messages are never returned}
     JobPage:
       type: object
+      required: [items, page, size, totalItems, totalPages]
       properties:
         items: {type: array, items: {$ref: '#/components/schemas/Job'}}
         page: {type: integer}
@@ -278,6 +360,7 @@ components:
         totalPages: {type: integer}
     Error:
       type: object
+      required: [error, message, timestamp]
       properties:
         error: {type: string}
         message: {type: string}

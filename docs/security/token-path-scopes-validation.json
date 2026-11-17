@@ -1,0 +1,392 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15",
+    "https://github.com/Kosztyk/clamv-webui/issues/16",
+    "https://github.com/Kosztyk/clamv-webui/issues/17",
+    "https://github.com/Kosztyk/clamv-webui/issues/18",
+    "https://github.com/Kosztyk/clamv-webui/issues/19",
+    "https://github.com/Kosztyk/clamv-webui/issues/20",
+    "https://github.com/Kosztyk/clamv-webui/issues/21"
+  ],
+  "verified_at_utc": "2026-11-10T19:49:01.841001+00:00",
+  "application_version": "2.1.0",
+  "java_verification": {
+    "command": "mvn verify",
+    "jdk": 21,
+    "result": "passed",
+    "tests": 756,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 751,
+    "new_tests_total": 22,
+    "root_scope_integration_tests": 20,
+    "new_queued_path_watch_redirect_cases": 2,
+    "focused_suites": [
+      {
+        "class": "info.trizub.clamav.webclient.api.v1.ApiV1CliSupportIntegrationTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "quarantineFailureIsVisibleInBothApisWithoutChangingTheInfectedVerdict",
+          "failedJobsReturnSafeErrorSummariesAndNoPrivateDiagnosticText",
+          "jobDetailsReturnSignaturesAndDurationWhileRetainingEndpointRestrictions",
+          "authenticationProbeWorksForAnyValidScopeAndRejectsInvalidOrPlaintextCredentials",
+          "metricsExposePoolStatisticsThroughAnAllowlistWithoutDaemonCommandsOrPaths",
+          "bearerUploadsRemainCsrfExemptAndRoleAndScopeChecksStillApply",
+          "basicScanWritesRequireAndAcceptARealSessionCsrfToken",
+          "healthReportsParsedDatabaseTimestampAndKeepsUnknownValuesUnknown"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.api.v1.ApiV1PathScopeIntegrationTest",
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "symlinkRootIsStoredCanonicallyAndWorksForSubmissionAndHistoryAfterFileDeletion",
+          "emptyRootsRetainEndpointWideReadsButStillDenyPathSubmission",
+          "auditDoesNotProvideAnAlternateReadOfHiddenJobsOrUnlinkedAdministrativeEvents",
+          "nullRootMembersProduceAValidationErrorBeforeIssuance",
+          "detailsAndProgressApplyTheSameRootEndpointAndUploadRules(String)[1]",
+          "detailsAndProgressApplyTheSameRootEndpointAndUploadRules(String)[2]",
+          "wildcardCharactersInRootsAreLiteralSqlCharacters",
+          "aliasChangedAfterAuthorizationCannotChangeThePathPassedToJobCreation",
+          "legacyUnresolvedAliasRootsAndUnavailableRootsFailClosedUntilReissued",
+          "metadataBatchesFillPagesAndCountsBeyondOneThousandRowsWithStableTies",
+          "retargetingTheOriginalRootAliasDoesNotRetargetTheStoredGrant",
+          "issuanceRejectsRootsThatCannotBeStoredAsSafeCanonicalDirectories(String)[1]",
+          "issuanceRejectsRootsThatCannotBeStoredAsSafeCanonicalDirectories(String)[2]",
+          "issuanceRejectsRootsThatCannotBeStoredAsSafeCanonicalDirectories(String)[3]",
+          "issuanceRejectsRootsThatCannotBeStoredAsSafeCanonicalDirectories(String)[4]",
+          "issuanceRejectsRootsThatCannotBeStoredAsSafeCanonicalDirectories(String)[5]",
+          "issuanceRejectsRootsThatCannotBeStoredAsSafeCanonicalDirectories(String)[6]",
+          "auditPaginationCrossesMetadataBatchesWithoutLeakingOvermatchCounts",
+          "listsOnlyInRootPathWatchAndOwnUploadsWithAccurateTotals",
+          "canonicalRootsAlsoWorkWhenTheGlobalAllowedRootIsAnAlias"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.api.v1.ApiV1SecurityIntegrationTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "adminCanCreateAndRevokeTokenWithCsrf",
+          "endpointAndPathRestrictionsAreEnforced",
+          "tokenScopesAndTlsAreEnforced",
+          "viewerCannotReadJobHistoryAndAdminAudit",
+          "tokenHashIsNeverPersistedAsCleartextAndRevokeIsImmediate",
+          "malformedCredentialsAreRejected"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.api.v1.ClamdProbeTimeoutIntegrationTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "aNonRoutableEndpointAlsoReturnsABoundedFailure",
+          "apiMainAndV1HealthReturnPromptlyWhenTheRealTcpPeerNeverAnswers"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.config.ClamdSchedulingTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[1]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[2]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[3]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[4]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[5]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[6]",
+          "aRealBlockedMetricsPollDoesNotStopOtherScheduledTasks",
+          "defaultsUseFourSchedulerThreadsAndSeparateValidatedBudgets",
+          "deploymentCanAdjustThePoolAndBudgetsEvenWithVirtualThreadsEnabled",
+          "unsafeSchedulerSizesFailAtStartup(String)[1]",
+          "unsafeSchedulerSizesFailAtStartup(String)[2]",
+          "unsafeSchedulerSizesFailAtStartup(String)[3]"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.DaemonPolicyScanBoundaryTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "queuedCanonicalTargetCannotBeRedirectedToAnotherGloballyAllowedPath(ScanJobType)[1]",
+          "queuedCanonicalTargetCannotBeRedirectedToAnotherGloballyAllowedPath(ScanJobType)[2]",
+          "queuedUploadIsRejectedByRefreshedPolicyBeforeAnyDaemonCommand",
+          "pathAndWatchSubmissionsEnforceExclusionsAndExistingAllowedRoots",
+          "mixedUploadBatchExceedingDaemonLimitQueuesAndCopiesNothing"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.TcpClamdClientTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "multiscanCollectsAllRecordsAndRejectsMalformedOrIncompleteVerdicts",
+          "aProbeSharesOneBudgetAcrossAllCommands",
+          "stalledDnsHasBoundedCapacityAndDoesNotBlockLiteralAddresses",
+          "aPeerThatStopsReadingCannotBlockAnInstreamWriteIndefinitely",
+          "instreamUsesNetworkByteOrderAndPreservesDetectionSignatures",
+          "trickledRepliesCannotExtendTheTotalCommandDeadline",
+          "nonRespondingPeerTimesOutAndSeesTheConnectionClose",
+          "scanHasItsOwnLongerBudgetAndAlsoTimesOut",
+          "pingVersionAndStatsHonorFramingAndDoNotWaitForEofAfterEnd",
+          "tcpRetainsTheConfiguredWindowsPathConversion",
+          "oversizedRepliesAreCappedAndPathCommandInjectionIsRejectedBeforeConnecting"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UploadBatchPersistenceTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "anAmbientTransactionIsRejectedBeforeAnyCopyCanHoldItsConnection",
+          "optionalHistoryRetentionPrunesAllOldBatchesAndKeepsActiveRecentAndQuarantinedJobs",
+          "aDatabaseFailureAtCommitAlsoRemovesAlreadyWrittenFiles",
+          "historyPruningIsDisabledByDefault",
+          "a400CharacterFilenamePersistsItsDisplayNameAndUsesABoundedPrivateStorageName(String)[1]",
+          "a400CharacterFilenamePersistsItsDisplayNameAndUsesABoundedPrivateStorageName(String)[2]",
+          "failedMultiFileBatchRollsBackRowsAndRemovesCompleteAndPartialFilesForBothPublicOverloads(boolean)[1]",
+          "failedMultiFileBatchRollsBackRowsAndRemovesCompleteAndPartialFilesForBothPublicOverloads(boolean)[2]",
+          "threeCopiesLeaveASingleConnectionPoolAvailableForOtherQueries",
+          "successfulCommitKeepsQueuedFilesAndAnAfterCommitQueueFailureDoesNotDeleteThem"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UploadStorageTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "cleanupRefusesPathsOutsideStorageAndDoesNotDeletePathScans",
+          "janitorRemovesExpiredOrphansButPreservesYoungUnknownAndSymlinkedFiles",
+          "retainedCleanFilesExpireButActiveAndRecentlyFinishedUploadsDoNot",
+          "uploadFilesAndDirectoriesArePrivateOnPosixAndNameCollisionsPreserveExistingFiles",
+          "inProgressBatchesAreProtectedEvenIfTheirFilesAreOld",
+          "infectedUploadsAreDeletedOrQuarantinedAndNeverLeftInUploads(boolean)[1]",
+          "infectedUploadsAreDeletedOrQuarantinedAndNeverLeftInUploads(boolean)[2]",
+          "aCleanScanRemovesItsUploadAfterPersistingTheVerdict",
+          "quarantineNamesDoNotGrowWithAnAlreadyMaximumLengthSourceName",
+          "quarantineFailureDeletesTheInfectedUploadedCopy"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.util.PathPolicyTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "symlinkCannotEscapeAllowedRoot",
+          "acceptsCanonicalFileInsideAllowedRoot",
+          "deniesMissingAndUnallowedTargets"
+        ]
+      }
+    ],
+    "skipped_tests": [
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "multiscanReadsAllNullDelimitedResultsUntilConnectionClose"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "nonResponsiveSocketTimesOutAndClosesWithoutHangingAWorker"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "pingVersionAndStatsUseTheMountedSocketAndCorrectTerminators"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "cleanErrorsAndEmptyRepliesAreDistinct"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "instreamSendsLengthPrefixedChunksAndAZeroTerminatorThenReturnsDetections"
+      }
+    ]
+  },
+  "packaged_application_sha256": "3bdef5dcef3997c9e7a579e4b777c9886c61b216e72b157064af0774da3dfd6f",
+  "authorization_policy": {
+    "nonempty_path_roots": "PATH/WATCH by recorded canonical target; uploads by token identity and API_TOKEN transport",
+    "endpoint_grants": "Intersect with job and event visibility",
+    "individual_details_and_progress": "Same policy as lists; forbidden jobs return 403",
+    "audit": "Only linked visible jobs; unlinked, missing-job and unauthorized events excluded",
+    "empty_path_roots": "Path submissions denied; history remains endpoint-scoped when its capability is granted",
+    "session_basic_and_admin": "Existing role and global policy retained",
+    "dto_redaction": "No raw targets, stored/quarantine paths, exception text or detection filenames added",
+    "legacy_uploads_without_ownership_transport": "Hidden from root-constrained tokens"
+  },
+  "canonical_path_policy": {
+    "issuance": "Existing absolute directory, canonicalized inside canonical global roots",
+    "stored_root_limit_characters": 2048,
+    "invalid_inputs": [
+      "Missing/non-directory/relative root",
+      "Escaping symlink",
+      "Commas/control characters in input or resolved metadata",
+      "Null root member",
+      "Oversized root metadata"
+    ],
+    "alias_retargeting": "Original issuance alias cannot move the stored canonical grant",
+    "legacy_alias_roots": "Fail closed; revoke/reissue after reviewing the intended physical directory",
+    "unavailable_roots": "Do not turn a nonempty restriction into an unrestricted history grant",
+    "submission_handoff": "Canonical authorization Path passed directly to the new service overload",
+    "queued_work": "PATH/WATCH target revalidation rejects a different resolved path before a daemon command",
+    "history": "Recorded canonical metadata remains readable after file deletion while its root remains available"
+  },
+  "pagination_and_database_checks": {
+    "database": "Real H2/JPA, PostgreSQL compatibility mode, IGNORECASE=TRUE",
+    "case_insensitivity_proved": "SQL equality matches three case/endpoint variants before Java authorization limits results",
+    "sql_candidates": "Endpoint/type, escaped component-boundary roots and upload ownership",
+    "final_authorization": "Java path components and exact token/transport identity prevent collation overmatches",
+    "metadata_batch_size": 500,
+    "batch_cursor": "Timestamp and ID, including stable equal-time ties",
+    "visible_job_fixture": 1201,
+    "visible_audit_event_fixture": 501,
+    "exact_authorized_counts_and_full_pages": "passed",
+    "wildcard_literal_roots": "Percent, underscore and exclamation-mark escape character tested",
+    "memory": "One metadata batch plus selected page; full entities loaded only for selected IDs",
+    "cost": "Exact restricted totals require visiting matching candidate metadata; unrestricted queries retain their old path"
+  },
+  "race_regressions": {
+    "alias_changed_immediately_after_access_check": "Real access method plus deterministic spy retargeting; saved target remains authorized canonical path",
+    "queued_path_and_watch_target_changed_inside_global_root": "Real filesystem symlink retargeting; error persisted and daemon client never invoked"
+  },
+  "packaged_http_runtime": {
+    "result": "passed",
+    "checks": 25,
+    "runner": "tools/verify-token-path-scopes.py",
+    "backend": "Real packaged Spring application and H2 with synthetic ClamD verdicts",
+    "transport": "Loopback trusted native proxy-header fixture; no external TLS or daemon",
+    "assertions": [
+      {
+        "description": "Administrator issues tenant A"
+      },
+      {
+        "description": "Administrator issues tenant B"
+      },
+      {
+        "description": "Administrator issues endpoint history"
+      },
+      {
+        "description": "Alias root is returned and stored as the canonical directory"
+      },
+      {
+        "description": "Scoped token submits a permitted canonical path"
+      },
+      {
+        "description": "Scoped token submits a permitted canonical path"
+      },
+      {
+        "description": "Scoped token submits its own upload"
+      },
+      {
+        "description": "Scoped token submits its own upload"
+      },
+      {
+        "description": "Authorized job remains readable after the synthetic worker result"
+      },
+      {
+        "description": "Authorized job remains readable after the synthetic worker result"
+      },
+      {
+        "description": "Authorized job remains readable after the synthetic worker result"
+      },
+      {
+        "description": "Authorized job remains readable after the synthetic worker result"
+      },
+      {
+        "description": "Root-scoped job list excludes another root and another token upload",
+        "visible_jobs": 2
+      },
+      {
+        "description": "Hidden signatures and upload labels do not leak into the authorized list"
+      },
+      {
+        "description": "Pagination totals and records contain only visible jobs"
+      },
+      {
+        "description": "Details/progress rejects a hidden path or foreign upload"
+      },
+      {
+        "description": "Details/progress rejects a hidden path or foreign upload"
+      },
+      {
+        "description": "Details/progress rejects a hidden path or foreign upload"
+      },
+      {
+        "description": "Details/progress rejects a hidden path or foreign upload"
+      },
+      {
+        "description": "Empty-root history credentials retain explicit endpoint-wide reads",
+        "visible_jobs": 4
+      },
+      {
+        "description": "Linked audit records obey the same job visibility and exclude administrative events"
+      },
+      {
+        "description": "Retargeting the original alias does not expand the pinned grant"
+      },
+      {
+        "description": "Existing canonical in-root history remains accessible after alias retargeting"
+      },
+      {
+        "description": "Bearer token cannot bypass v1 restrictions through legacy job routes"
+      },
+      {
+        "description": "Administrator token page explains and displays the effective root policy"
+      }
+    ]
+  },
+  "configuration_runtime": {
+    "checks": 36,
+    "result": "passed",
+    "runner": "tools/verify-configuration-center.py"
+  },
+  "previous_fixes": {
+    "issues_13_through_20_retained": true,
+    "all_previous_java_regressions_reran": true,
+    "other_main_java_files_unchanged": 128,
+    "configuration_catalogue_fields": 113,
+    "new_configuration_center_fields": 0,
+    "entity_schema_and_flyway_unchanged": true,
+    "dependencies_forwarding_scanner_and_timeout_defaults_unchanged": true,
+    "native_engine_evidence": "Retained from the issue #20 edition; native engine not rerun for #21",
+    "native_engine_report": "docs/security/clamd-timeouts-validation.json",
+    "compose_and_helper_evidence": "Unchanged source; retains earlier scoped results"
+  },
+  "limits": [
+    "No Docker image/network execution or live external PostgreSQL/MySQL/MariaDB engine was run for this issue.",
+    "Packaged authorization checks use a synthetic ClamD wire/verdict fixture, not a real malware engine.",
+    "The loopback native forwarding fixture simulates a trusted TLS edge, not an external TLS handshake.",
+    "Five existing AF_UNIX integration cases remain skipped; new filesystem symlink cases ran.",
+    "Canonical grants and worker path equality are pathname checks, not inode/content snapshots or atomic remote daemon lookups.",
+    "Restricted history uses recorded canonical target metadata; concurrent updates retain ordinary pagination consistency limits.",
+    "Legacy unresolved root grants require explicit reissuance; malformed queued targets may need resubmission."
+  ],
+  "database_schema_migrations": "None",
+  "upgrade_instructions": "docs/TOKEN_PATH_SCOPES.md",
+  "references": [
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html"
+  ]
+}

@@ -1,6 +1,6 @@
 # Configuration Center field reference
 
-Generated from `src/main/resources/configuration-center/catalog.json`, the same catalogue used by setup and the administration API. All 107 global fields have one GUI editor. Deployment overrides are read-only; blank credential inputs retain saved secrets. See [Configuration Center](CONFIGURATION_CENTER.md) and [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [the complete field audit](CONFIGURATION_FIELD_AUDIT.md).
+Generated from `src/main/resources/configuration-center/catalog.json`, the same catalogue used by setup and the administration API. All 128 global fields have one GUI editor. Deployment overrides are read-only; blank credential inputs retain saved secrets. LDAP/OIDC destination or bind/client identity changes require explicit credential re-entry before Test or Save; see [provider secret protection](PROVIDER_SECRET_BINDING.md). See [Configuration Center](CONFIGURATION_CENTER.md) and [the consolidation audit](CONFIGURATION_CONSOLIDATION.md) and [the complete field audit](CONFIGURATION_FIELD_AUDIT.md).
 
 ## Connections
 
@@ -19,6 +19,7 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 | Request timeout (seconds) | `CLAMAV_REST_TIMEOUT_SECONDS` | `CLAMAV_REST_TIMEOUT_SECONDS` | `10` | Restart |
 | Upload timeout (seconds) | `CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS` | `CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS` | `3600` | Restart |
 | Maximum report jobs | `CLAMAV_REST_REPORT_MAX_JOBS` | `CLAMAV_REST_REPORT_MAX_JOBS` | `5000` | Restart |
+| REST history snapshot cache TTL (ms) | `CLAMAV_REST_HISTORY_CACHE_TTL_MS` | `CLAMAV_REST_HISTORY_CACHE_TTL_MS` | `5000` (1000–30000) | Restart |
 | Statistics path | `CLAMAV_REST_STATS_PATH` | `CLAMAV_REST_STATS_PATH` | `/api/v1/stats` | Restart |
 | Jobs path | `CLAMAV_REST_JOBS_PATH` | `CLAMAV_REST_JOBS_PATH` | `/api/v1/jobs` | Restart |
 | History path | `CLAMAV_REST_HISTORY_PATH` | `CLAMAV_REST_HISTORY_PATH` | `/api/v1/history` | Restart |
@@ -26,7 +27,7 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 | Async scan path | `CLAMAV_REST_SCAN_PATH` | `CLAMAV_REST_SCAN_PATH` | `/api/v1/asyncscan` | Restart |
 | Scan history path | `CLAMAV_REST_SCAN_HISTORY_PATH` | `CLAMAV_REST_SCAN_HISTORY_PATH` | `/api/v1/scan-history` | Restart |
 | Webhook form field | `CLAMAV_REST_WEBHOOK_FIELD` | `CLAMAV_REST_WEBHOOK_FIELD` | `webhookId` | Restart |
-| Database connection URL | `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE` | Restart |
+| Database connection URL | `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=0` | Restart |
 | Database username | `spring.datasource.username` | `SPRING_DATASOURCE_USERNAME` | `sa` | Restart |
 | Database password (private) | `spring.datasource.password` | `SPRING_DATASOURCE_PASSWORD` | Not configured | Restart |
 | JDBC driver (automatic when blank) | `spring.datasource.driver-class-name` | `SPRING_DATASOURCE_DRIVER_CLASS_NAME` | Not configured | Restart |
@@ -45,12 +46,18 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 | Upload storage directory | `app.storage.uploadDir` | `CLAMAV_UPLOAD_DIR` | `./data/uploads` | Restart |
 | Use native uploaded-path scanning | `app.upload.pathScan.enabled` | `CLAMAV_UPLOAD_PATH_SCAN_ENABLED` | `true` | Live |
 | Fall back to INSTREAM | `app.upload.pathScan.fallbackToInstream` | `CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM` | `false` | Live |
-| HTTP file size ceiling | `spring.servlet.multipart.max-file-size` | `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE` | `2048MB` | Restart |
+| Multipart temporary directory | `spring.servlet.multipart.location` | `SPRING_SERVLET_MULTIPART_LOCATION` | Docker: `/app/data/tmp/multipart`; JAR: OS temp | Restart |
+| HTTP file size ceiling | `spring.servlet.multipart.max-file-size` | `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE` | `2047MB` | Restart |
 | HTTP request size ceiling | `spring.servlet.multipart.max-request-size` | `SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE` | `2048MB` | Restart |
 | Enable quarantine | `app.quarantine.enabled` | `CLAMAV_QUARANTINE_ENABLED` | `false` | Live |
 | Quarantine directory | `app.storage.quarantineDir` | `CLAMAV_QUARANTINE_DIR` | `./data/quarantine` | Restart |
 | Enable directory watching | `app.watch.enabled` | `CLAMAV_WATCH_ENABLED` | `false` | Live |
 | Watch interval (seconds) | `app.watch.pollSeconds` | `CLAMAV_WATCH_POLL_SECONDS` | `30` | Live |
+
+| Delete clean uploads | `app.uploads.deleteClean` | `CLAMAV_UPLOADS_DELETE_CLEAN` | `true` | Live |
+| Upload retention (hours) | `app.uploads.retentionHours` | `CLAMAV_UPLOADS_RETENTION_HOURS` | `24` | Live |
+| Job history retention (days) | `app.history.jobsRetentionDays` | `CLAMAV_HISTORY_JOBS_RETENTION_DAYS` | `0` (keep history) | Live |
+| Audit history retention (days) | `app.history.auditRetentionDays` | `CLAMAV_HISTORY_AUDIT_RETENTION_DAYS` | `0` (keep history) | Live |
 
 ## Identity & API
 
@@ -58,6 +65,7 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 |---|---|---|---|---|
 | Enable LDAP | `clamav.identity.ldap.enabled` | `CLAMAV_IDENTITY_LDAP_ENABLED`, `SECURITY_LDAP_ENABLED`, `security.ldap.enabled` | `false` | Restart |
 | LDAP URL | `clamav.identity.ldap.url` | `CLAMAV_IDENTITY_LDAP_URL`, `SECURITY_LDAP_URL`, `security.ldap.url` | Not configured | Restart |
+| Stable LDAP directory ID (Advanced) | `clamav.identity.ldap.directory-id` | `CLAMAV_IDENTITY_LDAP_DIRECTORY_ID` | Blank; freezes the legacy issuer on first startup with configured LDAP | Restart |
 | Base DN | `clamav.identity.ldap.base-dn` | `CLAMAV_IDENTITY_LDAP_BASE_DN`, `SECURITY_LDAP_BASE_DN`, `security.ldap.base-dn` | Not configured | Restart |
 | Bind / manager DN | `clamav.identity.ldap.manager-dn` | `CLAMAV_IDENTITY_LDAP_MANAGER_DN`, `SECURITY_LDAP_BIND_DN`, `security.ldap.bind-dn` | Not configured | Restart |
 | Bind password (private) | `clamav.identity.ldap.manager-password` | `CLAMAV_IDENTITY_LDAP_MANAGER_PASSWORD`, `SECURITY_LDAP_BIND_PASSWORD`, `security.ldap.bind-password` | Not configured | Restart |
@@ -112,10 +120,12 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 
 | Field | Application key | Environment / compatibility input aliases | Default | Activation |
 |---|---|---|---|---|
-| Forwarded-header strategy | `server.forward-headers-strategy` | `SERVER_FORWARD_HEADERS_STRATEGY` | `framework` | Restart |
+| Forwarded-header strategy | `server.forward-headers-strategy` | `SERVER_FORWARD_HEADERS_STRATEGY` | `none` | Restart |
+| Proxy peer allowlist | `server.tomcat.remoteip.internal-proxies` | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | `(?!)` (trust nobody) | Restart |
+| Additional proxy chain allowlist | `server.tomcat.remoteip.trusted-proxies` | `SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES` | `(?!)` (trust nobody) | Restart |
 | Application HTTPS base URL | `clamav.public-url` | `CLAMAV_PUBLIC_URL` | Not configured | Restart |
 | URL prefix | `server.servlet.context-path` | `SERVER_SERVLET_CONTEXT_PATH` | Not configured | Restart |
-| Secure session cookies | `server.servlet.session.cookie.secure` | `SERVER_SERVLET_SESSION_COOKIE_SECURE` | `false` | Restart |
+| Secure session cookies | `server.servlet.session.cookie.secure` | `SERVER_SERVLET_SESSION_COOKIE_SECURE` | `true` | Restart |
 | Cookie SameSite policy | `server.servlet.session.cookie.same-site` | `SERVER_SERVLET_SESSION_COOKIE_SAME_SITE` | `lax` | Restart |
 | Java truststore path | `javax.net.ssl.trustStore` | `CLAMAV_TRUSTSTORE_PATH` | Not configured | Restart |
 | Truststore password (private) | `javax.net.ssl.trustStorePassword` | `CLAMAV_TRUSTSTORE_PASSWORD` | Not configured | Restart |
@@ -128,6 +138,8 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 | Enable Prometheus scraping | `clamav.metrics.enabled` | `CLAMAV_METRICS_ENABLED` | `false` | Live |
 | Scrape token (private) | `clamav.metrics.scrape-token` | `CLAMAV_METRICS_SCRAPE_TOKEN` | Not configured | Live |
 | ClamD telemetry interval (ms) | `clamav.metrics.clamd-poll-ms` | `CLAMAV_METRICS_CLAMD_POLL_MS` | `30000` | Restart |
+| Native ClamdTop idle timeout (seconds) | `clamav.clamdtop.idle-timeout-seconds` | `CLAMAV_CLAMDTOP_IDLE_TIMEOUT_SECONDS` | `180` (range 1–86400) | Restart |
+| Distinct exact signature labels | `clamav.metrics.signatures.max-distinct` | `CLAMAV_METRICS_SIGNATURES_MAX_DISTINCT` | `100` (plus `other` and `unknown`) | Restart |
 | Maximum polled endpoints | `clamav.metrics.clamd-max-endpoints` | `CLAMAV_METRICS_CLAMD_MAX_ENDPOINTS` | `12` | Restart |
 | Separate management listener port (optional) | `management.server.port` | `MANAGEMENT_SERVER_PORT` | Not configured | Restart |
 | Enable configuration observation | `center.observer.enabled` | `CLAMAV_CONFIG_OBSERVER_ENABLED` | `true` | Live |
@@ -146,7 +158,7 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 
 ## Identity validation and display
 
-LDAP contains all 20 runtime options plus the inline and mounted-file credential sources. OIDC contains all 10 runtime options plus its two credential sources. All former Authentication form options appear together when a provider is enabled. Nested depth appears when nesting is enabled; secret-file paths remain under Advanced.
+LDAP contains its existing 20 runtime options plus the stable directory identity setting plus the inline and mounted-file credential sources. OIDC contains all 10 runtime options plus its two credential sources. All former Authentication form options appear together when a provider is enabled. Nested depth appears when nesting is enabled; secret-file paths remain under Advanced.
 
 - LDAP nesting depth: **1–8**; connect/read timeouts: **1000–30000 ms**.
 - Group filter: blank uses the member attribute; `{0}` is the user DN and `{1}` is the login name.
@@ -160,12 +172,12 @@ See [the complete guide](COMPLETE_USER_GUIDE.md) for per-field meaning and [vali
 
 ## Validated limits
 
-API page size: 1–500. Metrics endpoint slots: 1–12. Watch interval: 30–3600 seconds, checked with a one-second scheduler tick. REST multipart field names must start with a letter and contain at most 51 letters, digits, underscores or hyphens. REST paths require valid absolute URI path syntax without traversal or query components. Upload and quarantine directories cannot be blank. Flyway baseline versions must be numeric; enabling legacy baselining still requires version 1 and an acknowledged backup.
-
-## API and external REST deployment
-
-See [built-in API and external REST setup](REST_API_DEPLOYMENT.md) for token examples, a complete REST-service Compose, GUI/client-environment mappings, upload-size units and endpoint compatibility. The REST backend's own `APP_*` and `CLAMD_*` inputs are configured in that container's deployment.
+API page size: 1–500. Metrics endpoint slots: 1–12. Watch interval: 30–3600 seconds, checked with a one-second scheduler tick. Watch polls traverse the complete tree without overlapping; large traversals can extend the effective interval. See [watcher coverage and retry behavior](WATCHER_RELIABILITY.md). REST multipart field names must start with a letter and contain at most 51 letters, digits, underscores or hyphens. REST paths require valid absolute URI path syntax without traversal or query components. Upload and quarantine directories cannot be blank. Flyway baseline versions must be numeric; enabling legacy baselining still requires version 1 and an acknowledged backup.
 
 ## Database test budgets
 
 The pool connection timeout also supplies the database Test connection budget, clamped to 1–30 seconds for interactive tests. The outer test deadline adds five seconds; the default is 15 seconds. PostgreSQL uses seconds, while MySQL/MariaDB use milliseconds. New H2 databases are reported as not initialized, not falsely verified. See [database connection tests](DATABASE_CONNECTION_TESTS.md).
+
+## Upload cleanup and history
+
+Clean uploaded copies are deleted after completion by default. Infected copies are quarantined or deleted. Upload retention is 1–8760 hours, with active jobs and copies in progress protected. Job/audit history retention is 0–3650 days; 0 disables history pruning. See [upload retention and native scanner migration](UPLOAD_RETENTION.md).

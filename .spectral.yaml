@@ -1,0 +1,11 @@
+# Pinned Spectral CLI 6.17.1; schema/semantic violations are blocking.
+# Existing descriptions and operationId are documented but not part of the strict baseline.
+extends: [spectral:oas]
+rules:
+  operation-operationId: off
+  operation-description: off
+  info-contact: off
+  oas3-unused-component: off
+  operation-tag-defined: error
+  oas3-schema: error
+  path-params: error

@@ -1,0 +1,10 @@
+<div th:fragment="language" class="dropdown">
+    <a class="dropdown-toggle topbar-link" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <span th:text="${#locale.displayLanguage}">English</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" th:href="@{/setLocale(lang='en')}" href="#">English</a></li>
+        <li><a class="dropdown-item" th:href="@{/setLocale(lang='uk')}" href="#">Українська</a></li>
+        <li><a class="dropdown-item" th:href="@{/setLocale(lang='ro')}" href="#">Română</a></li>
+    </ul>
+</div>

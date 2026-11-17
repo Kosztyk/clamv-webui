@@ -1,7 +1,11 @@
 # Apply only when a trusted TLS-terminating proxy is the exclusive inbound path.
-# The edge must remove untrusted Forwarded/X-Forwarded-* headers and set its own.
+# Set CLAMAV_TRUSTED_PROXY_CIDRS to the actual backend socket IP/CIDR of the proxy.
+# The edge must replace incoming Forwarded/X-Forwarded-* headers, not append them.
 # docker compose -f docker-compose.yml -f examples/compose/reverse-proxy.override.yaml up -d --force-recreate clamav-web-client
 services:
   clamav-web-client:
     environment:
-      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "${CLAMAV_TRUSTED_PROXY_CIDRS:?Set the exact proxy IP/CIDR visible to the application}"
+      SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES: "(?!)"
+      SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"

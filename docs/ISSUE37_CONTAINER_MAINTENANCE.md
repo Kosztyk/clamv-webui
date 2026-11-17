@@ -1,0 +1,68 @@
+# Issue #37 — minimal Web UI runtime, liveness and dependency hygiene
+
+This change follows the #36 full-source archive; does not modify scan mode, the external ClamD image, database schema, Configuration Center precedence, or existing Prometheus token protection.
+
+## What changed, and why
+
+- Ubuntu Noble includes `clamdtop` in **clamav-daemon**, with no separate executable package. A dedicated stage downloads the distribution `.deb`, extracts only `/usr/bin/clamdtop`, and copies that executable and the package copyright notice to the final runtime. Runtime installs dynamic libraries needed to link it (ncurses and terminfo, plus `libclamav12`/`libclamav11t64` only if linked by that architecture’s executable), the `util-linux` `script` PTY helper, and `curl` for the health check. There is **no ClamD scanner executable, freshclam process, scanner service config, or virus signature database** in the final Web UI image. Build asserts the binary's dynamic dependencies resolve.
+- Maven and runtime base images are digest pinned for Java 21 / Ubuntu Noble; multi-platform digest (not AMD64-only manifest) retains multi-architecture support. Dependabot proposes newer digests; validate new bases before merging.
+- Executable JAR drops unused H2 web console and mail starter. File-backed H2 **remains supported**. Historical `/h2` CSRF exemption and `X-Frame-Options: SAMEORIGIN` exception are removed; frame handling returns to DENY.
+- H2/PostgreSQL/MySQL/MariaDB JDBC and Flyway remain bundled deliberately; all are documented working deployment modes. Removing them by default would break deployments switching database engines without recompilation. Do not omit these silently.
+- Maven now targets Java 21, matching the Docker runtime. Running the standalone JAR on Java 17 is no longer supported.
+- JVM: `-XX:MaxRAMPercentage=${JAVA_MAX_RAM_PERCENTAGE:-70.0}` and `-XX:+ExitOnOutOfMemoryError`. Operators may set `JAVA_MAX_RAM_PERCENTAGE=60` for native-memory-heavy workloads and use `JAVA_TOOL_OPTIONS` for other JVM arguments.
+
+## HEALTHCHECK, reverse proxies and security
+
+Spring's standard `management.endpoint.health.probes.enabled=true` enables `/actuator/health/liveness` (minimal `{"status":"UP"}` while healthy). Only HTTP **GET** on this path is unauthenticated. `/actuator/health`, `/actuator/health/readiness`, `/actuator/info`, and all other Actuator endpoints remain ADMIN-only. `/actuator/prometheus` remains protected by the existing independent scrape-token filter; **do not expose it without a token**. Application API health endpoints do not change.
+
+Docker's HTTP probe calls only container **loopback**, without credentials, every 30 seconds, with 6-second timeout, a 90-second start period and 3 retries. The response is liveness of the JVM/application, *not* a guarantee that an external ClamD endpoint/database/network is ready to scan. It does not create sessions, scrape metrics, or call ClamD.
+
+The default port 8080 is maintained, which **does not change existing Prometheus URLs**. A separate management port is an **opt-in** isolation mode; set both:
+
+```yaml
+environment:
+  MANAGEMENT_SERVER_PORT: "9091"
+  MANAGEMENT_SERVER_ADDRESS: "127.0.0.1"
+```
+
+Do not publish `9091` to the host. When selecting this mode, existing Prometheus scrapes must be reviewed and may need a secure network route or explicit management listener address and firewall controls. `MANAGEMENT_SERVER_PORT` is automatically used by the image health check. `SERVER_PORT` is also supported for a custom primary listener. Do not set `SERVER_ADDRESS` to a non-loopback-only address if that would prevent local Docker liveness probes.
+
+For Kubernetes, choose `httpGet: {path: /actuator/health/liveness, port: 8080}` on default configuration, or the internal management port if configured, **not** `/actuator/health` and **not** the authenticated `/api/v1/health/*`.
+
+## Build / verify on a Docker + Maven machine
+
+First, preserve your existing image as a local baseline (`clamav-web-client:issue36-before` below); or extract/build the previously supplied issue #36 archive under that tag. Build the candidate from this updated project tree:
+
+```sh
+mvn -B -Dtest=Issue37LivenessSecurityTest test
+docker build --pull -t clamav-web-client:issue37 .
+./scripts/issue37-smoke.sh clamav-web-client:issue37
+```
+
+Run your usual production Compose image **with the candidate tag** and verify the healthy status:
+
+```sh
+docker inspect clamav-web-client --format '{{.State.Health.Status}}'
+docker inspect clamav-web-client --format '{{json .Config.Healthcheck}}'
+```
+
+Measure the precise image size *only after both images have been built on the same machine*:
+
+```sh
+./scripts/issue37-verify-and-compare.sh \
+  clamav-web-client:issue36-before \
+  clamav-web-client:issue37 \
+  clamav-web-client
+```
+
+When container changes select the unified `docker-smoke` job, it builds the PR base and candidate, executes the health smoke and publishes the actual size difference in the PR job summary.
+
+The script prints both actual `.Size` values (MiB), byte difference and percent change, and verifies the candidate is the image running in the named container; it **fails** if container health isn't `healthy`. Record its output in the #37 PR. It is not an estimate of savings. If it does not improve size, investigate `libclamav12` transitive dependencies and compare `docker history` and `docker image inspect`, rather than claim a reduction.
+
+Offline source checks: `python3 scripts/check-issue37-maintenance.py`. Database H2 lock handling can be re-tested separately with the existing `scripts/verify-issue36-h2-shutdown.sh`.
+
+## Operational notes
+
+- Base image digests are intentionally immutable. Dependabot runs weekly, but digest updates are **reviewed**, not automatically deployed. Scanner image pin remains defined in `Dockerfile.clamd` / `docs/security/clamd-image-pin.json`; scanner Compose relies on the explicit `CLAMAV_BASE_IMAGE` setting.
+- The final runtime stays UID/GID 10001 with owner-only upload permissions and keeps `script` and `clamdtop` for the native terminal. Existing `/app/data` and `/app/conf` Docker volumes and `stop_grace_period: 60s` remain unchanged.
+- A health probe may report UP while remote ClamD is unavailable; use protected readiness/endpoint monitoring for scan dependency alerts. No unauthenticated database, filesystem, ClamD or settings data is exposed.

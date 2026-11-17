@@ -6,10 +6,11 @@
 <link rel="icon" href="/favicon.ico"/>
 <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}"/><link rel="stylesheet" th:href="@{/css/all.css}"/>
 <link rel="stylesheet" th:href="@{/css/style.css}"/><link rel="stylesheet" th:href="@{/css/phase0.css(v='2.1.0-consolidated02')}"/>
-<script defer th:src="@{/js/i18n-catalog.js(v='2.1.0-consolidated02')}"></script><script defer th:src="@{/js/i18n.js(v='2.1.0-i18n01')}"></script><script defer th:src="@{/js/script.js}"></script><script defer th:src="@{/js/clamdtop.js}"></script>
+<script defer th:src="@{/js/i18n-catalog.js(v='2.1.0-consolidated02')}"></script><script defer th:src="@{/js/i18n.js(v=${appVersion})}"></script><script defer th:src="@{/js/script.js}"></script><script defer th:src="@{/js/clamdtop.js}"></script>
 <script defer th:src="@{/js/tabs-pjax.js(v='2.1.0-consolidated02')}"></script>
 <script defer th:src="@{/js/rest-api.js}"></script>
 <script defer th:src="@{/js/jobs-refresh.js(v='2.1.0-jobs01')}"></script>
+<script defer th:src="@{/js/upload-admission.js(v='@@project.version@@-i30')}"></script>
 <script defer th:src="@{/js/configuration-observer.js(v='2.1.0-consolidated02')}"></script>
 <link rel="stylesheet" th:href="@{/css/configuration-center.css(v='2.1.0-center02')}"/>
 <script defer th:src="@{/js/configuration-center.js(v='2.1.0-center02')}"></script>
@@ -63,5 +64,5 @@
 </div></header>
 <div class="app-content"><div th:if="${errorMsg}" class="alert alert-danger" th:text="${errorMsg}"></div>
 <div th:if="${successMsg}" class="alert alert-success" th:text="${successMsg}"></div>
-<div th:replace="${content}">Content</div></div><footer class="app-footer muted">ClamAV Web UI <span>v<strong th:text="${appVersion}">2.1.0</strong></span> · managed scan jobs and live clamd metrics</footer></main>
+<div th:replace="${content}">Content</div></div><footer class="app-footer muted">ClamAV Web UI <span>v<strong th:text="${appVersion}">@@project.version@@</strong></span></footer></main>
 </div></body></html>

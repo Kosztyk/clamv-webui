@@ -1,0 +1,28 @@
+# ClamAV native path scanning with POSIX owner-only uploads (0700/0600).
+# Base image must be a verified immutable registry digest, set by Compose's .env.
+ARG CLAMAV_BASE_IMAGE
+FROM ${CLAMAV_BASE_IMAGE}
+
+# The web application writes uploads as UID 10001. Match that numeric UID *only*
+# for the clamd service user; do not broaden file modes or run clamd as root.
+# Keep the existing clamav group so the official entrypoint/freshclam still work.
+RUN set -eu; \
+    test "$(id -u)" = "0" || { echo "Upstream image build stage must run as root" >&2; exit 1; }; \
+    test -f /etc/passwd; \
+    old_uid="$(id -u clamav)"; \
+    if [ "$old_uid" != 10001 ]; then \
+        if awk -F: '$3 == 10001 { found=1 } END { exit !found }' /etc/passwd; then \
+            echo 'UID 10001 already belongs to a different image user' >&2; exit 1; \
+        fi; \
+        awk -F: 'BEGIN { OFS=":" } $1=="clamav" { $3=10001; updated=1 } { print } END { if (!updated) exit 1 }' \
+            /etc/passwd > /tmp/passwd.clamav; \
+        cat /tmp/passwd.clamav > /etc/passwd; \
+        rm /tmp/passwd.clamav; \
+    fi; \
+    test "$(id -u clamav)" = 10001; \
+    for dir in /var/lib/clamav /var/log/clamav /run/clamav; do \
+        if [ -d "$dir" ]; then chown -R clamav:clamav "$dir"; fi; \
+    done
+
+# Intentionally inherit the image's original /init, clamd User=clamav,
+# freshclam configuration, healthcheck and exposed *container* ports.

@@ -25,6 +25,9 @@ assert '"/setLocale"' in (BASE/'src/main/java/info/trizub/clamav/webclient/confi
 for path in (resources/'static/js/i18n.js',resources/'static/js/i18n-catalog.js'):
     assert run(['node','--check',str(path)],capture_output=True).returncode == 0
 print('PASS: six locale choices, persistent cookie configuration, balanced catalogs, scripts')
+if os.environ.get('CLAMAV_SKIP_BROWSER') == '1':
+    print('SKIPPED: Chromium checks (explicit static-only mode)')
+    raise SystemExit(0)
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:

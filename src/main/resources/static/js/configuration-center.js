@@ -3,7 +3,7 @@
   'use strict';
   const instances = new WeakMap();
   const labels = {Connections: 'Service connections', Scanning: 'Scanning & storage', 'Identity & API': 'Sign-in & machine access', Notifications: 'Scan notifications', Network: 'Network & certificates', Monitoring: 'Monitoring & configuration observation', System: 'Preferences & recovery'};
-  const iconText = {clamd: '◇', rest: '↗', database: '▤', scanning: '↥', quarantine: '◈', watch: '▱', local: '♙', ldap: '♧', oidc: '⌘', api: '>_', webhook: '♧', proxy: '⇄', trust: '♧', metrics: '▥', observer: '☷', system: '⚙'};
+  const iconText = {clamd: '◇', rest: '↗', database: '▤', scanning: '↥', quarantine: '◈', watch: '▱', local: '♙', ldap: '♧', oidc: '⌘', api: '>_', webhook: '♧', proxy: '⇄', trust: '♧', metrics: '▥', clamdtop: '>_', observer: '☷', system: '⚙'};
   function node(tag, attributes, ...children) {
     const element = document.createElement(tag);
     for (const [key, value] of Object.entries(attributes || {})) {
@@ -112,6 +112,7 @@
         case 'proxy': return `${this.value('server.forward-headers-strategy')} forwarded-header handling`;
         case 'trust': return this.value('javax.net.ssl.trustStore') || 'Use the JVM default certificate authorities';
         case 'metrics': return this.fields.get('clamav.metrics.scrape-token').configured ? 'Authenticated scraping · token configured' : 'Scrape token required';
+        case 'clamdtop': return `${this.value('clamav.clamdtop.idle-timeout-seconds')} seconds idle · 2 per user / 8 global`;
         case 'observer': return this.value('clamav.config.clamd-path') || this.value('clamav.config.freshclam-path') || 'No configuration file mounted';
         default: return section.description;
       }
@@ -154,7 +155,10 @@
       this.content.append(bottom); this.count();
     }
     card(section) {
-      const enabled = this.enabled(section); const expanded = enabled && this.open.get(this.category) === section.id;
+      const enabled = this.enabled(section);
+      // Cookie and session limits also apply when forwarded-header trust is disabled.
+      const editable = enabled || section.id === 'proxy';
+      const expanded = editable && this.open.get(this.category) === section.id;
       const fields = this.sectionFields(section); const applyKinds = new Set(fields.map(field => field.definition.apply));
       const badge = applyKinds.size === 1 && applyKinds.has('live') ? 'Apply live' : applyKinds.size > 1 ? 'Live + restart' : 'Restart required';
       const card = node('section', {class: `cc-card${expanded ? ' cc-open' : ''}`, 'data-section': section.id});
@@ -168,14 +172,15 @@
       }
       if (section.enableKey) {
         const locked = this.fields.get(section.enableKey)?.locked;
-        const toggle = node('input', {type: 'checkbox', role: 'switch', checked: enabled, disabled: locked, 'aria-label': section.title, title: locked ? 'Controlled by deployment configuration' : `Enable ${section.title}`});
+        const toggleLabel = section.id === 'proxy' ? 'Trust forwarded headers' : section.title;
+        const toggle = node('input', {type: 'checkbox', role: 'switch', checked: enabled, disabled: locked, 'aria-label': toggleLabel, title: locked ? 'Controlled by deployment configuration' : `Enable ${toggleLabel}`});
         toggle.addEventListener('change', () => {
           this.set(section.enableKey, toggle.checked ? section.enabledValue : section.disabledValue);
           if (toggle.checked) this.open.set(this.category, section.id); this.render();
         });
         header.append(node('label', {class: 'cc-switch'}, toggle, node('span', {'aria-hidden': 'true'})));
       }
-      const expand = node('button', {type: 'button', class: 'cc-expand', 'aria-expanded': expanded, 'aria-label': `Edit ${section.title}`, disabled: !enabled}, expanded ? '⌃' : '⌄');
+      const expand = node('button', {type: 'button', class: 'cc-expand', 'aria-expanded': expanded, 'aria-label': `Edit ${section.title}`, disabled: !editable}, expanded ? '⌃' : '⌄');
       expand.addEventListener('click', () => { this.open.set(this.category, expanded ? '' : section.id); this.render(); });
       header.append(expand); card.append(header);
       if (!expanded) return card;
@@ -301,7 +306,7 @@
       body.append(node('div', {class: 'cc-helper-controls'}, node('label', {}, 'Database type'), select));
     }
     setDatabaseType(type) {
-      const urls = {h2: 'jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE', postgresql: 'jdbc:postgresql://db:5432/appdb', mysql: 'jdbc:mysql://db:3306/appdb', mariadb: 'jdbc:mariadb://db:3306/appdb'};
+      const urls = {h2: 'jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=0', postgresql: 'jdbc:postgresql://db:5432/appdb', mysql: 'jdbc:mysql://db:3306/appdb', mariadb: 'jdbc:mariadb://db:3306/appdb'};
       this.set('spring.datasource.url', urls[type]);
       if (!this.fields.get('spring.datasource.username').locked) this.set('spring.datasource.username', type === 'h2' ? 'sa' : 'clamav');
       if (!this.fields.get('spring.datasource.driver-class-name').locked) this.set('spring.datasource.driver-class-name', '');

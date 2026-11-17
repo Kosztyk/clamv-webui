@@ -12,8 +12,6 @@ The test suite retains deliberately synthetic credentials and representative pub
 
 Excluded runtime files include populated `.env`, data volumes/databases, recovery/bootstrap credentials, encryption keys, saved GUI settings/audits and private TLS/truststore files. Ignore rules keep these out of normal Git additions and the Docker build context. The publisher rejects runtime credential files, unsafe paths, duplicate archive members and symbolic links before authentication or extraction.
 
-The optional REST example also uses a required private daemon-host input, Docker service DNS and a named temporary-upload volume. It contains no operator-specific host bind path. Its README example matches the shipped Compose, and API examples contain placeholders rather than issued credentials.
-
 ## File integrity
 
 `SOURCE_MANIFEST.sha256` lists every application-package file except the manifest itself. The publisher verifies ZIP CRCs, manifest paths/file counts and every SHA-256 entry before preparing a repository update. Its `--check` mode is offline and requires no GitHub login:

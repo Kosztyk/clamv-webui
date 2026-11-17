@@ -15,6 +15,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -74,7 +75,12 @@ class ClamdServer(socketserver.ThreadingTCPServer):
 
 
 def main():
-    jar = ROOT / "target/clamav-web-client-2.1.0.jar"
+    pom = ET.parse(ROOT / "pom.xml").getroot()
+    namespace = "{http://maven.apache.org/POM/4.0.0}"
+    version = pom.findtext(f"{namespace}version") or pom.findtext("version")
+    if not version:
+        raise SystemExit("Cannot read application version from pom.xml")
+    jar = ROOT / "target" / f"clamav-web-client-{version}.jar"
     binary = ROOT / "cli/dist/linux_amd64/clamctl"
     if not jar.is_file() or not binary.is_file():
         raise SystemExit("Build the JAR and CLI binaries before running this integration check.")
@@ -98,7 +104,7 @@ def main():
             port = reservation.getsockname()[1]
         with (folder / "application.log").open("w+") as log:
             application = subprocess.Popen(["java", "-jar", str(jar), "--server.address=127.0.0.1", "--server.port=" + str(port),
-                "--server.forward-headers-strategy=framework", "--spring.datasource.url=jdbc:h2:mem:cli-e2e;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+                "--server.forward-headers-strategy=native", "--server.tomcat.remoteip.internal-proxies=127.0.0.1/32", "--spring.datasource.url=jdbc:h2:mem:cli-e2e;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
                 "--spring.datasource.username=sa", "--spring.datasource.password="], cwd=folder, env=env, stdout=log, stderr=subprocess.STDOUT)
             try:
                 server = "http://127.0.0.1:" + str(port)

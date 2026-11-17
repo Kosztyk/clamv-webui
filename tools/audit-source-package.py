@@ -14,9 +14,44 @@ import subprocess
 import sys
 import zipfile
 
-RUNTIME_NAMES={'.env','configuration-center.properties','configuration-recovery-token',
+RUNTIME_NAMES={'.env','clamav-web-client.properties','configuration-center.properties','configuration-recovery-token',
     'configuration-audit.jsonl','configuration-database-state.properties','configuration-database-choice.properties',
     'integrations.properties','bootstrap-admin-password','auth-settings.key','id_rsa','id_ed25519'}
+# RFC1918 dotted IPv4 literals must not be embedded into published source.
+# Only two explicit security regression fixtures deliberately exercise non-public
+# address rejection. Their byte tuples are documented here without reproducing
+# private addresses as release-documentation literals.
+_IPV4=re.compile(rb'(?<![A-Za-z0-9_.])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![A-Za-z0-9_.])')
+_RFC1918_FIXTURES={
+    'src/test/java/info/trizub/clamav/webclient/service/WebhookAddressPolicyTest.java': {
+        (10,1,2,3), (172,16,1,1), (172,31,255,254), (192,168,10,20),
+    },
+    'src/test/java/info/trizub/clamav/webclient/web/UiSmokeTest.java': {
+        (10,77,88,10),
+    },
+}
+
+
+def private_ipv4_evidence(name, data):
+    """Return one error if an unapproved RFC1918 address is present (never the IP)."""
+    allowed=_RFC1918_FIXTURES.get(name,set())
+    for match in _IPV4.finditer(data):
+        try: octets=tuple(int(octet) for octet in match.group().split(b'.'))
+        except ValueError: continue
+        if any(value>255 for value in octets):continue
+        a,b,_,_=octets
+        is_private=(a==10 or a==172 and 16<=b<=31 or a==192 and b==168)
+        if not is_private:continue
+        if octets in allowed:continue
+        # Certain third-party SVG flag paths consist only of drawing coordinates:
+        # SVG path decimals can accidentally look like dotted IP addresses.
+        # Ignore such matches ONLY in bundled country-flag art, and ONLY when
+        # the first octet is 10; 172.x and 192.168.x remain actionable.
+        if name.startswith('src/main/resources/static/flags/') and name.endswith('.svg') and a==10:
+            continue
+        return 'non-fixture private IPv4 literal (use RFC 5737 TEST-NET examples)'
+    return None
+
 RULES=[('private-key material',re.compile(rb'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----')),
        ('GitHub credential',re.compile(rb'\bgh[pousr]_[A-Za-z0-9]{35,}\b|\bgithub_pat_[A-Za-z0-9_]{65,}\b')),
        ('workstation path',re.compile(rb'/work'+rb'space/scratch/|/Us'+rb'ers/[^/\s]+/|/ro'+rb'ot/(?!\.cache)[A-Za-z0-9_.-]+'))]
@@ -64,10 +99,15 @@ def main():
         for name,data in sources(args.source.resolve()):
             total+=1;parts=PurePosixPath(name).parts
             if b'\0' in data[:8192]:binary+=1
-            if '.git' in parts or '.secrets' in parts or parts[0] in {'target','data'} or parts[-1] in RUNTIME_NAMES or parts[-1].startswith('.env.') and parts[-1]!='.env.example':
+            if ('.git' in parts or '.secrets' in parts or '__pycache__' in parts
+                    or parts[0] in {'target','data','artifacts'} or parts[:2] == ('cli','dist')
+                    or parts[-1] in RUNTIME_NAMES
+                    or (parts[-1].startswith('.env.') and parts[-1] != '.env.example')):
                 failures.append((name,'runtime state or secret filename'))
             if parts[-1].lower().endswith(('.key','.pem','.p12','.pfx','.jks','.crt')):
                 failures.append((name,'runtime key/certificate/truststore'))
+            private_evidence=private_ipv4_evidence(name,data)
+            if private_evidence:failures.append((name,private_evidence))
             for label,pattern in rules:
                 if pattern.search(data):failures.append((name,label))
     except (OSError,ValueError,zipfile.BadZipFile,subprocess.CalledProcessError) as error:

@@ -1,1 +1,15 @@
-<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section><h1>Scan Jobs</h1><p class="muted">Queued, running and completed scans.</p><div th:replace="~{fragments/tables :: jobsTable(${jobs})}"></div></section></html>
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section><h1>Scan Jobs</h1><p class="muted">Queued, running and completed scans.</p><div th:replace="~{fragments/tables :: jobsTable(${jobs})}"></div><nav th:if="${jobPage.totalPages > 1}" aria-label="Scan job pages" class="d-flex gap-3 align-items-center mt-3">
+  <a th:if="${jobPage.hasPrevious()}" th:href="@{/jobs(page=${jobPage.number - 1},size=${jobPage.size})}">Previous</a>
+  <span th:text="|Page ${jobPage.number + 1} of ${jobPage.totalPages} (${jobPage.totalElements} jobs)|">Page 1</span>
+  <a th:if="${jobPage.hasNext()}" th:href="@{/jobs(page=${jobPage.number + 1},size=${jobPage.size})}">Next</a>
+</nav>
+<form method="get" th:action="@{/jobs}" class="d-flex gap-2 align-items-center mt-3">
+  <label for="job-page-size">Jobs per page</label>
+  <select id="job-page-size" name="size">
+    <option value="25" th:selected="${jobPage.size == 25}">25</option>
+    <option value="50" th:selected="${jobPage.size == 50}">50</option>
+    <option value="100" th:selected="${jobPage.size == 100}">100</option>
+  </select>
+  <button type="submit">Apply</button>
+</form>
+</section></html>

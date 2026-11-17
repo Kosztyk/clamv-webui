@@ -9,7 +9,7 @@ import (
 	app "github.com/Kosztyk/clamv-webui/cli/internal/cli"
 )
 
-var version = "2.1.0"
+var version = "development" // -ldflags=-X main.version=<version from pom.xml>
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

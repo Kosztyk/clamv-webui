@@ -136,9 +136,9 @@
       "title": "Reverse proxy & session security",
       "icon": "network-wired",
       "enableKey": "server.forward-headers-strategy",
-      "enabledValue": "framework",
+      "enabledValue": "native",
       "disabledValue": "none",
-      "description": "Optional forwarded-header handling for trusted reverse proxies. Direct HTTP configuration works without a proxy; choose none to ignore forwarded headers in a direct-access deployment.",
+      "description": "Forwarded headers are ignored by default. For a TLS proxy, select native and allow only the actual proxy addresses below. The proxy must replace incoming forwarded headers. Session limits apply in direct and proxy mode.",
       "link": ""
     },
     {
@@ -164,6 +164,17 @@
       "link": "/admin/integrations"
     },
     {
+      "id": "clamdtop",
+      "category": "Monitoring",
+      "title": "Native ClamdTop sessions",
+      "icon": "terminal",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Native terminal sessions are limited to two per user and eight per instance. Visible tabs send a heartbeat every 30 seconds; inactive or hidden sessions are closed when the idle limit expires (plus up to 30 seconds for reaping).",
+      "link": "/clamdtop"
+    },
+    {
       "id": "observer",
       "category": "Monitoring",
       "title": "Mounted daemon configuration",
@@ -183,6 +194,17 @@
       "enabledValue": "true",
       "disabledValue": "false",
       "description": "Theme/language defaults apply to browsers without a saved preference. Recovery works independently of the application database.",
+      "link": ""
+    },
+    {
+      "id": "retention",
+      "category": "Scanning",
+      "title": "Upload cleanup and history",
+      "icon": "trash",
+      "enableKey": "",
+      "enabledValue": "true",
+      "disabledValue": "false",
+      "description": "Remove completed uploads and expired temporary files. Optional job/audit retention is disabled until you choose a duration.",
       "link": ""
     }
   ],
@@ -347,6 +369,26 @@
       "legacy": ""
     },
     {
+      "key": "CLAMAV_REST_ALLOW_INSECURE",
+      "label": "Allow API key over insecure HTTP",
+      "category": "Connections",
+      "section": "rest",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_REST_ALLOW_INSECURE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Security exception: permits sending the external REST API key over unencrypted HTTP to non-loopback servers. Prefer HTTPS. Required for legacy LAN endpoints using HTTP + API key. The deployment environment overrides the GUI; requires restart.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
       "key": "CLAMAV_REST_AUTH_MODE",
       "label": "Authentication header",
       "category": "Connections",
@@ -447,6 +489,26 @@
       "choices": [],
       "minimum": 1,
       "maximum": 100000,
+      "legacy": ""
+    },
+    {
+      "key": "CLAMAV_REST_HISTORY_CACHE_TTL_MS",
+      "label": "External REST history cache TTL (ms)",
+      "category": "Connections",
+      "section": "rest",
+      "type": "number",
+      "defaultValue": "5000",
+      "environment": [
+        "CLAMAV_REST_HISTORY_CACHE_TTL_MS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "Share a bounded external REST jobs/history snapshot across browser viewers, filters, pages, analytics and exports. Default 5000 ms (1000–30000). Docker environment overrides the GUI; changes require restart.",
+      "choices": [],
+      "minimum": 1000,
+      "maximum": 30000,
       "legacy": ""
     },
     {
@@ -595,7 +657,7 @@
       "category": "Connections",
       "section": "database",
       "type": "jdbc",
-      "defaultValue": "jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+      "defaultValue": "jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=0",
       "environment": [
         "SPRING_DATASOURCE_URL"
       ],
@@ -789,7 +851,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "",
+      "hint": "Maximum upload size in bytes (1–2147483648). Must be positive and compatible with HTTP upload limits.",
       "choices": [],
       "minimum": 1,
       "maximum": 2147483648,
@@ -809,10 +871,10 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "",
+      "hint": "1–64 concurrent scan workers. Large values consume threads and memory; changes require an application restart.",
       "choices": [],
       "minimum": 1,
-      "maximum": 32,
+      "maximum": 64,
       "legacy": ""
     },
     {
@@ -829,7 +891,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "",
+      "hint": "Custom directories must be absolute, normalized, pre-created and writable inside the Web UI container. Built-in ./data defaults remain supported for existing installations.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -841,7 +903,7 @@
       "category": "Scanning",
       "section": "scanning",
       "type": "boolean",
-      "defaultValue": "true",
+      "defaultValue": "false",
       "environment": [
         "CLAMAV_UPLOAD_PATH_SCAN_ENABLED"
       ],
@@ -849,7 +911,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "",
+      "hint": "Disabled by default. INSTREAM scans local or remote daemons without sharing private files. Enable native pathname scanning only after the clamd daemon can read the same absolute upload path using a restricted read-only mount and verified UID/permissions. Native clamdtop filenames require this mode.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -861,7 +923,7 @@
       "category": "Scanning",
       "section": "scanning",
       "type": "boolean",
-      "defaultValue": "false",
+      "defaultValue": "true",
       "environment": [
         "CLAMAV_UPLOAD_PATH_SCAN_FALLBACK_TO_INSTREAM"
       ],
@@ -869,7 +931,27 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "",
+      "hint": "Recommended ON: if a configured native pathname scan fails (for example, clamd lacks filesystem permission), retry the uploaded file via INSTREAM. INSTREAM results remain visible in ClamAV Web UI, but native clamdtop shows a stream connection rather than the original filename.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "spring.servlet.multipart.location",
+      "label": "Multipart temporary directory",
+      "category": "Scanning",
+      "section": "scanning",
+      "type": "path",
+      "defaultValue": "",
+      "environment": [
+        "SPRING_SERVLET_MULTIPART_LOCATION"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "Temporary upload spool used by Tomcat before a scan job is created. The Docker image defaults to /app/data/tmp/multipart on the same data volume; a standalone JAR uses the OS temp folder. To customize, first create an existing writable, owner-only (0700) absolute directory in the Web UI container, outside uploads and quarantine; save and restart. A Compose SPRING_SERVLET_MULTIPART_LOCATION override locks this field.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -881,7 +963,7 @@
       "category": "Scanning",
       "section": "scanning",
       "type": "text",
-      "defaultValue": "2048MB",
+      "defaultValue": "2047MB",
       "environment": [
         "SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE"
       ],
@@ -889,7 +971,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": true,
-      "hint": "",
+      "hint": "Default 2047MB leaves 1MB for multipart framing under the default 2048MB request ceiling. Multi-file totals must still fit the request ceiling.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -909,7 +991,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": true,
-      "hint": "",
+      "hint": "Must exceed the maximum file size to allow multipart boundaries and form fields; default 2048MB versus 2047MB per file.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -949,7 +1031,7 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "",
+      "hint": "Custom directories must be absolute, normalized, pre-created and writable inside the Web UI container. Built-in ./data defaults remain supported for existing installations.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -989,9 +1071,9 @@
       "secret": false,
       "sensitive": false,
       "advanced": false,
-      "hint": "The watcher checks every 30 seconds; longer configured intervals throttle those checks.",
+      "hint": "Polling interval in seconds (5–3600). Choose an interval appropriate for the watched-tree size; full scans never overlap.",
       "choices": [],
-      "minimum": 30,
+      "minimum": 5,
       "maximum": 3600,
       "legacy": ""
     },
@@ -1038,6 +1120,26 @@
       "minimum": 1,
       "maximum": 30000,
       "legacy": "url"
+    },
+    {
+      "key": "clamav.identity.ldap.directory-id",
+      "label": "Stable LDAP directory ID",
+      "category": "Identity & API",
+      "section": "ldap",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_IDENTITY_LDAP_DIRECTORY_ID"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Optional on first setup. Leave blank to pin the historical URL/base-DN issuer automatically. Once initialized, keep this ID unchanged: changing the LDAP URL or Base DN does not change user principals. Existing installations should upgrade before changing the URL.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 30000,
+      "legacy": "directoryId"
     },
     {
       "key": "clamav.identity.ldap.base-dn",
@@ -1099,7 +1201,7 @@
       "secret": true,
       "sensitive": true,
       "advanced": false,
-      "hint": "",
+      "hint": "Blank retains the current credential only if URL, StartTLS, base DN, manager DN and referrals are unchanged. Re-enter the bind password before testing or saving a change to those fields.",
       "choices": [],
       "minimum": 1,
       "maximum": 30000,
@@ -1119,7 +1221,7 @@
       "secret": false,
       "sensitive": true,
       "advanced": true,
-      "hint": "",
+      "hint": "Mounted credentials receive the same destination protection. A file path alone does not authorize sending a saved bind password to a changed destination.",
       "choices": [],
       "minimum": 1,
       "maximum": 30000,
@@ -1537,7 +1639,7 @@
       "secret": true,
       "sensitive": true,
       "advanced": false,
-      "hint": "",
+      "hint": "Blank retains the current credential only if issuer and client ID are unchanged. Re-enter the client secret before testing or saving a change to either field.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -1557,7 +1659,7 @@
       "secret": false,
       "sensitive": true,
       "advanced": true,
-      "hint": "",
+      "hint": "Mounted credentials receive the same destination protection. A file path alone does not authorize reusing a saved secret with a changed issuer or client ID.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -1809,6 +1911,86 @@
       "legacy": ""
     },
     {
+      "key": "app.webhook.signing-secret",
+      "label": "Webhook signing secret",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "text",
+      "defaultValue": "",
+      "environment": [
+        "CLAMAV_WEBHOOK_SIGNING_SECRET"
+      ],
+      "apply": "live",
+      "secret": true,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "Write-only shared secret (at least 32 UTF-8 bytes). Receivers verify X-Signature: sha256=HMAC-SHA256(raw body). Existing enabled hooks without a key will not send until configured.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.webhook.include-paths",
+      "label": "Include scan targets and server paths",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_WEBHOOK_INCLUDE_PATHS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Off by default. Enabling sends full scan target, quarantine path, and original foundViruses JSON keys to the destination.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.webhook.include-error-details",
+      "label": "Include raw scan error messages",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_WEBHOOK_INCLUDE_ERROR_DETAILS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Off by default. Error text may include private paths and internal network addresses.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.webhook.include-identity",
+      "label": "Include endpoint name and submitted username",
+      "category": "Notifications",
+      "section": "webhook",
+      "type": "boolean",
+      "defaultValue": "false",
+      "environment": [
+        "CLAMAV_WEBHOOK_INCLUDE_IDENTITY"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Off by default. Names and usernames may expose internal infrastructure or personal data.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
       "key": "clamav.webhook.connect-timeout",
       "label": "Connect timeout",
       "category": "Notifications",
@@ -1954,7 +2136,7 @@
       "category": "Network",
       "section": "proxy",
       "type": "select",
-      "defaultValue": "framework",
+      "defaultValue": "none",
       "environment": [
         "SERVER_FORWARD_HEADERS_STRATEGY"
       ],
@@ -1962,12 +2144,52 @@
       "secret": false,
       "sensitive": true,
       "advanced": false,
-      "hint": "",
+      "hint": "none: direct access (default). native: explicit proxy allowlist required. Legacy framework mode trusts every sender and requires an isolated backend.",
       "choices": [
-        "framework",
         "none",
-        "native"
+        "native",
+        "framework"
       ],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "server.tomcat.remoteip.internal-proxies",
+      "label": "Proxy peer allowlist",
+      "category": "Network",
+      "section": "proxy",
+      "type": "text",
+      "defaultValue": "(?!)",
+      "environment": [
+        "SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Comma-separated exact proxy CIDRs (IPv4 /32 or IPv6 /128 recommended), or a Tomcat regular expression. Default (?!) trusts nobody. Never leave blank or trust an entire client network.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "server.tomcat.remoteip.trusted-proxies",
+      "label": "Additional proxy chain allowlist",
+      "category": "Network",
+      "section": "proxy",
+      "type": "text",
+      "defaultValue": "(?!)",
+      "environment": [
+        "SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Optional additional trusted proxy hops, using CIDRs or a Tomcat regular expression. Default (?!) trusts nobody. Leave at the default for a single proxy.",
+      "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
       "legacy": ""
@@ -2018,7 +2240,7 @@
       "category": "Network",
       "section": "proxy",
       "type": "boolean",
-      "defaultValue": "false",
+      "defaultValue": "true",
       "environment": [
         "SERVER_SERVLET_SESSION_COOKIE_SECURE"
       ],
@@ -2026,7 +2248,7 @@
       "secret": false,
       "sensitive": true,
       "advanced": true,
-      "hint": "",
+      "hint": "Secure is ON by default, even behind TLS-terminating NGINX: cookies must be HTTPS-only. For isolated plain-HTTP development, explicitly set SERVER_SERVLET_SESSION_COOKIE_SECURE=false and restart. Existing saved false values remain unchanged until reviewed.",
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
@@ -2046,7 +2268,7 @@
       "secret": false,
       "sensitive": true,
       "advanced": true,
-      "hint": "",
+      "hint": "SameSite=Lax protects sessions while keeping common sign-in redirects working. SameSite=None requires Secure enabled. This also controls the locale cookie.",
       "choices": [
         "lax",
         "strict",
@@ -2177,6 +2399,66 @@
       "choices": [],
       "minimum": 1000,
       "maximum": 3600000,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.metrics.clamdtop-cache-ttl-ms",
+      "label": "ClamdTop snapshot cache TTL (ms)",
+      "category": "Monitoring",
+      "section": "metrics",
+      "type": "number",
+      "defaultValue": "2000",
+      "environment": [
+        "CLAMAV_CLAMDTOP_CACHE_TTL_MS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "Shared clamdtop/ClamD metrics cache lifetime (1000–3000 ms, default 2000). One refresh per endpoint per TTL reduces ClamD connections for multiple viewers. Saving a new value requires restarting the application. A Docker Compose environment override locks this field.",
+      "choices": [],
+      "minimum": 1000,
+      "maximum": 3000,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.clamdtop.idle-timeout-seconds",
+      "label": "Native ClamdTop idle timeout (seconds)",
+      "category": "Monitoring",
+      "section": "clamdtop",
+      "type": "number",
+      "defaultValue": "180",
+      "environment": [
+        "CLAMAV_CLAMDTOP_IDLE_TIMEOUT_SECONDS"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": false,
+      "hint": "Close native ClamdTop monitor sessions after 1–86400 seconds without browser activity (default 180). Visible tabs send a heartbeat every 30 seconds; allow at least 90 seconds for throttled browsers. The server checks every 30 seconds. Requires a restart; a Docker Compose environment override locks this field.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 86400,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.metrics.signatures.max-distinct",
+      "label": "Distinct signature metric labels",
+      "category": "Monitoring",
+      "section": "metrics",
+      "type": "number",
+      "defaultValue": "100",
+      "environment": [
+        "CLAMAV_METRICS_SIGNATURES_MAX_DISTINCT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": false,
+      "advanced": true,
+      "hint": "Maximum exact signature names retained in Prometheus (1–500). Two additional fixed buckets, other and unknown, always exist. New signatures beyond the limit increment other. A restart resets admission; change requires restart.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 500,
       "legacy": ""
     },
     {
@@ -2388,6 +2670,166 @@
       "choices": [],
       "minimum": 0,
       "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "app.uploads.deleteClean",
+      "label": "Delete clean uploads",
+      "category": "Scanning",
+      "section": "retention",
+      "type": "boolean",
+      "defaultValue": "true",
+      "environment": [
+        "CLAMAV_UPLOADS_DELETE_CLEAN"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Remove clean uploaded copies after their scan completes. Disabling this retains them only until upload retention expires.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 1,
+      "legacy": ""
+    },
+    {
+      "key": "app.uploads.retentionHours",
+      "label": "Upload retention (hours)",
+      "category": "Scanning",
+      "section": "retention",
+      "type": "number",
+      "defaultValue": "24",
+      "environment": [
+        "CLAMAV_UPLOADS_RETENTION_HOURS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "Remove expired orphaned uploads and completed upload copies. Queued/running jobs and in-progress uploads are protected.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 8760,
+      "legacy": ""
+    },
+    {
+      "key": "app.history.jobsRetentionDays",
+      "label": "Job history retention (days)",
+      "category": "Scanning",
+      "section": "retention",
+      "type": "number",
+      "defaultValue": "0",
+      "environment": [
+        "CLAMAV_HISTORY_JOBS_RETENTION_DAYS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "0 keeps history. A positive duration prunes completed jobs only after stored artifacts are gone; quarantined jobs are retained.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 3650,
+      "legacy": ""
+    },
+    {
+      "key": "app.history.auditRetentionDays",
+      "label": "Audit history retention (days)",
+      "category": "Scanning",
+      "section": "retention",
+      "type": "number",
+      "defaultValue": "0",
+      "environment": [
+        "CLAMAV_HISTORY_AUDIT_RETENTION_DAYS"
+      ],
+      "apply": "live",
+      "secret": false,
+      "sensitive": true,
+      "advanced": false,
+      "hint": "0 keeps audit history. A positive duration permanently removes older audit records independently of job history.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 3650,
+      "legacy": ""
+    },
+    {
+      "key": "server.servlet.session.timeout",
+      "label": "Session idle timeout",
+      "category": "Network",
+      "section": "proxy",
+      "type": "duration",
+      "defaultValue": "30m",
+      "environment": [
+        "SERVER_SERVLET_SESSION_TIMEOUT"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Ends an inactive browser session. Activity resets this timer. Use 1m to 24h.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.security.session.max-age",
+      "label": "Absolute session lifetime",
+      "category": "Network",
+      "section": "proxy",
+      "type": "duration",
+      "defaultValue": "1h",
+      "environment": [
+        "CLAMAV_SECURITY_SESSION_MAX_AGE"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Requires fresh local, LDAP or OIDC authentication even during activity. Use 1s to 24h. Restart to apply.",
+      "choices": [],
+      "minimum": 0,
+      "maximum": 2147483647,
+      "legacy": ""
+    },
+    {
+      "key": "clamav.security.login.max-entries",
+      "label": "Maximum tracked login accounts",
+      "category": "Identity & API",
+      "section": "local",
+      "type": "number",
+      "defaultValue": "10000",
+      "environment": [
+        "CLAMAV_SECURITY_LOGIN_MAX_ENTRIES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Bounds per-instance account-wide failure state. Live lockouts are retained; new accounts are throttled at capacity until entries expire.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 100000,
+      "legacy": ""
+    },
+    {
+      "key": "api.v1.scan-rate-limit-max-entries",
+      "label": "Maximum tracked scan subjects",
+      "category": "Identity & API",
+      "section": "api",
+      "type": "number",
+      "defaultValue": "10000",
+      "environment": [
+        "API_V1_SCAN_RATE_LIMIT_MAX_ENTRIES"
+      ],
+      "apply": "restart",
+      "secret": false,
+      "sensitive": true,
+      "advanced": true,
+      "hint": "Bounds per-instance authenticated scan/IP budgets. New subjects receive 429 at capacity; existing budgets are retained.",
+      "choices": [],
+      "minimum": 1,
+      "maximum": 100000,
       "legacy": ""
     }
   ]

@@ -13,18 +13,18 @@
 <input type="checkbox" name="scopes" th:value="${scope}" /> <span th:text="${scope}"></span></label></div>
 <div class="grid-two mt-3"><label>Allowed endpoint IDs, comma-separated (blank = any)
 <input class="form-control" name="endpointIds" placeholder="1,2"/></label>
-<label>Allowed server path roots, comma-separated (required for scan:path)
+<label>Existing server directory roots, comma-separated (required for scan:path)
 <input class="form-control" name="pathRoots" placeholder="/scandir/project"/></label></div>
 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 <button class="btn btn-primary mt-3" type="submit">Create API token</button></form></div>
 <h2 class="mt-4">Issued credentials</h2><div class="table-responsive"><table class="table app-table"><thead>
-<tr><th>ID</th><th>Label / prefix</th><th>Scopes</th><th>Endpoint IDs</th><th>Expiry</th><th>Revoked</th><th>Last used</th><th>Action</th></tr></thead><tbody>
+<tr><th>ID</th><th>Label / prefix</th><th>Scopes</th><th>Endpoint IDs</th><th>Path roots</th><th>Expiry</th><th>Revoked</th><th>Last used</th><th>Action</th></tr></thead><tbody>
 <tr th:each="token : ${tokens}"><td th:text="${token.id}"></td><td><span th:text="${token.label}"></span>
-<code th:text="${token.prefix}"></code></td><td th:text="${token.scopes}"></td><td th:text="${token.endpointIds}"></td>
+<code th:text="${token.prefix}"></code></td><td th:text="${token.scopes}"></td><td th:text="${token.endpointIds}"></td><td th:text="${token.pathRoots}"></td>
 <td th:text="${token.expiresAt}"></td><td th:text="${token.revokedAt}"></td><td th:text="${token.lastUsedAt}"></td>
 <td><form th:if="${token.revokedAt == null}" method="post" th:action="@{/admin/api-tokens/{id}/revoke(id=${token.id})}">
 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 <button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button></form></td></tr>
 </tbody></table></div>
-<p class="muted">The table never contains the token secret or its hash. A blank endpoint list means unrestricted endpoint selection; a blank path root list prevents path scans.</p>
+<p class="muted">The table never contains the token secret or its hash. Roots are stored as resolved directory paths. Nonempty roots restrict PATH/WATCH job history to those directories and upload history to this token's own uploads; linked audit events follow the same limits. A blank root list prevents path scans but allows endpoint-wide history when jobs:read or audit:read is granted. A blank endpoint list allows any endpoint.</p>
 </section></html>

@@ -1,0 +1,43 @@
+<div th:fragment="dashboard" data-ui-build="2.3.4" data-page="dashboard">
+    <div class="card mb-3">
+        <div class="card-body">
+            <h4 class="card-title">Endpoint health</h4>
+
+            <form method="get" th:action="@{/dashboard}" action="/dashboard" class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">Endpoint</label>
+                    <select class="form-select" name="endpointId">
+                        <option th:each="ep : ${endpoints}"
+                                th:value="${ep.id}"
+                                th:selected="${endpoint != null and ep.id == endpoint.id}"
+                                th:text="${ep.name + ' (' + ep.host + ':' + ep.port + ' / ' + ep.platform + ')'}"></option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary">Refresh</button>
+                </div>
+            </form>
+
+            <hr>
+
+            <div th:if="${pingOk == true}" class="alert alert-success">
+                <strong>Ping:</strong> OK
+            </div>
+            <div th:if="${pingOk == false}" class="alert alert-danger">
+                <strong>Ping:</strong> FAILED
+                <div class="small text-muted" th:text="${error}"></div>
+            </div>
+
+            <div class="row" th:if="${pingOk == true}">
+                <div class="col">
+                    <h6>Version</h6>
+                    <pre class="small" th:text="${version}">version</pre>
+                </div>
+                <div class="col">
+                    <h6>Stats</h6>
+                    <pre class="small" th:text="${stats}">stats</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

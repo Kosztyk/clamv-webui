@@ -1,0 +1,12 @@
+# Native path scanning needs the same numeric owner as the Web UI's private uploads.
+# Retain the official entrypoint/configuration and its unprivileged clamav daemon account.
+FROM clamav/clamav:1.4.6@sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9
+USER root
+RUN set -eu; \
+    awk -F: '$3 == 10001 && $1 != "clamav" { exit 1 }' /etc/passwd; \
+    awk -F: '$3 == 10001 && $1 != "clamav" { exit 1 }' /etc/group; \
+    sed -i 's/^clamav:\([^:]*\):[0-9]*:[0-9]*:/clamav:\1:10001:10001:/' /etc/passwd; \
+    sed -i 's/^clamav:\([^:]*\):[0-9]*:/clamav:\1:10001:/' /etc/group; \
+    chown -R 10001:10001 /var/lib/clamav /var/log/clamav; \
+    test "$(id -u clamav)" = 10001; \
+    test "$(id -g clamav)" = 10001

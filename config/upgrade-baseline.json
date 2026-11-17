@@ -1,0 +1,6 @@
+{
+  "fixture": "src/test/resources/upgrade-fixtures/v2.1beta1/seed.sql.template",
+  "postgres_image": "postgres:17.6",
+  "fixture_source_release": "v2.1beta1",
+  "fixture_source_commit": "d06ea6a8ea4d2fd6c89fea1c4be7f55707c77eb3"
+}

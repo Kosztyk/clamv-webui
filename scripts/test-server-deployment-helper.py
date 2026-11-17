@@ -45,7 +45,7 @@ sys.exit(9)
 '''
 
 results = []
-for mode in ['existing', 'fresh', 'already_owned', 'build_failure', 'permission_failure', 'unmanaged_override', 'wrong_user', 'proxy_enabled', 'proxy_retained', 'proxy_disabled']:
+for mode in ['existing', 'fresh', 'already_owned', 'build_failure', 'permission_failure', 'unmanaged_override', 'wrong_user', 'proxy_enabled', 'proxy_retained', 'proxy_disabled', 'legacy_proxy']:
     with tempfile.TemporaryDirectory(prefix='clamav-deploy-test-') as temporary:
         work = Path(temporary)
         source = work / 'source directory'
@@ -61,13 +61,17 @@ for mode in ['existing', 'fresh', 'already_owned', 'build_failure', 'permission_
         original = base.read_bytes(), env_file.read_bytes()
         override = project / 'clamv-webui-local-image.override.yml'
         if mode == 'unmanaged_override':override.write_text('# operator-owned file\n')
-        if mode in ['proxy_retained', 'proxy_disabled']:
+        if mode in ['legacy_proxy', 'proxy_disabled']:
             override.write_text('# Managed by ClamAV Web UI build-and-start.sh\nservices:\n  clamav-web-client:\n    environment:\n      SERVER_FORWARD_HEADERS_STRATEGY: \"framework\"\n')
+        if mode == 'proxy_retained':
+            override.write_text('# Managed by ClamAV Web UI build-and-start.sh\nservices:\n  clamav-web-client:\n    environment:\n      SERVER_FORWARD_HEADERS_STRATEGY: "native"\n      SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "192.0.2.10/32"\n')
         docker = binaries / 'docker'
         docker.write_text(FAKE); docker.chmod(0o755)
         log = work / 'commands.jsonl'
         environment = dict(os.environ, PATH=str(binaries) + ':' + os.environ['PATH'],
                            DEPLOY_TEST_MODE=mode, DEPLOY_TEST_PROJECT=str(project), DEPLOY_TEST_LOG=str(log))
+        environment.pop('CLAMAV_TRUSTED_PROXY_CIDRS', None)
+        if mode == 'proxy_enabled':environment['CLAMAV_TRUSTED_PROXY_CIDRS']='192.0.2.10/32'
         options = ['--trusted-proxy'] if mode == 'proxy_enabled' else ['--direct-access'] if mode == 'proxy_disabled' else []
         run = subprocess.run(['bash', str(source/'build-and-start.sh'), *options], env=environment,
                              text=True, capture_output=True, timeout=15)
@@ -89,7 +93,7 @@ for mode in ['existing', 'fresh', 'already_owned', 'build_failure', 'permission_
             text = result_override.read_text()
             assert 'user: "10001:10001"' in text and 'pull_policy: never' in text, mode
             if mode in ['proxy_enabled', 'proxy_retained']:
-                assert 'SERVER_FORWARD_HEADERS_STRATEGY: \"framework\"' in text, mode
+                assert 'SERVER_FORWARD_HEADERS_STRATEGY: \"native\"' in text and 'SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: \"192.0.2.10/32\"' in text, mode
             if mode == 'proxy_disabled':
                 assert 'SERVER_FORWARD_HEADERS_STRATEGY: \"none\"' in text and 'SERVER_FORWARD_HEADERS_STRATEGY: \"framework\"' not in text, mode
         elif mode == 'permission_failure':

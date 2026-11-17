@@ -2,10 +2,33 @@
 # End-to-end scan through the published REST API and an actual clamd container.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-BASE_URL="${CLAMAV_SMOKE_URL:-http://127.0.0.1:8080}"
+BASE_URL="${CLAMAV_SMOKE_URL:-}"
+if [[ -z "$BASE_URL" ]]; then
+  published="$(docker compose port clamav-web-client 8080)"
+  published_port="${published##*:}"
+  [[ "$published_port" =~ ^[0-9]+$ ]] || { echo 'Cannot resolve the published Web UI port; set CLAMAV_SMOKE_URL.' >&2; exit 1; }
+  BASE_URL="http://127.0.0.1:$published_port"
+fi
 SMOKE_USERNAME="${CLAMAV_SMOKE_USER:-admin}"
 smoke_directory="$(mktemp -d -t clamav-smoke-XXXXXX)"
-trap 'rm -rf "$smoke_directory"' EXIT
+finish() {
+  local status=$?
+  if (( status != 0 )); then
+    for file in clamd.json submitted.json job.json; do
+      if [[ -s "$smoke_directory/$file" ]]; then
+        printf '%s response: ' "$file" >&2
+        head -c 1500 "$smoke_directory/$file" >&2
+        printf '\n' >&2
+      fi
+    done
+    if [[ -z "${CLAMAV_SMOKE_URL:-}" ]]; then
+      docker compose ps -a >&2 || true
+      docker compose logs --no-color --tail=100 >&2 || true
+    fi
+  fi
+  rm -rf "$smoke_directory"
+}
+trap finish EXIT
 cookie_file="$smoke_directory/cookies"
 
 csrf_token() {
@@ -40,52 +63,75 @@ fi
 
 # Local HTTP smoke uses the browser session/CSRF flow. HTTP Basic still requires HTTPS.
 web_ready=0
-for attempt in $(seq 1 30); do
-  if curl -fsS --max-time 4 -c "$cookie_file" "$BASE_URL/login" -o "$smoke_directory/login.html"; then
+for attempt in $(seq 1 90); do
+  if [[ "$(curl -sS --max-time 4 -c "$cookie_file" "$BASE_URL/login" -o "$smoke_directory/login.html" -w '%{http_code}' || true)" == 200 ]] &&
+      grep -q 'name="username"' "$smoke_directory/login.html"; then
     web_ready=1; break
   fi
   sleep 2
 done
 [[ "$web_ready" = 1 ]] || { echo 'Web login page did not become ready' >&2; exit 1; }
 csrf="$(csrf_token "$smoke_directory/login.html")"
-login_status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' \
+login_status="$(curl -sS --max-time 10 -o /dev/null -D "$smoke_directory/login-headers" -w '%{http_code}' \
   -b "$cookie_file" -c "$cookie_file" \
   --data-urlencode "username=$SMOKE_USERNAME" --data-urlencode "password=$PASSWORD" \
   --data-urlencode "_csrf=$csrf" "$BASE_URL/login")"
-[[ "$login_status" = 302 ]] || { echo "Login failed: HTTP $login_status" >&2; exit 1; }
+if [[ "$login_status" != 302 ]] || ! grep -qiE '^Location: (https?://[^/]+)?/dashboard[[:space:]]*$' "$smoke_directory/login-headers"; then
+  echo "Login did not redirect to the dashboard (HTTP $login_status)" >&2
+  exit 1
+fi
 curl -fsS --max-time 10 -b "$cookie_file" "$BASE_URL/scan" -o "$smoke_directory/scan.html"
 csrf="$(csrf_token "$smoke_directory/scan.html")"
 
 echo 'Waiting for web login page and clamd STATS to report online…'
 ready=0
-for attempt in $(seq 1 180); do
-  if curl -fsS --max-time 4 "$BASE_URL/login" | grep -q 'ClamAV Web UI'; then
-    if curl -fsS --max-time 5 -b "$cookie_file" "$BASE_URL/api/clamdtop" | python3 -c 'import json,sys;sys.exit(0 if json.load(sys.stdin).get("ok") else 1)' 2>/dev/null; then
-      ready=1; break
-    fi
+for attempt in $(seq 1 90); do
+  if curl -sS --max-time 5 -b "$cookie_file" "$BASE_URL/api/clamdtop" -o "$smoke_directory/clamd.json" &&
+      python3 -c 'import json,sys;sys.exit(0 if json.load(sys.stdin).get("ok") else 1)' < "$smoke_directory/clamd.json" 2>/dev/null; then
+    ready=1; break
   fi
-  sleep 5
+  sleep 3
 done
-[[ "$ready" = 1 ]] || { echo 'Web UI or clamd failed to become ready' >&2; docker compose logs --tail=120; exit 1; }
+[[ "$ready" = 1 ]] || { echo 'Web UI or clamd failed to become ready' >&2; exit 1; }
 
 endpoint_id="$(curl -fsS --max-time 10 -b "$cookie_file" "$BASE_URL/api/endpoints" | python3 -c 'import json,sys; print(next(x["id"] for x in json.load(sys.stdin) if x["enabled"]))')"
 file="$smoke_directory/eicar.com"
+clean_smoke="${CLAMAV_SMOKE_CLEAN:-false}"
 # Industry-standard harmless EICAR signature, not malware.
-printf '%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > "$file"
-response="$(curl -fsS --max-time 45 -b "$cookie_file" -H "X-CSRF-TOKEN: $csrf" -F "endpointId=$endpoint_id" -F "files=@$file;filename=eicar.com" "$BASE_URL/api/scan/upload")"
-job_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["jobIds"][0])' <<< "$response")"
+if [[ "$clean_smoke" = true ]]; then
+  file="$smoke_directory/clean-fixture.txt"
+  printf '%s' 'Harmless ClamAV upload cleanup fixture.' > "$file"
+else
+  printf '%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > "$file"
+fi
+smoke_filename="${CLAMAV_SMOKE_FILENAME:-$(basename "$file")}"
+[[ "$smoke_filename" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Smoke fixture filename must contain only ASCII letters, numbers, dots, underscores or hyphens.' >&2; exit 1; }
+expect_quarantine_failure="${CLAMAV_SMOKE_EXPECT_QUARANTINE_FAILED:-false}"
+# Exercise the real connector and audit column limit in the same upload request.
+printf -v audit_agent '%10240s' ''
+audit_agent="${audit_agent// /U}"
+response_status="$(curl -sS --max-time 45 -b "$cookie_file" -H "X-CSRF-TOKEN: $csrf" -F "endpointId=$endpoint_id" \
+  --user-agent "$audit_agent" -F "files=@$file;filename=$smoke_filename" \
+  "$BASE_URL/api/scan/upload" -o "$smoke_directory/submitted.json" -w '%{http_code}')"
+[[ "$response_status" == 2?? ]] || { echo "Upload failed: HTTP $response_status" >&2; exit 1; }
+job_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["jobIds"][0])' < "$smoke_directory/submitted.json")"
 [[ -n "$job_id" ]] || { echo 'No job ID returned' >&2; exit 1; }
-echo "Queued EICAR scan job: $job_id"
+echo "Queued upload scan job: $job_id"
 for attempt in $(seq 1 90); do
-  result="$(curl -fsS --max-time 10 -b "$cookie_file" "$BASE_URL/api/jobs/$job_id")"
-  if python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("verdict")=="VIRUS_FOUND" and "eicar" in str(d.get("foundVirusesJson", "")).lower() else 1)' <<< "$result"; then
-    echo 'PASS: EICAR detected and persisted with its signature.'
-    curl -fsS -b "$cookie_file" "$BASE_URL/admin/audit" | grep -q 'SCAN_UPLOAD' || { echo 'Audit event not visible' >&2; exit 1; }
+  result_status="$(curl -sS --max-time 10 -b "$cookie_file" "$BASE_URL/api/jobs/$job_id" -o "$smoke_directory/job.json" -w '%{http_code}')"
+  [[ "$result_status" == 200 ]] || { echo "Job lookup failed: HTTP $result_status" >&2; exit 1; }
+  result="$(cat "$smoke_directory/job.json")"
+  if python3 -c 'import json,sys; d=json.load(sys.stdin); clean=sys.argv[1]=="true"; verdict=(clean and d.get("verdict")=="OK" and d.get("status")=="FINISHED") or (not clean and d.get("verdict")=="VIRUS_FOUND" and any("eicar" in signature.lower() for signature in d.get("signatures", []))); quarantine=sys.argv[3]!="true" or (d.get("quarantineStatus")=="FAILED" and (d.get("error") or {}).get("code")=="QUARANTINE_FAILED"); sys.exit(0 if verdict and quarantine and d.get("filename")==sys.argv[2] else 1)' "$clean_smoke" "$smoke_filename" "$expect_quarantine_failure" <<< "$result"; then
+    if [[ "$clean_smoke" = true ]]; then echo 'PASS: clean upload completed with OK verdict.'; else echo 'PASS: EICAR detected and persisted with its signature.'; fi
+    if [[ ${#smoke_filename} -eq 400 ]]; then echo 'PASS: 400-character upload filename preserved in the job API.'; fi
+    if [[ "$expect_quarantine_failure" = true ]]; then echo 'PASS: quarantine failure visible in the API without changing VIRUS_FOUND.'; fi
+    curl -fsS --max-time 10 -b "$cookie_file" "$BASE_URL/admin/audit" -o "$smoke_directory/audit.html"
+    grep -q 'SCAN_UPLOAD' "$smoke_directory/audit.html" || { echo 'Audit event not visible' >&2; exit 1; }
     echo 'PASS: SCAN_UPLOAD audit entry visible in admin UI.'
     exit 0
   fi
   if python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("status")=="FINISHED" or d.get("verdict")=="ERROR" else 1)' <<< "$result"; then
-    echo "FAIL: Scan finished without EICAR verdict: $result" >&2
+    echo 'FAIL: scan finished with unexpected verdict, signature, filename or quarantine status' >&2
     exit 1
   fi
   sleep 2

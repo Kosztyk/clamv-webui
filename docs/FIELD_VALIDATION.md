@@ -64,8 +64,10 @@ client setting; public DNS is not required for reverse-proxy HTTPS recognition.
 
 ## Automated checks and remaining deployment coverage
 
-- Package verification evidence: `SERVER_PACKAGE_VALIDATION.json` and
-  `security/webhook-resilience-validation.json`.
+- Packaged historical validation evidence: [Configuration Center validation](CONFIGURATION_CENTER_VALIDATION.md)
+  and [webhook resilience validation](security/webhook-resilience-validation.json).
+  The former server-package JSON was a generated deployment report and is not
+  included with this source archive; see [current post-audit limits](../POST_AUDIT_FIXES_VALIDATION_RESULTS.md).
 - Runtime dependency query evidence: `security/webhook-runtime-dependencies.json`;
   this is not a scan of Docker OS/JRE layers.
 - Publication-time source checks: `security/repository-update-validation.json`.

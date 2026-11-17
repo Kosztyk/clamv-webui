@@ -1,46 +1,42 @@
+# Safe default for fresh installations. Do not replace an existing production
+# Compose file; merge changes into that deployment after backup and testing.
+# The scanner uses the verified 1.4.6 digest by default (see docs/security/clamd-image-pin.json).
+# For an intentional update, change the digest in this default, the pin manifest,
+# Dockerfile.clamd and .env.example together after verifying multi-arch support.
 services:
   clamav-web-client:
-    # Build the application from the Dockerfile in this directory.
-    # This is a LOCAL tag; Docker Compose will build it, not pull it from Docker Hub.
-    image: clamav-web-client:2.1.0-local
-    pull_policy: build
+    image: "${CLAMAV_WEBUI_IMAGE_REF:-clamav-web-client:${CLAMAV_WEBUI_IMAGE_TAG:-local}}"
     build:
       context: .
       dockerfile: Dockerfile
-      pull: false
-
     container_name: clamav-web-client
-
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     ports:
-      - "8080:8080"
-
-    # First-run application settings are entered at /setup/ on this port.
-    # When using the bundled scanner, enter clamav-server:3310 in the GUI.
-
+      # NGINX on the Docker host terminates HTTPS; do not expose app HTTP directly.
+      - "${CLAMAV_WEB_BIND_ADDRESS:-127.0.0.1}:8081:8080"
+    environment:
+      CLAMAV_HOST: "clamav-server"
+      CLAMAV_PORT: "3310"
+      # Issue #40: if configuring an external REST scanner with an API key,
+      # prefer HTTPS for CLAMAV_REST_URL. For non-loopback HTTP, explicitly
+      # set CLAMAV_REST_ALLOW_INSECURE: "true" (or manage it in Configuration Center).
+      # Do not add the insecure override unless the risk is understood.
+      # No upload scan-mode overrides. Fresh installs default to INSTREAM;
+      # Configuration Center can change the mode.
+      # Set real DB and trusted HTTPS proxy configuration per deployment.
     volumes:
-      # Prepare existing host folders for UID/GID 10001; see docs/NON_ROOT_CONTAINER.md.
       - ./conf:/app/conf
       - ./data:/app/data
-
+    # Allow Hikari / file-backed H2 to flush and release database locks on SIGTERM.
+    stop_grace_period: 60s
     depends_on:
       clamav-server:
         condition: service_started
-
     restart: unless-stopped
 
   clamav-server:
-    image: clamav/clamav:latest
+    image: "${CLAMAV_BASE_IMAGE:-clamav/clamav:1.4.6@sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9}"
     container_name: clamav
-
-    ports:
-      - "3310:3310"
-
-    volumes:
-      - ./data:/app/data:ro
-
+    # No host-published TCP/3310 and no application-data mount (issue #15).
     restart: unless-stopped

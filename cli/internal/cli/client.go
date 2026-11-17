@@ -22,12 +22,13 @@ import (
 const maxResponse = 8 * 1024 * 1024
 
 type apiClient struct {
-	base string
-	auth credential
-	http *http.Client
+	base    string
+	auth    credential
+	http    *http.Client
+	version string
 }
 
-func newClient(base string, auth credential, caFile string, timeout time.Duration, transport http.RoundTripper) (*apiClient, error) {
+func newClient(base string, auth credential, caFile string, timeout time.Duration, transport http.RoundTripper, versions ...string) (*apiClient, error) {
 	if auth.mode() == "none" {
 		return nil, usage("authentication is required")
 	}
@@ -54,7 +55,11 @@ func newClient(base string, auth credential, caFile string, timeout time.Duratio
 		transport = tr
 	}
 	jar, _ := cookiejar.New(nil)
-	return &apiClient{base: base, auth: auth, http: &http.Client{
+	version := "development"
+	if len(versions) != 0 && versions[0] != "" {
+		version = versions[0]
+	}
+	return &apiClient{base: base, auth: auth, version: version, http: &http.Client{
 		Transport: transport, Timeout: timeout, Jar: jar,
 		// No redirect may forward authentication or replay a scan submission.
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
@@ -83,7 +88,7 @@ func (c *apiClient) request(ctx context.Context, method, path string, query url.
 		return fmt.Errorf("cannot construct API request")
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "clamctl/2.1.0")
+	req.Header.Set("User-Agent", "clamctl/"+c.version)
 	if c.auth.mode() == "token" {
 		req.Header.Set("Authorization", "Bearer "+c.auth.Token)
 	} else {

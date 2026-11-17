@@ -90,7 +90,7 @@ class SeedLegacy {
   c.init(Cipher.ENCRYPT_MODE,new SecretKeySpec(key,"AES"),new GCMParameterSpec(128,iv));
   byte[] encrypted=c.doFinal("synthetic-legacy-directory-secret".getBytes(java.nio.charset.StandardCharsets.UTF_8));
   byte[] joined=new byte[12+encrypted.length];System.arraycopy(iv,0,joined,0,12);System.arraycopy(encrypted,0,joined,12,encrypted.length);
-  try(Connection db=DriverManager.getConnection("jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE","sa","");
+  try(Connection db=DriverManager.getConnection("jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=0","sa","");
       PreparedStatement insert=db.prepareStatement("INSERT INTO auth_provider_settings(provider,settings_json,encrypted_secret,updated_at,updated_by) VALUES (?,?,?,?,?)")) {
    insert.setString(1,"ldap");insert.setString(2,Files.readString(Path.of("legacy-options.json")));
    insert.setString(3,"gcm1:"+Base64.getEncoder().encodeToString(joined));insert.setTimestamp(4,java.sql.Timestamp.from(Instant.now()));

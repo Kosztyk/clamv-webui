@@ -51,7 +51,7 @@ the delivery timeout. Worker count is limited to 1–8 and queue capacity to
 timeouts or an unbounded executor.
 
 These are **server deployment settings**, loaded at startup. They do not belong
-in `conf/clamav-web-client.properties`, which stores the UI's `app.webhook.*`
+in encrypted Configuration Center storage (`conf/configuration-center.properties` with its key), which stores the URL and other secret `app.webhook.*` fields
 enable/URL settings. Recreate the UI container after changing deployment values.
 The settings form cannot override server address policy.
 
@@ -165,3 +165,8 @@ saved URL and server address policy, verify receiver reachability from the
 container and check its response status. Increasing scan worker count does not
 fix an unavailable receiver. If queue capacity is exhausted, fix receiver
 latency/availability or intentionally tune webhook workers/queue separately.
+
+
+## Issue #39 signing and privacy
+
+Webhook delivery now requires a Configuration Center signing key (≥32 UTF-8 bytes) and adds `X-Signature: sha256=<hex HMAC-SHA256(raw JSON body)>`. Destination URLs are preserved on upgrade; unsigned delivery is disabled until a key is configured. Targets, quarantine paths, error text, endpoint names and usernames are excluded by default. JSON `foundViruses` is a structured JSON object, with scan path keys replaced by `item-N`. Use Configuration Center → Notifications → Webhook notifications to opt into sensitive fields. See `docs/ISSUE39_VIEWER_WEBHOOK_SECURITY.md`.

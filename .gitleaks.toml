@@ -1,0 +1,23 @@
+[extend]
+useDefault = true
+
+# These values are documented placeholders or deliberately invalid credentials.
+[[allowlists]]
+description = "Public command examples using only known fixture tokens"
+targetRules = ["curl-auth-header"]
+condition = "AND"
+paths = ['''^docs/(?:REVERSE_PROXY_TLS|PHASE4_OPERATIONS|UPDATE_AND_VERIFY|COMPLETE_USER_GUIDE)\.md$''']
+regexTarget = "match"
+regexes = ['''Bearer (?:YOUR_TOKEN|YOUR_PRIVATE_SCRAPE_TOKEN|invalid-diagnostic-token|deliberately-invalid)\b''']
+
+# The vendored bundle's checksum is checked by the supply-chain gate.
+[[allowlists]]
+description = "xterm numeric control sequence assignments"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^src/main/resources/static/js/xterm-vendored\.js$''']
+regexTarget = "line"
+regexes = [
+  '''^\s*result\.key\s*=\s*EscapeSequences_1\.(?:C0|C1)\.[A-Z]+\b''',
+  '''^\s*if \(result\.key === EscapeSequences_1\.C0\.ESC \+ '\[1;3[ABCD]'\) \{$''',
+]

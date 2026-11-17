@@ -1,9 +1,9 @@
 # Build the complete source first:
-#   docker build --pull -t clamav-web-client:2.1.0-local .
+#   docker build -t clamav-web-client:${CLAMAV_WEBUI_IMAGE_TAG:-local} .
 # Start this example from the repository root. Conf/data must be writable by UID 10001.
 services:
   clamav-web-client:
-    image: clamav-web-client:2.1.0-local
+    image: clamav-web-client:${CLAMAV_WEBUI_IMAGE_TAG:-local}
     pull_policy: never
     container_name: clamav-web-client
     ports:
@@ -16,4 +16,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # Allow Hikari / embedded file H2 to release the DB lock before Docker SIGKILL.
+    stop_grace_period: 60s
     restart: unless-stopped

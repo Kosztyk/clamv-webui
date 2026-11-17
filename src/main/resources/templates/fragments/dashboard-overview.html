@@ -1,0 +1,75 @@
+<div th:fragment="dashboardOverview" data-page="dashboard">
+  <div class="card mb-3">
+    <div class="card-body">
+      <h4 class="card-title">Dashboard</h4>
+      <div class="text-muted">Overview of endpoints and recent scan activity.</div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-muted">Endpoints (total)</div>
+          <div class="kpi" th:text="${endpointsCount}">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-muted">Recent jobs</div>
+          <div class="kpi" th:text="${jobsCount}">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-muted">Default endpoint</div>
+          <div class="kpi-sm" th:text="${defaultEndpointName}">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h5 class="m-0">Latest scan jobs</h5>
+        <a class="btn btn-sm btn-outline-secondary" th:href="@{/jobs}" href="/jobs">View all</a>
+      </div>
+
+      <div th:if="${jobs == null or #lists.isEmpty(jobs)}" class="text-muted">No jobs yet.</div>
+
+      <div th:if="${jobs != null and !#lists.isEmpty(jobs)}" class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+          <thead>
+          <tr>
+            <th>Id</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Verdict</th>
+            <th>Target</th>
+            <th>Endpoint</th>
+            <th>Submitted</th>
+            <th>User</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="j : ${jobs}">
+            <td><a th:href="@{'/jobs/' + ${j.id}}" th:text="${j.id}">id</a></td>
+            <td th:text="${j.type}">type</td>
+            <td th:text="${j.status}">status</td>
+            <td th:text="${j.verdict}">verdict</td>
+            <td th:text="${j.target}">target</td>
+            <td th:text="${j.endpoint != null ? j.endpoint.name : ''}">ep</td>
+            <td th:text="${j.submittedAt}">time</td>
+            <td th:text="${j.submittedBy}">user</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

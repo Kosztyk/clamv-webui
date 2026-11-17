@@ -1,5 +1,6 @@
 package info.trizub.clamav.webclient.config;
 
+import info.trizub.clamav.webclient.security.SessionWebSocketGuard;
 import info.trizub.clamav.webclient.web.NativeClamdtopWebSocket;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
@@ -10,9 +11,19 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @Configuration
 @EnableWebSocket
 public class NativeClamdtopWebSocketConfig implements WebSocketConfigurer {
-    private final NativeClamdtopWebSocket handler;
-    public NativeClamdtopWebSocketConfig(NativeClamdtopWebSocket handler){this.handler=handler;}
-    @Override public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(handler,"/ws/clamdtop"); // no wildcard origins
-    }
+  private final NativeClamdtopWebSocket handler;
+  private final SessionWebSocketGuard sessions;
+
+  public NativeClamdtopWebSocketConfig(
+      NativeClamdtopWebSocket handler, SessionWebSocketGuard sessions) {
+    this.handler = handler;
+    this.sessions = sessions;
+  }
+
+  @Override
+  public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+    registry
+        .addHandler(sessions.decorate(handler), "/ws/clamdtop")
+        .addInterceptors(sessions); // no wildcard origins
+  }
 }

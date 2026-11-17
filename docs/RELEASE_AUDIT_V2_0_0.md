@@ -50,3 +50,7 @@ Do **not** overwrite your live `docker-compose.yml`, `.env`, `conf/`, `data/`, L
 ## Release disposition
 
 **Build/test baseline confirmed by the operator's Maven log. Runtime acceptance tests remain pending.** No claim is made that remote OIDC, LDAPS, PostgreSQL, Prometheus, and Grafana were independently tested in this environment.
+
+
+#### Issue #42 — runtime configuration privacy
+Git no longer tracks `conf/clamav-web-client.properties`; the credential-free example remains in source. Existing webhook URLs are migrated to encrypted Configuration Center storage and removed from the legacy plaintext file after a successful write.

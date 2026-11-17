@@ -1,0 +1,33 @@
+# GitHub-generated draft notes; the verified release workflow owns publication.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+      - duplicate
+  categories:
+    - title: Security
+      labels:
+        - security
+        - vulnerability
+        - dependencies
+    - title: Breaking changes and migration
+      labels:
+        - breaking-change
+        - migration
+    - title: New features
+      labels:
+        - enhancement
+        - feature
+    - title: Fixes
+      labels:
+        - bug
+        - fix
+    - title: CI, maintenance and documentation
+      labels:
+        - ci
+        - maintenance
+        - documentation
+        - chore
+    - title: Other changes
+      labels:
+        - '*'

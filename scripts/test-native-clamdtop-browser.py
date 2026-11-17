@@ -8,9 +8,10 @@ and does not access external services. Run from any directory:
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 import shutil
+import os
 
 ASSETS = Path(__file__).resolve().parent.parent / 'src/main/resources/static'
-BROWSER = shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
+BROWSER = os.environ.get('CHROMIUM_PATH') or shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
 if not BROWSER:
     raise SystemExit('Chromium not installed (browser regression test unavailable)')
 
@@ -57,31 +58,40 @@ JS_MEASURE = '''() => {
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(headless=True, executable_path=BROWSER, args=['--no-sandbox'])
+    trace_root = Path(os.environ['CI_BROWSER_TRACE_DIR']) if os.environ.get('CI_BROWSER_TRACE_DIR') else None
     try:
         for dpr in (1, 2):
-            page = browser.new_page(viewport={'width': 750, 'height': 860}, device_scale_factor=dpr)
-            page.set_content(FIXTURE)
-            page.add_style_tag(path=str(ASSETS / 'css/xterm-vendored.css'))
-            page.add_style_tag(path=str(ASSETS / 'css/phase0.css'))
-            page.evaluate(JS_MOCK)
-            page.add_script_tag(path=str(ASSETS / 'js/xterm-vendored.js'))
-            page.add_script_tag(path=str(ASSETS / 'js/native-clamdtop.js'))
-            page.evaluate("document.dispatchEvent(new Event('clamav:page-ready'))")
-            for width in (750, 1000, 1450, 1850):
-                page.set_viewport_size({'width': width, 'height': 860})
-                page.wait_for_timeout(550)  # allow ResizeObserver debouncing and terminal reconnect
-                v = page.evaluate(JS_MEASURE)
-                assert v['bg'] == v['termBg'] == v['vpBg'] == 'rgb(46, 52, 54)', v
-                assert v['padding'] == '0px' and v['border'] == '0px', v
-                assert 0 <= v['width'] - v['painted'] <= 12, v
-                assert 'cols=' in v['ws'] and 'rows=' in v['ws'], v
-                print(f'PASS dpr={dpr} width={width}: {v["width"]-v["painted"]:.1f}px painted-grid remainder')
-            before = page.evaluate('window.TestSockets.length')
-            page.locator('#native-clamdtop-disconnect').click()
-            page.set_viewport_size({'width': 1300, 'height': 860})
-            page.wait_for_timeout(550)
-            assert page.evaluate('window.TestSockets.length') == before, 'Resize must not reconnect user-disconnected session'
-            page.close()
+            context = browser.new_context(viewport={'width': 750, 'height': 860}, device_scale_factor=dpr)
+            if trace_root:
+                trace_root.mkdir(parents=True, exist_ok=True)
+                context.tracing.start(screenshots=True, snapshots=True, sources=True)
+            try:
+                page = context.new_page()
+                page.set_content(FIXTURE)
+                page.add_style_tag(path=str(ASSETS / 'css/xterm-vendored.css'))
+                page.add_style_tag(path=str(ASSETS / 'css/phase0.css'))
+                page.evaluate(JS_MOCK)
+                page.add_script_tag(path=str(ASSETS / 'js/xterm-vendored.js'))
+                page.add_script_tag(path=str(ASSETS / 'js/native-clamdtop.js'))
+                page.evaluate("document.dispatchEvent(new Event('clamav:page-ready'))")
+                for width in (750, 1000, 1450, 1850):
+                    page.set_viewport_size({'width': width, 'height': 860})
+                    page.wait_for_timeout(550)
+                    v = page.evaluate(JS_MEASURE)
+                    assert v['bg'] == v['termBg'] == v['vpBg'] == 'rgb(46, 52, 54)', v
+                    assert v['padding'] == '0px' and v['border'] == '0px', v
+                    assert 0 <= v['width'] - v['painted'] <= 12, v
+                    assert 'cols=' in v['ws'] and 'rows=' in v['ws'], v
+                    print(f'PASS dpr={dpr} width={width}: {v["width"]-v["painted"]:.1f}px painted-grid remainder')
+                before = page.evaluate('window.TestSockets.length')
+                page.locator('#native-clamdtop-disconnect').click()
+                page.set_viewport_size({'width': 1300, 'height': 860})
+                page.wait_for_timeout(550)
+                assert page.evaluate('window.TestSockets.length') == before, 'Resize must not reconnect user-disconnected session'
+            finally:
+                if trace_root:
+                    context.tracing.stop(path=str(trace_root / f'clamp-terminal-dpr{dpr}.zip'))
+                context.close()
     finally:
         browser.close()
 print('PASS: terminal painting, fitting, resize and disconnect')

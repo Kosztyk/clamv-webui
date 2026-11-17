@@ -78,9 +78,22 @@
   }
   function bindSummaries() {document.querySelectorAll('[data-rest-summary]').forEach(root=>{
     if(initialized.has(root))return;initialized.add(root);
-    async function reload(){try{renderSummary(root,await request('/rest-monitor/summary'));}catch(e){text(root.querySelector('[data-rest-status]'),e.message);}}
-    reload();const timer=setInterval(()=>{if(!root.isConnected){clearInterval(timer);return;}reload();},10000);
-    root.addEventListener('clamav:rest-refresh',reload);
+    let active=false,lastReload=0,loading=false;
+    async function reload(){if(loading)return;loading=true;lastReload=Date.now();
+      try {const data=await request('/rest-monitor/summary');renderSummary(root,data);
+        const stats=unwrap(data.stats||data);
+        const pending=Number(first(stats?.queue||{},'queued','pending','waiting'))||0;
+        const running=Number(first(stats?.queue||{},'running','active'))||0;
+        active=pending>0||running>0;
+      }catch(e){text(root.querySelector('[data-rest-status]'),e.message);active=false;}
+      finally{loading=false;}
+    }
+    reload();const timer=setInterval(()=>{if(!root.isConnected){clearInterval(timer);return;}
+      if(document.visibilityState==='hidden')return;
+      if(Date.now()-lastReload >= (active?10000:30000))reload();
+    },10000);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible' && root.isConnected)reload();});
+    root.addEventListener('clamav:rest-refresh',()=>{if(document.visibilityState!=='hidden')reload();});
   });}
   function queryFor(form,page,size) {
     const query=new URLSearchParams();
@@ -134,7 +147,7 @@
     const form=root.querySelector('[data-rest-filters]');
     const msg=root.querySelector('[data-rest-jobs-message]');const table=root.querySelector('[data-rest-job-table]');
     const pageLabel=root.querySelector('[data-rest-page]');const detail=root.querySelector('[data-rest-detail]');
-    let refreshing=false;
+    let refreshing=false, activeJobs=false, lastLoad=0;
     const query=()=>queryFor(form,page,limit);
     async function detailFor(id,preview){
       if(!detail)return;
@@ -154,12 +167,14 @@
         });actions.append(retry);detail.append(actions);
       }catch(e){showJob(detail,preview||{id});detail.append(element('p','Unable to load details: '+e.message,'rest-error'));}
     }
-    async function load(silent=false){if(refreshing)return;refreshing=true;if(!silent)text(msg,'Loading API jobs…');
+    async function load(silent=false){if(refreshing)return;refreshing=true;lastLoad=Date.now();if(!silent)text(msg,'Loading API jobs…');
       try{
         const route=form?.querySelector('[name=view]')?.value==='history'?'/rest-monitor/history':'/rest-monitor/jobs';
         const data=await request(route+'?'+query());const list=records(data);
         if(!list) throw new Error('REST API returned an unrecognized history format; no data was discarded');
-        total=Number(data.total ?? list.length);table?.replaceChildren();
+        total=Number(data.total ?? list.length);
+        activeJobs=list.some(job=>!/complet|finish|fail|error|cancel|done|success/i.test(status(job)));
+        table?.replaceChildren();
         if(!list.length) text(msg,'No matching API jobs');else text(msg,`Showing ${(page-1)*limit+1}–${(page-1)*limit+list.length} of ${total} jobs`);
         text(pageLabel,`Page ${page} · ${total} jobs`);
         if(!table)return;
@@ -198,7 +213,11 @@
       const qp=query();qp.set('format',btn.dataset.restExport);
       window.location.assign('/rest-monitor/export?'+qp.toString());
     }));
-    load();const timer=setInterval(()=>{if(!root.isConnected){clearInterval(timer);return;}load(true);},5000);
+    load();const timer=setInterval(()=>{if(!root.isConnected){clearInterval(timer);return;}
+      if(document.visibilityState==='hidden')return;
+      if(Date.now()-lastLoad >= (activeJobs?5000:30000))load(true);
+    },5000);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible' && root.isConnected)load(true);});
   });}
   function bindUploads() {document.querySelectorAll('form[data-rest-upload]').forEach(async form=>{
     if(initialized.has(form))return;initialized.add(form);

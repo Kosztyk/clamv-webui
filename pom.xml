@@ -33,17 +33,20 @@
 	</developers>
 
 	<scm>
-		<connection>scm:git:git@github.com:rguziy/clamav-web-client.git</connection>
-		<developerConnection>scm:git:git@github.com:rguziy/clamav-web-client.git</developerConnection>
-		<url>git@github.com:rguziy/clamav-web-client.git</url>
+		<connection>scm:git:https://github.com/Kosztyk/clamv-webui.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/Kosztyk/clamv-webui.git</developerConnection>
+		<url>https://github.com/Kosztyk/clamv-webui</url>
 		<tag>HEAD</tag>
 	</scm>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<java.version>17</java.version>
+		<java.version>21</java.version>
 		<!-- Surefire/Failsafe append the test-only Mockito agent to optional caller/coverage arguments. -->
 		<argLine />
+        <!-- First enforced coverage floor; raise after the first real CI JaCoCo report. -->
+        <jacoco.minimum.line.coverage>0.82</jacoco.minimum.line.coverage>
+        <spotless.ratchet.ref>origin/main</spotless.ratchet.ref>
 		<!-- Boot 4.0.9 manages the fixes listed in docs/SECURITY_DEPENDENCY_UPDATE.md. -->
 		<postgresql.version>42.7.13</postgresql.version>
 		<!-- Override Boot's older HTTP stack: fixes CVE-2026-64607/54399/54428. -->
@@ -113,7 +116,6 @@
 			<artifactId>h2</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-		<dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-h2console</artifactId></dependency>
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
@@ -121,6 +123,8 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Phase 2: retain all four explicitly supported JDBC drivers (H2/PostgreSQL/MySQL/MariaDB);
+             removing drivers would break existing runtime-only database changes. -->
 		<!-- Phase 2: versioned, vendor-specific schema migrations. Spring Boot manages Flyway versions. -->
 		<dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-flyway</artifactId></dependency>
 		<dependency><groupId>org.flywaydb</groupId><artifactId>flyway-database-postgresql</artifactId></dependency>
@@ -147,12 +151,6 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<!-- SMTP is enabled by runtime configuration; keep its classes in the executable JAR. -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-mail</artifactId>
-		</dependency>
-
 		<!-- ClamAV Client Library from https://github.com/cdarras/clamav-client -->
 		<dependency>
 			<groupId>xyz.capybara</groupId>
@@ -172,6 +170,8 @@
 		</dependency>
 		<dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa-test</artifactId><scope>test</scope></dependency>
 		<dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator-test</artifactId><scope>test</scope></dependency>
+        <!-- API contract tests parse the actual Maven-filtered OpenAPI YAML. -->
+        <dependency><groupId>org.yaml</groupId><artifactId>snakeyaml</artifactId><scope>test</scope></dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
@@ -181,13 +181,81 @@
 
 	<build>
 		<resources>
-			<resource><directory>src/main/resources</directory></resource>
+			<!-- Filter ONLY explicitly versioned files. Never filter Spring ${...} placeholders
+			     or unrelated resources: @@project.version@@ is the sole version token. -->
+			<resource><directory>src/main/resources</directory><filtering>false</filtering>
+				<excludes>
+					<exclude>application.properties</exclude>
+					<exclude>openapi/clamav-v1.yaml</exclude>
+					<exclude>configuration-center/setup.html</exclude>
+					<exclude>templates/login.html</exclude>
+					<exclude>templates/error.html</exclude>
+					<exclude>templates/fragments/shell.html</exclude>
+				</excludes>
+			</resource>
+			<resource><directory>src/main/resources</directory><filtering>true</filtering>
+				<includes>
+					<include>application.properties</include>
+					<include>openapi/clamav-v1.yaml</include>
+					<include>configuration-center/setup.html</include>
+					<include>templates/login.html</include>
+					<include>templates/error.html</include>
+					<include>templates/fragments/shell.html</include>
+				</includes>
+			</resource>
 			<resource><directory>dashboards</directory><targetPath>monitoring</targetPath>
 				<includes><include>grafana-clamav-webui.json</include><include>clamav-alerts.yml</include></includes>
 			</resource>
 		</resources>
 		<plugins>
-			<!-- Resolve the managed Mockito JAR portably, including inside the Docker build. -->
+            <!-- Enforce reproducible build prerequisites even outside the optional quality profile. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions><execution>
+                    <id>enforce-build-prerequisites</id>
+                    <phase>validate</phase>
+                    <goals><goal>enforce</goal></goals>
+                    <configuration>
+                        <rules>
+                            <requireMavenVersion><version>[3.9,)</version></requireMavenVersion>
+                            <requireJavaVersion><version>[21,)</version></requireJavaVersion>
+                            <banDuplicatePomDependencyVersions />
+                            <requireReleaseDeps><onlyWhenRelease>true</onlyWhenRelease></requireReleaseDeps>
+                        </rules>
+                        <fail>true</fail>
+                    </configuration>
+                </execution></executions>
+            </plugin>
+            <!-- Instrument the existing Surefire/Failsafe tests; preserve the Mockito agent. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.16</version>
+                <executions>
+                    <execution>
+                        <id>instrument-unit-tests</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>coverage-report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal><goal>check</goal></goals>
+                        <configuration>
+                            <rules><rule>
+                                <element>BUNDLE</element>
+                                <limits><limit>
+                                    <counter>LINE</counter>
+                                    <value>COVEREDRATIO</value>
+                                    <minimum>${jacoco.minimum.line.coverage}</minimum>
+                                </limit></limits>
+                            </rule></rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Resolve the managed Mockito JAR portably, including inside the Docker build. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
@@ -211,6 +279,10 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-resources-plugin</artifactId>
+				<configuration>
+					<delimiters><delimiter>@@</delimiter></delimiters>
+					<useDefaultDelimiters>false</useDefaultDelimiters>
+				</configuration>
 				<executions>
 					<execution>
 						<id>copy-resources</id>
@@ -246,5 +318,86 @@
 				<executions><execution><goals><goal>integration-test</goal><goal>verify</goal></goals></execution></executions>
 			</plugin></plugins></build>
 		</profile>
+
+        <!-- Expensive/static rules: enabled in CI and release gates, not plain local mvn verify.
+             Existing warnings are compared to the PR base with scripts/issue53-compare-quality.py.
+             Never use spotbugs:check or pmd:check here; those would incorrectly reject legacy debt. -->
+        <profile>
+            <id>ci-quality</id>
+            <build><plugins>
+                <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>3.4.0</version>
+                    <configuration>
+                        <!-- Incremental policy: only changed Java files need immediate formatting. -->
+                        <ratchetFrom>${spotless.ratchet.ref}</ratchetFrom>
+                        <java>
+                            <includes>
+                                <include>src/main/java/**/*.java</include>
+                                <include>src/test/java/**/*.java</include>
+                            </includes>
+                            <googleJavaFormat><version>1.35.0</version></googleJavaFormat>
+                            <removeUnusedImports />
+                            <trimTrailingWhitespace />
+                            <endWithNewline />
+                        </java>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>4.10.5.0</version>
+                    <configuration>
+                        <effort>Max</effort>
+                        <threshold>Low</threshold>
+                        <xmlOutput>true</xmlOutput>
+                        <xmlOutputFilename>spotbugs.xml</xmlOutputFilename>
+                        <failOnError>true</failOnError>
+                        <!-- FindSecBugs 1.14.0 crashes in this detector on the POSIX helpers.
+                             UploadStorageTest and the native isolation smoke test assert file modes. -->
+                        <omitVisitors>OverlyPermissiveFilePermissionDetector</omitVisitors>
+                        <plugins><plugin>
+                            <groupId>com.h3xstream.findsecbugs</groupId>
+                            <artifactId>findsecbugs-plugin</artifactId>
+                            <version>1.14.0</version>
+                        </plugin></plugins>
+                    </configuration>
+                    <executions><execution>
+                        <id>generate-spotbugs-report</id>
+                        <phase>verify</phase><goals><goal>spotbugs</goal></goals>
+                    </execution></executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-pmd-plugin</artifactId>
+                    <version>3.28.0</version>
+                    <configuration>
+                        <targetJdk>21</targetJdk>
+                        <rulesets>
+                            <ruleset>category/java/errorprone.xml</ruleset>
+                            <ruleset>category/java/bestpractices.xml</ruleset>
+                        </rulesets>
+                        <linkXRef>false</linkXRef>
+                        <failOnViolation>false</failOnViolation>
+                    </configuration>
+                    <executions><execution>
+                        <id>generate-pmd-report</id>
+                        <phase>verify</phase><goals><goal>pmd</goal></goals>
+                    </execution></executions>
+                </plugin>
+                <!-- Dependency convergence is checked in CI; local plain builds stay usable
+                     while historical transitive-version conflicts can be triaged. -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <executions><execution>
+                        <id>enforce-dependency-convergence</id>
+                        <phase>validate</phase><goals><goal>enforce</goal></goals>
+                        <configuration><rules><dependencyConvergence /></rules></configuration>
+                    </execution></executions>
+                </plugin>
+            </plugins></build>
+        </profile>
 	</profiles>
 </project>
