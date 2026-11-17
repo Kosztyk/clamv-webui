@@ -22,7 +22,7 @@ checks={
 'policy does not DNS resolve bypass':'InetAddress' not in policy and '.getHost()' in policy,
 'policy logs warning for deliberate opt-in':'SECURITY WARNING' in policy,
 'policy sanitizes URL errors and does not reveal key':'rawUrl' not in policy.split('throw new IllegalArgumentException(')[-1] and 'CLAMAV_REST_ALLOW_INSECURE=true' in policy,
-'bridge default binding fail closed':'@Value("${CLAMAV_REST_ALLOW_INSECURE:false}")' in bridge and 'RestTransportPolicy.validate(this.baseUrl, this.apiKey, allowInsecure)' in bridge,
+'bridge default binding fail closed':'@Value("${CLAMAV_REST_ALLOW_INSECURE:false}")' in bridge and 'RestTransportPolicy.validate(normalizedBaseUrl, this.apiKey, allowInsecure)' in bridge,
 'bridge existing direct constructor fail closed':'this(mapper,baseUrl,apiKey,false,authMode' in re.sub(r'\s+', '', bridge),
 'other REST config uses same policy':'RestTransportPolicy.validate(normalized, apiKey, allowInsecure)' in config and '@Value("${CLAMAV_REST_ALLOW_INSECURE:false}")' in config,
 'other REST config reads upper-case UI values':'@Value("${CLAMAV_REST_API_KEY:}")' in config,

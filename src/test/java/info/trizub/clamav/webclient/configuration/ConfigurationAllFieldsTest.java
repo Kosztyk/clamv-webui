@@ -2,6 +2,7 @@ package info.trizub.clamav.webclient.configuration;
 
 import static org.assertj.core.api.Assertions.*;
 
+import info.trizub.clamav.webclient.util.AtomicPropertiesFile;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Stream;
@@ -164,15 +165,18 @@ class ConfigurationAllFieldsTest {
   }
 
   @Test
-  void keepsExistingProxyRegexWhenReviewingOtherSettings() {
+  void keepsExistingProxyRegexWhenReviewingOtherSettings() throws Exception {
     String key = "server.tomcat.remoteip.internal-proxies";
     String previous = "192\\.0\\.2\\.10";
-    var store = store();
-    store.save("0", Map.of(key, previous), Set.of(), true, "fixture");
+    var historical = new Properties();
+    historical.setProperty(key, previous);
+    AtomicPropertiesFile.storeAtomic(folder.resolve("center.properties"), historical);
     var engine = new ConfigurationEngine(new MockEnvironment(), store(), Map::of);
-    var review =
-        engine.review("1", Map.of(key, previous, "server.servlet.session.timeout", "7m"), Set.of());
+    var submitted = Map.of(key, previous, "server.servlet.session.timeout", "7m");
+    var review = engine.review("0", submitted, Set.of());
     assertThat(review.summary()).extracting(ConfigurationEngine.Change::key).doesNotContain(key);
+    engine.apply(review, true, "fixture");
+    assertThat(store().saved(key)).contains(previous);
     assertThatThrownBy(() -> engine.review("1", Map.of(key, "(a+)+"), Set.of()))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("use numeric CIDRs");
