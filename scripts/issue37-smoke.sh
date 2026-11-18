@@ -60,6 +60,25 @@ if [ "$ok" != true ]; then
 fi
 docker exec "$name" /bin/sh -ec '
     test "$(id -u)" = 10001
+    verify_package_version() {
+        installed="$(dpkg-query -W -f="\${Version}" "$1")"
+        if ! dpkg --compare-versions "$installed" ge "$2"; then
+            printf "FAIL: %s %s is older than Ubuntu security update %s\n" "$1" "$installed" "$2" >&2
+            exit 1
+        fi
+        printf "PASS: Ubuntu package %s %s\n" "$1" "$installed"
+    }
+    # Ubuntu 24.04 security updates for the packages flagged in the published image.
+    verify_package_version dpkg 1.22.6ubuntu6.6
+    verify_package_version libc6 2.39-0ubuntu8.12
+    verify_package_version libc-bin 2.39-0ubuntu8.12
+    verify_package_version libpcre2-8-0 10.42-4ubuntu2.2
+    verify_package_version perl-base 5.38.2-3.2ubuntu0.7
+    if command -v wget >/dev/null 2>&1; then
+        echo "FAIL: wget is still installed in the runtime image" >&2
+        exit 1
+    fi
+    echo "PASS: wget removed from the runtime image"
     test -x /usr/bin/clamdtop
     test ! -e /usr/sbin/clamd
     test ! -e /usr/bin/freshclam

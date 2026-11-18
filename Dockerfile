@@ -29,16 +29,23 @@ WORKDIR /app
 # a small curl-based HTTP probe. libclamav is installed ONLY if clamdtop links it.
 COPY --from=clamdtop-extract --chown=0:0 --chmod=0555 /clamdtop-extracted/usr/bin/clamdtop /usr/bin/clamdtop
 COPY --from=clamdtop-extract --chown=0:0 --chmod=0444 /clamdtop-extracted/usr/share/doc/clamav-daemon/copyright /usr/share/doc/clamav-daemon/copyright
-# Update APT for CVE-2026-109518 and disable download retries during the upgrade.
+# Upgrade the installed Ubuntu binaries for the affected source packages.
+# Temurin uses wget to fetch the JRE at build time. The web image uses curl.
 RUN set -eux; \
+    export DEBIAN_FRONTEND=noninteractive; \
     apt-get update -o Acquire::Retries=0; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o Acquire::Retries=0 \
-       apt libncurses6 libtinfo6 util-linux ncurses-term curl; \
+    security_packages="$(dpkg-query -W -f='${db:Status-Status} ${source:Package} ${binary:Package}\n' | \
+        awk '$1 == "installed" && $2 ~ /^(apt|dpkg|glibc|pcre2|perl)$/ { print $3 }')"; \
+    test -n "$security_packages"; \
+    printf '%s\n' "$security_packages" | xargs apt-get install -y --no-install-recommends --only-upgrade -o Acquire::Retries=0; \
+    apt-get purge -y wget; \
+    apt-get install -y --no-install-recommends -o Acquire::Retries=0 \
+       libncurses6 libtinfo6 util-linux ncurses-term curl; \
     if ldd /usr/bin/clamdtop | grep -q 'libclamav.so.12 => not found'; then \
-       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libclamav12; \
+       apt-get install -y --no-install-recommends libclamav12; \
     fi; \
     if ldd /usr/bin/clamdtop | grep -q 'libclamav.so.11 => not found'; then \
-       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libclamav11t64; \
+       apt-get install -y --no-install-recommends libclamav11t64; \
     fi; \
     rm -rf /var/lib/apt/lists/*; \
     test -x /usr/bin/clamdtop; \
