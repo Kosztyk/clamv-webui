@@ -7,6 +7,7 @@ import info.trizub.clamav.webclient.model.ClamdEndpoint;
 import info.trizub.clamav.webclient.service.ClamdTopService;
 import info.trizub.clamav.webclient.service.EndpointService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.lang.ref.Reference;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,8 @@ class ClamdMetricsCollectorTest {
       var endpoint = endpoint();
       when(endpoints.all()).thenReturn(List.of(endpoint));
       when(top.snapshot(1L)).thenReturn(ClamdTelemetryFixture.snapshot());
-      new ClamdMetricsCollector(registry, endpoints, top, 12, 30000, "UTC").poll();
+      var collector = new ClamdMetricsCollector(registry, endpoints, top, 12, 30000, "UTC");
+      collector.poll();
       for (String name : List.of("clamav.queue.items", "clamav.clamd.queue.items"))
         assertThat(registry.get(name).tag("slot", "0").gauge().value()).isZero();
       assertThat(registry.get("clamav.threads.live").tag("slot", "0").gauge().value()).isEqualTo(5);
@@ -49,6 +51,7 @@ class ClamdMetricsCollectorTest {
           .isEqualTo(Instant.parse("2026-10-29T10:00:00Z").getEpochSecond());
       assertThat(registry.get("clamav.clamd.queue.max").tag("slot", "0").gauge().value()).isNaN();
       assertThat(registry.get("clamav.queue.items").tag("slot", "1").gauge().value()).isNaN();
+      Reference.reachabilityFence(collector);
     } finally {
       registry.close();
     }
@@ -80,6 +83,7 @@ class ClamdMetricsCollectorTest {
         assertThat(registry.get(name).tag("slot", "0").gauge().value()).as(name).isNaN();
       assertThat(registry.get("clamav.clamd.endpoint.available").tag("slot", "0").gauge().value())
           .isZero();
+      Reference.reachabilityFence(collector);
     } finally {
       registry.close();
     }

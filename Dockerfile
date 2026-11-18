@@ -14,22 +14,38 @@ WORKDIR /tmp/native
 RUN apk add --no-cache abuild build-base openssl
 COPY docker/ ./
 RUN set -eux; \
-    openssl_recipe=https://raw.githubusercontent.com/alpinelinux/aports/5e6d18a5ba2eec060b34a671a43ee54a5e72714a/main/openssl; \
-    mkdir openssl; \
-    for file in APKBUILD auxv.patch openssl-fips.post-install \
-        CVE-2026-88822.patch CVE-2026-88823.patch CVE-2026-95691.patch \
-        CVE-2026-95692.patch CVE-2026-107496.patch; do \
-        wget -q -O "openssl/$file" "$openssl_recipe/$file"; \
-    done; \
     SUDO= abuild-keygen -a -i -n; \
     apk update; \
-    for package in openssl libmspack libxml2 fontconfig clamav; do \
-        abuild -F -r -C "$package" -P /tmp/release-apks; \
-    done; \
     packages="/tmp/release-apks/native/$(apk --print-arch)"; \
+    mkdir /tmp/openssl-apks; \
+    if ! apk fetch --no-cache --repositories-file /dev/null \
+        --repository https://dl-cdn.alpinelinux.org/alpine/edge/main \
+        --output /tmp/openssl-apks 'openssl=3.5.9-r1' 'libcrypto3=3.5.9-r1' \
+        'libssl3=3.5.9-r1' 'openssl-dev=3.5.9-r1'; then \
+        openssl_recipe=https://raw.githubusercontent.com/alpinelinux/aports/5e6d18a5ba2eec060b34a671a43ee54a5e72714a/main/openssl; \
+        mkdir openssl; \
+        for file in APKBUILD auxv.patch openssl-fips.post-install \
+            CVE-2026-88822.patch CVE-2026-88823.patch CVE-2026-95691.patch \
+            CVE-2026-95692.patch CVE-2026-107496.patch; do \
+            wget -q -O "openssl/$file" "$openssl_recipe/$file"; \
+        done; \
+        abuild -F -r -C openssl -P /tmp/release-apks; \
+        cp "$packages/openssl-3.5.9-r1.apk" "$packages/libcrypto3-3.5.9-r1.apk" \
+           "$packages/libssl3-3.5.9-r1.apk" "$packages/openssl-dev-3.5.9-r1.apk" /tmp/openssl-apks/; \
+    fi; \
+    apk add --no-cache /tmp/openssl-apks/*.apk; \
+    for package in libmspack libxml2 fontconfig clamav; do \
+        echo "Building $package"; \
+        if ! abuild -F -r -C "$package" -P /tmp/release-apks > /tmp/native-package.log 2>&1; then \
+            tail -n 100 /tmp/native-package.log >&2; \
+            exit 1; \
+        fi; \
+        tail -n 12 /tmp/native-package.log; \
+    done; \
+    rm -f /tmp/native-package.log; \
     mkdir /runtime-apks; \
-    cp "$packages/openssl-3.5.9-r1.apk" "$packages/libcrypto3-3.5.9-r1.apk" \
-       "$packages/libssl3-3.5.9-r1.apk" "$packages/libmspack-0.12_alpha-r0.apk" \
+    cp /tmp/openssl-apks/openssl-3.5.9-r1.apk /tmp/openssl-apks/libcrypto3-3.5.9-r1.apk \
+       /tmp/openssl-apks/libssl3-3.5.9-r1.apk "$packages/libmspack-0.12_alpha-r0.apk" \
        "$packages/libxml2-2.15.4-r0.apk" "$packages/fontconfig-2.17.1-r2.apk" \
        "$packages/clamav-libs-1.4.6-r1.apk" /runtime-apks/; \
     cp -a /etc/apk/keys /runtime-apks/keys; \
