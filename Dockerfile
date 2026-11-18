@@ -18,6 +18,7 @@ COPY docker/fontconfig ./fontconfig
 RUN set -eux; \
     SUDO= abuild-keygen -a -i -n; \
     abuild -F -C libmspack -P /tmp/release-apks; \
+    apk update; \
     abuild -F -r -C fontconfig -P /tmp/release-apks; \
     mkdir /runtime-apks; \
     packages="/tmp/release-apks/native/$(apk --print-arch)"; \
