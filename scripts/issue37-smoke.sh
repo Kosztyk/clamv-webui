@@ -64,14 +64,18 @@ docker exec "$name" /bin/sh -ec '
     test "$ID" = alpine
     apk info -e musl >/dev/null
     apk -v info -e "libmspack>=0.12_alpha-r0"
-    for package in dash dpkg gnupg shadow tar wget; do
+    for package in dash dpkg gnupg libexpat shadow tar wget; do
         if apk info -e "$package" >/dev/null 2>&1; then
             echo "FAIL: unexpected runtime package $package" >&2
             exit 1
         fi
     done
-    echo "PASS: runtime has no dash, dpkg, GnuPG, shadow, GNU tar or GNU wget packages"
-    apk -v info -e busybox clamav-libs curl libexpat musl util-linux-misc
+    test ! -e /usr/lib/libexpat.so.1
+    echo "PASS: runtime has no dash, dpkg, GnuPG, Expat, shadow, GNU tar or GNU wget packages"
+    family="$(fc-match -f "%{family}" sans-serif)"
+    test "$family" = "DejaVu Sans"
+    echo "PASS: Fontconfig resolves DejaVu Sans"
+    apk -v info -e busybox clamav-libs curl fontconfig libxml2 musl util-linux-misc
     test -x /usr/bin/clamdtop
     test ! -e /usr/sbin/clamd
     test ! -e /usr/bin/freshclam

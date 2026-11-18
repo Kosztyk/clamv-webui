@@ -10,15 +10,18 @@ RUN mvn -B -q verify
 
 # Alpine ships clamdtop in clamav-daemon. Keep scanner binaries in this stage.
 FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474 AS clamdtop-extract
-WORKDIR /tmp/native/libmspack
+WORKDIR /tmp/native
 RUN apk add --no-cache abuild build-base openssl
-# Use the upstream CVE-2026-119602 fix until Alpine 3.24 ships it.
-COPY docker/libmspack/APKBUILD ./
+# Backport the libmspack fix and build Fontconfig with the libxml2 backend.
+COPY docker/libmspack ./libmspack
+COPY docker/fontconfig ./fontconfig
 RUN set -eux; \
     SUDO= abuild-keygen -a -i -n; \
-    abuild -F -P /tmp/release-apks; \
+    abuild -F -C libmspack -P /tmp/release-apks; \
+    abuild -F -r -C fontconfig -P /tmp/release-apks; \
     mkdir /runtime-apks; \
-    cp "/tmp/release-apks/native/$(apk --print-arch)/libmspack-0.12_alpha-r0.apk" /runtime-apks/; \
+    packages="/tmp/release-apks/native/$(apk --print-arch)"; \
+    cp "$packages/libmspack-0.12_alpha-r0.apk" "$packages/fontconfig-2.17.1-r2.apk" /runtime-apks/; \
     cp -a /etc/apk/keys /runtime-apks/keys; \
     apk add --no-cache clamav-daemon /runtime-apks/libmspack-0.12_alpha-r0.apk; \
     test -x /usr/bin/clamdtop
@@ -34,10 +37,12 @@ COPY --chown=0:0 --chmod=0444 licenses/clamav-COPYING.txt /usr/share/doc/clamav/
 # GnuPG is used to verify Temurin's JRE download during the upstream build.
 RUN --mount=type=bind,from=clamdtop-extract,source=/runtime-apks,target=/runtime-apks \
     set -eux; \
-    apk --keys-dir /runtime-apks/keys add --no-cache /runtime-apks/libmspack-0.12_alpha-r0.apk; \
-    apk add --no-cache --upgrade busybox libcrypto3 libexpat libssl3 musl openssl \
+    apk --keys-dir /runtime-apks/keys add --no-cache /runtime-apks/*.apk; \
+    apk add --no-cache --upgrade busybox libcrypto3 libssl3 musl openssl \
        clamav-libs curl ncurses-terminfo 'so:libncursesw.so.6' util-linux-misc; \
     apk del gnupg; \
+    if apk info -e libexpat; then apk info -r libexpat >&2; exit 1; fi; \
+    test ! -e /usr/lib/libexpat.so.1; \
     apk -v info -e 'libmspack>=0.12_alpha-r0'; \
     /usr/bin/clamdtop --version; \
     test -x /usr/bin/script; \
