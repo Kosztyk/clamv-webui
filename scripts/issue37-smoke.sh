@@ -63,6 +63,7 @@ docker exec "$name" /bin/sh -ec '
     . /etc/os-release
     test "$ID" = alpine
     apk info -e musl >/dev/null
+    apk -v info -e "libmspack>=0.12_alpha-r0"
     for package in dash dpkg gnupg shadow tar wget; do
         if apk info -e "$package" >/dev/null 2>&1; then
             echo "FAIL: unexpected runtime package $package" >&2
@@ -70,7 +71,7 @@ docker exec "$name" /bin/sh -ec '
         fi
     done
     echo "PASS: runtime has no dash, dpkg, GnuPG, shadow, GNU tar or GNU wget packages"
-    apk info -v busybox clamav-libs curl libexpat musl util-linux-misc
+    apk -v info -e busybox clamav-libs curl libexpat musl util-linux-misc
     test -x /usr/bin/clamdtop
     test ! -e /usr/sbin/clamd
     test ! -e /usr/bin/freshclam

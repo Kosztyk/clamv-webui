@@ -10,7 +10,17 @@ RUN mvn -B -q verify
 
 # Alpine ships clamdtop in clamav-daemon. Keep scanner binaries in this stage.
 FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474 AS clamdtop-extract
-RUN apk add --no-cache clamav-daemon && \
+WORKDIR /tmp/native/libmspack
+RUN apk add --no-cache abuild build-base openssl
+# Use the upstream CVE-2026-119602 fix until Alpine 3.24 ships it.
+COPY docker/libmspack/APKBUILD ./
+RUN set -eux; \
+    SUDO= abuild-keygen -a -i -n; \
+    abuild -F -P /tmp/release-apks; \
+    mkdir /runtime-apks; \
+    cp "/tmp/release-apks/native/$(apk --print-arch)/libmspack-0.12_alpha-r0.apk" /runtime-apks/; \
+    cp -a /etc/apk/keys /runtime-apks/keys; \
+    apk add --no-cache clamav-daemon /runtime-apks/libmspack-0.12_alpha-r0.apk; \
     test -x /usr/bin/clamdtop
 
 FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474
@@ -22,10 +32,13 @@ COPY --from=clamdtop-extract --chown=0:0 --chmod=0555 /usr/bin/clamdtop /usr/bin
 COPY --chown=0:0 --chmod=0444 licenses/clamav-COPYING.txt /usr/share/doc/clamav/COPYING.txt
 # Refresh inherited security-sensitive packages from Alpine's stable repositories.
 # GnuPG is used to verify Temurin's JRE download during the upstream build.
-RUN set -eux; \
+RUN --mount=type=bind,from=clamdtop-extract,source=/runtime-apks,target=/runtime-apks \
+    set -eux; \
+    apk --keys-dir /runtime-apks/keys add --no-cache /runtime-apks/libmspack-0.12_alpha-r0.apk; \
     apk add --no-cache --upgrade busybox libcrypto3 libexpat libssl3 musl openssl \
        clamav-libs curl ncurses-terminfo 'so:libncursesw.so.6' util-linux-misc; \
     apk del gnupg; \
+    apk -v info -e 'libmspack>=0.12_alpha-r0'; \
     /usr/bin/clamdtop --version; \
     test -x /usr/bin/script; \
     test ! -e /usr/sbin/clamd; \
@@ -36,7 +49,6 @@ RUN addgroup -g 10001 clamav-web && \
     adduser -D -u 10001 -G clamav-web -s /bin/sh clamav-web && \
     install -d -o 10001 -g 10001 -m 0755 /app/data && \
     install -d -o 10001 -g 10001 -m 0700 /app/conf
-
 
 COPY --from=build --chown=0:0 --chmod=0444 /src/target/clamav-web-client*.jar /app/clamav-web-client.jar
 # Multipart spool shares filesystem with /app/data/uploads; no cross-device copy.
