@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import re
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 TAG = re.compile(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\Z')
 TARGETS = {(system, arch) for system in ('linux', 'darwin', 'windows') for arch in ('amd64', 'arm64')}
@@ -24,6 +25,30 @@ class AssetError(Exception):
 def sha256(path: Path) -> str:
     with path.open('rb') as handle:
         return hashlib.file_digest(handle, 'sha256').hexdigest()
+
+
+def write_source_zip(source: Path, tag: str, output: Path) -> None:
+    """Archive committed source and hash the exact files included in the ZIP."""
+    prefix = f'clamav-webui-{tag}/'
+    manifest_name = 'SOURCE_MANIFEST.sha256'
+    subprocess.run([
+        'git', '-C', str(source), 'archive', '--format=zip', '--prefix=' + prefix,
+        '-o', str(output.resolve()), 'HEAD', '--', '.', ':(exclude)' + manifest_name,
+    ], check=True)
+
+    with ZipFile(output, 'a') as archive:
+        rows = []
+        for filename in sorted(archive.namelist()):
+            if filename.endswith('/'):
+                continue
+            with archive.open(filename) as handle:
+                digest = hashlib.file_digest(handle, 'sha256').hexdigest()
+            rows.append(f'{digest}  {filename.removeprefix(prefix)}\n')
+
+        manifest = ZipInfo(prefix + manifest_name, archive.getinfo(prefix).date_time)
+        manifest.create_system = 3
+        manifest.external_attr = 0o100644 << 16
+        archive.writestr(manifest, ''.join(rows), compress_type=ZIP_DEFLATED)
 
 
 def make_release(tag: str, jar_dir: Path, cli_dir: Path, out: Path, source: Path, image_dir: Path | None = None, cli_sign_dir: Path | None = None) -> list[str]:
@@ -61,11 +86,7 @@ def make_release(tag: str, jar_dir: Path, cli_dir: Path, out: Path, source: Path
         raise AssetError('Incomplete CLI target set')
     # Publish a source archive in addition to GitHub's automatic source snapshots.
     source_zip = out / f'clamav-webui-{tag}-full-source.zip'
-    command = ['git', '-C', str(source), 'archive', '--format=zip',
-               '--prefix=' + f'clamav-webui-{tag}/', '-o', str(source_zip.resolve()), 'HEAD']
-    subprocess.run(command, check=True)
-    if not source_zip.is_file() or source_zip.stat().st_size == 0:
-        raise AssetError('Source snapshot missing')
+    write_source_zip(source, tag, source_zip)
     if image_dir is not None:
         # Attach evidence for the actual published digest and both architectures,
         # not independently fabricated metadata from a local candidate image.

@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -110,6 +111,32 @@ class Assets(unittest.TestCase):
         self.assertIn('clamctl-windows-arm64.exe', files)
         self.assertIn('clamav-webui-v2.1.0-beta2-full-source.zip', files)
         assets.verify_release(self.out)
+
+    def test_source_manifest_covers_the_committed_archive(self):
+        manifest_name = 'SOURCE_MANIFEST.sha256'
+        (self.repo / manifest_name).write_text('0' * 64 + '  obsolete.txt\n')
+        recipe = self.repo / 'docker' / 'example' / 'APKBUILD'
+        recipe.parent.mkdir(parents=True)
+        recipe.write_bytes(b'pkgver=1\n')
+        subprocess.run(['git', '-C', self.repo, 'add', manifest_name, 'docker'], check=True)
+        subprocess.run(['git', '-C', self.repo, '-c', 'user.name=Fixture', '-c',
+                        'user.email=test@example.test', 'commit', '-qm', 'add package'], check=True)
+        (self.repo / 'README.md').write_text('Uncommitted change.\n')
+
+        assets.make_release('v2.1.0-beta2', self.jar, self.cli, self.out, self.repo)
+        prefix = 'clamav-webui-v2.1.0-beta2/'
+        expected_contents = {
+            'README.md': b'Fixture source without credentials.\n',
+            'docker/example/APKBUILD': b'pkgver=1\n',
+        }
+        with ZipFile(self.out / 'clamav-webui-v2.1.0-beta2-full-source.zip') as archive:
+            files = [entry.filename for entry in archive.infolist() if not entry.is_dir()]
+            self.assertCountEqual(files, [prefix + name for name in [*expected_contents, manifest_name]])
+            rows = []
+            for name, contents in expected_contents.items():
+                self.assertEqual(archive.read(prefix + name), contents)
+                rows.append(f'{hashlib.sha256(contents).hexdigest()}  {name}\n')
+            self.assertEqual(archive.read(prefix + manifest_name).decode(), ''.join(rows))
 
     def test_modified_file_fails_verification(self):
         assets.make_release('v2.1.0-beta2', self.jar, self.cli, self.out, self.repo)
