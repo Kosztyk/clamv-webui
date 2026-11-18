@@ -87,7 +87,7 @@ public final class ConfigurationCatalog {
       throw invalid(field, "invalid length or control characters");
     String value = field.secret() ? submitted : submitted.trim();
     try {
-      if (isProxyAllowlist(field.key()) && !value.equals("(?!)")) {
+      if (isProxyAllowlist(field.key()) && !"(?!)".equals(value)) {
         for (String network : value.split(",", -1)) {
           String cidr = network.trim();
           if (!cidr.matches("(?:[0-9.]+|[0-9A-Fa-f]*:[0-9A-Fa-f:.]*)/[0-9]{1,3}"))

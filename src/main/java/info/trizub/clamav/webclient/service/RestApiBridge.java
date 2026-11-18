@@ -67,7 +67,7 @@ public class RestApiBridge {
     String normalizedBaseUrl = baseUrl == null ? "" : baseUrl.strip().replaceAll("/+$", "");
     this.apiKey = apiKey == null ? "" : apiKey;
     RestTransportPolicy.validate(normalizedBaseUrl, this.apiKey, allowInsecure);
-    this.baseUri = normalizedBaseUrl.isBlank() ? null : URI.create(normalizedBaseUrl);
+    this.baseUri = URI.create(normalizedBaseUrl);
     this.authMode = authMode;
     this.formKey = formKey.matches("[A-Za-z][A-Za-z0-9_-]{0,50}") ? formKey : "FILES";
     this.webhookField =
@@ -94,7 +94,7 @@ public class RestApiBridge {
             .connectTimeout(this.timeout)
             .followRedirects(HttpClient.Redirect.NEVER)
             .build();
-    if (baseUri != null
+    if (!normalizedBaseUrl.isBlank()
         && (!("http".equals(baseUri.getScheme()) || "https".equals(baseUri.getScheme()))
             || baseUri.getHost() == null
             || baseUri.getUserInfo() != null
@@ -158,7 +158,7 @@ public class RestApiBridge {
   }
 
   public boolean configured() {
-    return baseUri != null
+    return baseUri.isAbsolute()
         && (environment == null
             || environment.getProperty("clamav.rest.enabled", Boolean.class, true));
   }

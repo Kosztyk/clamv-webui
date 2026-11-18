@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -32,16 +33,18 @@ public class ApiTokenAuthenticationFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest req) {
-    String authorization = req.getHeader(HttpHeaders.AUTHORIZATION);
-    return !req.getRequestURI().startsWith(req.getContextPath() + "/api/v1/")
-        || authorization == null
-        || !authorization.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length());
+    return !req.getRequestURI().startsWith(req.getContextPath() + "/api/v1/");
   }
 
   @Override
   protected void doFilterInternal(
       HttpServletRequest req, HttpServletResponse res, FilterChain chain)
       throws ServletException, IOException {
+    String authorization = Objects.toString(req.getHeader(HttpHeaders.AUTHORIZATION), "");
+    if (!authorization.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
+      chain.doFilter(req, res);
+      return;
+    }
     if (!req.isSecure()) {
       error(
           res,
@@ -50,7 +53,6 @@ public class ApiTokenAuthenticationFilter extends OncePerRequestFilter {
           "Bearer tokens require HTTPS. For TLS termination, explicitly configure native forwarding with an allowlist of trusted proxy addresses; see docs/REVERSE_PROXY_TLS.md.");
       return;
     }
-    String authorization = req.getHeader(HttpHeaders.AUTHORIZATION);
     if (authorization.length() > 512) {
       error(res, 401, "invalid_token", "Invalid bearer token");
       return;
