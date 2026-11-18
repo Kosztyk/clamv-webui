@@ -7,7 +7,11 @@ arch="all"
 license="MIT"
 makedepends="zlib-dev"
 checkdepends="perl tar"
-subpackages="$pkgname-dev $pkgname-utils $pkgname-doc"
+# LLVM in the build stage still uses Alpine's libxml2.so.2.
+# Let the development package link to ABI 16 while both ABIs are installed.
+depends="$pkgname-16=$pkgver-r$pkgrel"
+depends_dev="$pkgname-16=$pkgver-r$pkgrel"
+subpackages="$pkgname-16:abi16 $pkgname-dev $pkgname-utils $pkgname-doc"
 source="https://download.gnome.org/sources/libxml2/2.15/libxml2-$pkgver.tar.xz"
 
 build() {
@@ -23,6 +27,13 @@ check() {
 package() {
     make -j1 DESTDIR="$pkgdir" install
     install -Dm644 Copyright "$pkgdir/usr/share/licenses/$pkgname/Copyright"
+}
+
+abi16() {
+    pkgdesc="GNOME XML parsing shared library (ABI 16)"
+    depends=""
+    cd "$pkgdir"
+    amove usr/lib/libxml2.so.16*
 }
 
 utils() {

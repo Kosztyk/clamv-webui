@@ -16,12 +16,17 @@ COPY docker/ ./
 RUN set -eux; \
     SUDO= abuild-keygen -a -i -n; \
     apk update; \
-    packages="/tmp/release-apks/native/$(apk --print-arch)"; \
+    arch="$(apk --print-arch)"; \
+    packages="/tmp/release-apks/native/$arch"; \
     mkdir /tmp/openssl-apks; \
-    if ! apk fetch --no-cache --repositories-file /dev/null \
-        --repository https://dl-cdn.alpinelinux.org/alpine/edge/main \
-        --output /tmp/openssl-apks 'openssl=3.5.9-r1' 'libcrypto3=3.5.9-r1' \
-        'libssl3=3.5.9-r1' 'openssl-dev=3.5.9-r1'; then \
+    if ! ( \
+        for package in openssl libcrypto3 libssl3 openssl-dev; do \
+            file="$package-3.5.9-r1.apk"; \
+            wget -q -T 15 -O "/tmp/openssl-apks/$file" \
+                "https://dl-cdn.alpinelinux.org/alpine/edge/main/$arch/$file" || exit 1; \
+        done; \
+        apk add --no-cache /tmp/openssl-apks/*.apk \
+    ); then \
         openssl_recipe=https://raw.githubusercontent.com/alpinelinux/aports/5e6d18a5ba2eec060b34a671a43ee54a5e72714a/main/openssl; \
         mkdir openssl; \
         for file in APKBUILD auxv.patch openssl-fips.post-install \
@@ -32,8 +37,8 @@ RUN set -eux; \
         abuild -F -r -C openssl -P /tmp/release-apks; \
         cp "$packages/openssl-3.5.9-r1.apk" "$packages/libcrypto3-3.5.9-r1.apk" \
            "$packages/libssl3-3.5.9-r1.apk" "$packages/openssl-dev-3.5.9-r1.apk" /tmp/openssl-apks/; \
+        apk add --no-cache /tmp/openssl-apks/*.apk; \
     fi; \
-    apk add --no-cache /tmp/openssl-apks/*.apk; \
     for package in libmspack libxml2 fontconfig clamav; do \
         echo "Building $package"; \
         if ! abuild -F -r -C "$package" -P /tmp/release-apks > /tmp/native-package.log 2>&1; then \
@@ -46,7 +51,8 @@ RUN set -eux; \
     mkdir /runtime-apks; \
     cp /tmp/openssl-apks/openssl-3.5.9-r1.apk /tmp/openssl-apks/libcrypto3-3.5.9-r1.apk \
        /tmp/openssl-apks/libssl3-3.5.9-r1.apk "$packages/libmspack-0.12_alpha-r0.apk" \
-       "$packages/libxml2-2.15.4-r0.apk" "$packages/fontconfig-2.17.1-r2.apk" \
+       "$packages/libxml2-2.15.4-r0.apk" "$packages/libxml2-16-2.15.4-r0.apk" \
+       "$packages/fontconfig-2.17.1-r2.apk" \
        "$packages/clamav-libs-1.4.6-r1.apk" /runtime-apks/; \
     cp -a /etc/apk/keys /runtime-apks/keys; \
     apk add --no-cache /runtime-apks/*.apk "$packages/clamav-1.4.6-r1.apk"; \
@@ -62,8 +68,9 @@ RUN --mount=type=bind,from=clamdtop-extract,source=/runtime-apks,target=/runtime
     apk add --no-cache --upgrade busybox musl curl ncurses-terminfo 'so:libncursesw.so.6' util-linux-misc; \
     apk del gnupg coreutils; \
     apk -v info -e 'openssl>=3.5.9-r1' 'libcrypto3>=3.5.9-r1' 'libssl3>=3.5.9-r1' \
-        'musl>=1.2.6-r3' 'libxml2>=2.15.4-r0' 'libmspack>=0.12_alpha-r0'; \
+        'musl>=1.2.6-r3' 'libxml2>=2.15.4-r0' 'libxml2-16>=2.15.4-r0' 'libmspack>=0.12_alpha-r0'; \
     test ! -e /usr/lib/libexpat.so.1; \
+    test -e /usr/lib/libxml2.so.16; \
     test ! -e /usr/lib/libxml2.so.2; \
     /usr/bin/clamdtop --version; \
     test -x /usr/bin/script; \

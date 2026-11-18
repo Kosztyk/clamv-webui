@@ -63,7 +63,7 @@ docker exec "$name" /bin/sh -ec '
     . /etc/os-release
     test "$ID" = alpine
     apk -v info -e "openssl>=3.5.9-r1" "libcrypto3>=3.5.9-r1" "libssl3>=3.5.9-r1" \
-        "musl>=1.2.6-r3" "libxml2>=2.15.4-r0" "libmspack>=0.12_alpha-r0"
+        "musl>=1.2.6-r3" "libxml2>=2.15.4-r0" "libxml2-16>=2.15.4-r0" "libmspack>=0.12_alpha-r0"
     for package in coreutils dash dpkg gnupg libexpat shadow tar wget; do
         if apk info -e "$package" >/dev/null 2>&1; then
             echo "FAIL: unexpected runtime package $package" >&2
@@ -71,6 +71,7 @@ docker exec "$name" /bin/sh -ec '
         fi
     done
     test ! -e /usr/lib/libexpat.so.1
+    test -e /usr/lib/libxml2.so.16
     test ! -e /usr/lib/libxml2.so.2
     echo "PASS: runtime has no GNU coreutils, dash, dpkg, GnuPG, Expat, shadow, GNU tar or GNU wget packages"
     family="$(fc-match -f "%{family}" sans-serif)"
