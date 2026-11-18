@@ -34,7 +34,7 @@ docker exec "$cid" /bin/sh -ec '
   test -x /usr/bin/script
   ! test -e /usr/sbin/clamd
   ! test -e /usr/bin/freshclam
-  ! ldd /usr/bin/clamdtop | grep -q "not found"
+  /usr/bin/clamdtop --version
   curl --noproxy "*" -fsS --max-time 4 "http://127.0.0.1:${MANAGEMENT_SERVER_PORT:-${SERVER_PORT:-8080}}/actuator/health/liveness" | grep -q '"status":"UP"'
 '
 echo 'PASS: healthy, minimal unauthenticated liveness, native clamdtop functional dependencies, no clamd/freshclam executable'
