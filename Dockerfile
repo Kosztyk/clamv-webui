@@ -8,43 +8,47 @@ COPY src ./src
 COPY dashboards ./dashboards
 RUN mvn -B -q verify
 
-# Alpine ships clamdtop in clamav-daemon. Keep scanner binaries in this stage.
+# Build the patched runtime packages and native ClamdTop against the same ABI.
 FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474 AS clamdtop-extract
 WORKDIR /tmp/native
 RUN apk add --no-cache abuild build-base openssl
-# Backport the libmspack fix and build Fontconfig with the libxml2 backend.
-COPY docker/libmspack ./libmspack
-COPY docker/fontconfig ./fontconfig
+COPY docker/ ./
 RUN set -eux; \
+    openssl_recipe=https://raw.githubusercontent.com/alpinelinux/aports/5e6d18a5ba2eec060b34a671a43ee54a5e72714a/main/openssl; \
+    mkdir openssl; \
+    for file in APKBUILD auxv.patch openssl-fips.post-install \
+        CVE-2026-88822.patch CVE-2026-88823.patch CVE-2026-95691.patch \
+        CVE-2026-95692.patch CVE-2026-107496.patch; do \
+        wget -q -O "openssl/$file" "$openssl_recipe/$file"; \
+    done; \
     SUDO= abuild-keygen -a -i -n; \
-    abuild -F -C libmspack -P /tmp/release-apks; \
     apk update; \
-    abuild -F -r -C fontconfig -P /tmp/release-apks; \
-    mkdir /runtime-apks; \
+    for package in openssl libmspack libxml2 fontconfig clamav; do \
+        abuild -F -r -C "$package" -P /tmp/release-apks; \
+    done; \
     packages="/tmp/release-apks/native/$(apk --print-arch)"; \
-    cp "$packages/libmspack-0.12_alpha-r0.apk" "$packages/fontconfig-2.17.1-r2.apk" /runtime-apks/; \
+    mkdir /runtime-apks; \
+    cp "$packages/openssl-3.5.9-r1.apk" "$packages/libcrypto3-3.5.9-r1.apk" \
+       "$packages/libssl3-3.5.9-r1.apk" "$packages/libmspack-0.12_alpha-r0.apk" \
+       "$packages/libxml2-2.15.4-r0.apk" "$packages/fontconfig-2.17.1-r2.apk" \
+       "$packages/clamav-libs-1.4.6-r1.apk" /runtime-apks/; \
     cp -a /etc/apk/keys /runtime-apks/keys; \
-    apk add --no-cache clamav-daemon /runtime-apks/libmspack-0.12_alpha-r0.apk; \
+    apk add --no-cache /runtime-apks/*.apk "$packages/clamav-1.4.6-r1.apk"; \
     test -x /usr/bin/clamdtop
 
-FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474
-ARG CLAMAV_APP_VERSION=2.1.0
-LABEL org.opencontainers.image.version=$CLAMAV_APP_VERSION
+FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474 AS runtime-rootfs
 WORKDIR /app
-
 COPY --from=clamdtop-extract --chown=0:0 --chmod=0555 /usr/bin/clamdtop /usr/bin/clamdtop
 COPY --chown=0:0 --chmod=0444 licenses/clamav-COPYING.txt /usr/share/doc/clamav/COPYING.txt
-# Refresh inherited security-sensitive packages from Alpine's stable repositories.
-# GnuPG is used to verify Temurin's JRE download during the upstream build.
 RUN --mount=type=bind,from=clamdtop-extract,source=/runtime-apks,target=/runtime-apks \
     set -eux; \
     apk --keys-dir /runtime-apks/keys add --no-cache /runtime-apks/*.apk; \
-    apk add --no-cache --upgrade busybox libcrypto3 libssl3 musl openssl \
-       clamav-libs curl ncurses-terminfo 'so:libncursesw.so.6' util-linux-misc; \
-    apk del gnupg; \
-    if apk info -e libexpat; then apk info -r libexpat >&2; exit 1; fi; \
+    apk add --no-cache --upgrade busybox musl curl ncurses-terminfo 'so:libncursesw.so.6' util-linux-misc; \
+    apk del gnupg coreutils; \
+    apk -v info -e 'openssl>=3.5.9-r1' 'libcrypto3>=3.5.9-r1' 'libssl3>=3.5.9-r1' \
+        'musl>=1.2.6-r3' 'libxml2>=2.15.4-r0' 'libmspack>=0.12_alpha-r0'; \
     test ! -e /usr/lib/libexpat.so.1; \
-    apk -v info -e 'libmspack>=0.12_alpha-r0'; \
+    test ! -e /usr/lib/libxml2.so.2; \
     /usr/bin/clamdtop --version; \
     test -x /usr/bin/script; \
     test ! -e /usr/sbin/clamd; \
@@ -55,6 +59,16 @@ RUN addgroup -g 10001 clamav-web && \
     adduser -D -u 10001 -G clamav-web -s /bin/sh clamav-web && \
     install -d -o 10001 -g 10001 -m 0755 /app/data && \
     install -d -o 10001 -g 10001 -m 0700 /app/conf
+
+# Copy the updated filesystem, including Alpine's installed-package database.
+FROM scratch
+COPY --from=runtime-rootfs / /
+ENV JAVA_HOME=/opt/java/openjdk \
+    PATH=/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+ARG CLAMAV_APP_VERSION=2.1.0
+LABEL org.opencontainers.image.version=$CLAMAV_APP_VERSION
+WORKDIR /app
 
 COPY --from=build --chown=0:0 --chmod=0444 /src/target/clamav-web-client*.jar /app/clamav-web-client.jar
 # Multipart spool shares filesystem with /app/data/uploads; no cross-device copy.

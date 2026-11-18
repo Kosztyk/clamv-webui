@@ -10,14 +10,15 @@ properties=(r/'src/main/resources/application.properties').read_text()
 pom=ET.parse(r/'pom.xml')
 ns={'p':'http://maven.apache.org/POM/4.0.0'}
 coords=[(e.findtext('p:groupId',namespaces=ns),e.findtext('p:artifactId',namespaces=ns)) for e in pom.findall('./p:dependencies/p:dependency',ns)]
-_, _, extraction, runtime = re.split(r'^FROM [^\n]+\n', D, flags=re.M)
+_, _, extraction, runtime, final = re.split(r'^FROM [^\n]+\n', D, flags=re.M)
 runtime_commands = re.sub(r'\\\n\s*', ' ', runtime)
 checks={
  'builder/runtime images are pinned by immutable full digests': len(re.findall(r'^FROM .*@sha256:[0-9a-f]{64}(?:\s|$)',D,re.M))==3,
  'runtime never installs scanner packages': 'util-linux-misc' in runtime
      and re.search(r'(?m)^\s*apk add[^\n]*\b(?:clamav-daemon|freshclam)\b', runtime_commands) is None,
- 'binary copied from dedicated stage': 'apk add --no-cache clamav-daemon' in extraction
+ 'monitor copied from dedicated stage': 'abuild -F' in extraction and 'clamav-libs-' in extraction
      and 'COPY --from=clamdtop-extract' in runtime,
+ 'final filesystem comes from patched runtime': 'FROM scratch\nCOPY --from=runtime-rootfs / /' in D,
  'no scanner executable in final': 'test ! -e /usr/sbin/clamd' in runtime
      and 'test ! -e /usr/bin/freshclam' in runtime,
  'Docker healthcheck': 'HEALTHCHECK --interval=30s' in D and 'issue37-healthcheck.sh' in D,

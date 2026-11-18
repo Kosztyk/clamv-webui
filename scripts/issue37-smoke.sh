@@ -62,16 +62,17 @@ docker exec "$name" /bin/sh -ec '
     test "$(id -u)" = 10001
     . /etc/os-release
     test "$ID" = alpine
-    apk info -e musl >/dev/null
-    apk -v info -e "libmspack>=0.12_alpha-r0"
-    for package in dash dpkg gnupg libexpat shadow tar wget; do
+    apk -v info -e "openssl>=3.5.9-r1" "libcrypto3>=3.5.9-r1" "libssl3>=3.5.9-r1" \
+        "musl>=1.2.6-r3" "libxml2>=2.15.4-r0" "libmspack>=0.12_alpha-r0"
+    for package in coreutils dash dpkg gnupg libexpat shadow tar wget; do
         if apk info -e "$package" >/dev/null 2>&1; then
             echo "FAIL: unexpected runtime package $package" >&2
             exit 1
         fi
     done
     test ! -e /usr/lib/libexpat.so.1
-    echo "PASS: runtime has no dash, dpkg, GnuPG, Expat, shadow, GNU tar or GNU wget packages"
+    test ! -e /usr/lib/libxml2.so.2
+    echo "PASS: runtime has no GNU coreutils, dash, dpkg, GnuPG, Expat, shadow, GNU tar or GNU wget packages"
     family="$(fc-match -f "%{family}" sans-serif)"
     test "$family" = "DejaVu Sans"
     echo "PASS: Fontconfig resolves DejaVu Sans"

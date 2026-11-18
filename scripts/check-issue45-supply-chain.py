@@ -73,7 +73,8 @@ def check_vendors():
 def check_images():
     content = (ROOT / 'Dockerfile').read_text()
     bases = re.findall(r'(?m)^FROM\s+([^\s]+)', content)
-    ensure(len(bases) == 3 and all(re.fullmatch(r'[A-Za-z0-9_.\-/]+:[A-Za-z0-9_.-]+@sha256:[0-9a-f]{64}', base) for base in bases), 'Main Dockerfile base images pinned by digests')
+    external_bases = [base for base in bases if base != 'scratch']
+    ensure(len(external_bases) == 3 and all(re.fullmatch(r'[A-Za-z0-9_.\-/]+:[A-Za-z0-9_.-]+@sha256:[0-9a-f]{64}', base) for base in external_bases), 'Main Dockerfile base images pinned by digests')
     pin = json.loads((ROOT / 'docs/security/clamd-image-pin.json').read_text())['image']
     ensure(bool(re.fullmatch(r'clamav/clamav:[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}', pin)), 'Scanner image has version and digest')
     ensure('FROM ' + pin in (ROOT / 'Dockerfile.clamd').read_text(), 'Scanner UID-aligned Dockerfile uses the verified digest')

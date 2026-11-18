@@ -8,16 +8,13 @@ pkgdesc="Library for configuring and customizing font access"
 url="https://www.freedesktop.org/wiki/Software/fontconfig"
 arch="all"
 license="MIT"
-makedepends="freetype-dev libxml2-dev python3-dev gperf util-linux-dev docbook2x"
+makedepends="freetype-dev libxml2-dev>=2.15.4-r0 python3-dev gperf util-linux-dev"
 checkdepends="bash json-c-dev uuidgen curl"
 triggers="$pkgname.trigger=/usr/share/fonts/*"
 subpackages="$pkgname-static $pkgname-dev $pkgname-doc"
 source="https://gitlab.freedesktop.org/api/v4/projects/890/packages/generic/fontconfig/$pkgver/fontconfig-$pkgver.tar.xz
 	fix-arithmetic.patch
 	"
-
-# For generation of man pages
-export DOC2MAN=docbook2x-man
 
 prepare() {
 	default_prepare
@@ -33,7 +30,7 @@ build() {
 		--localstatedir=/var \
 		--enable-libxml2 \
 		--enable-static \
-		--enable-docs \
+		--disable-docs \
 		--disable-nls
 	make
 

@@ -1,0 +1,52 @@
+pkgname=clamav
+pkgver=1.4.6
+pkgrel=1
+pkgdesc="ClamdTop monitor built from ClamAV"
+url="https://www.clamav.net/"
+arch="all"
+license="GPL-2.0-only"
+makedepends="bzip2-dev cargo cmake curl-dev json-c-dev libmspack-dev>=0.12_alpha-r0 libxml2-dev>=2.15.4-r0
+    linux-headers musl-fts-dev ncurses-dev openssl-dev>=3.5.9-r1 pcre2-dev python3 samurai zlib-dev"
+subpackages="$pkgname-libs"
+source="https://www.clamav.net/downloads/production/clamav-$pkgver.tar.gz"
+
+build() {
+    cmake -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=None \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=/usr/lib \
+        -DCMAKE_SKIP_INSTALL_RPATH=ON \
+        -DAPP_CONFIG_DIRECTORY=/etc/clamav \
+        -DDATABASE_DIRECTORY=/var/lib/clamav \
+        -DENABLE_DOXYGEN=OFF \
+        -DENABLE_MAN_PAGES=OFF \
+        -DENABLE_SYSTEMD=OFF \
+        -DENABLE_TESTS=OFF \
+        -DENABLE_CLAMONACC=OFF \
+        -DENABLE_MILTER=OFF \
+        -DENABLE_UNRAR=OFF \
+        -DENABLE_EXTERNAL_MSPACK=ON \
+        -DENABLE_EXAMPLES=OFF \
+        -DHAVE_SYSTEM_LFS_FTS=ON \
+        -DENABLE_JSON_SHARED=ON
+    cmake --build build --target clamdtop
+}
+
+check() {
+    build/clamdtop/clamdtop --version
+}
+
+package() {
+    install -Dm755 build/clamdtop/clamdtop "$pkgdir/usr/bin/clamdtop"
+    install -d "$pkgdir/usr/lib"
+    cp -a build/libclamav/libclamav.so.* "$pkgdir/usr/lib/"
+}
+
+libs() {
+    pkgdesc="ClamAV library for the native monitor"
+    amove usr/lib
+}
+
+sha512sums="
+5e1978befd63eb1095fc203b41ca5e9084e6eeae350660012fb19e68c74a454c11adae69459dd6f521c5a99d0ff57fd976b19b9e768776a94684fa186440a894  clamav-1.4.6.tar.gz
+"
