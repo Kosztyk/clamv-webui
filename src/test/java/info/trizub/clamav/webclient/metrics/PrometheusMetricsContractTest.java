@@ -10,6 +10,7 @@ import info.trizub.clamav.webclient.service.ClamdTopService;
 import info.trizub.clamav.webclient.service.EndpointService;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import java.lang.ref.Reference;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -42,8 +43,11 @@ class PrometheusMetricsContractTest {
       var top = mock(ClamdTopService.class);
       when(endpoints.all()).thenReturn(List.of(endpoint));
       when(top.snapshot(1L)).thenReturn(ClamdTelemetryFixture.snapshot());
-      new ClamdMetricsCollector(registry, endpoints, top, 12, 30000, "UTC").poll();
+      var collector = new ClamdMetricsCollector(registry, endpoints, top, 12, 30000, "UTC");
+      collector.poll();
       String text = registry.scrape();
+      // Micrometer holds weak references to the collector's gauge state.
+      Reference.reachabilityFence(collector);
       assertThat(sample(text, "clamav_scans_total{type=\"upload\",verdict=\"virus_found\"}"))
           .isEqualTo(1);
       assertThat(sample(text, "clamav_scans_total{type=\"watch\",verdict=\"error\"}")).isZero();
