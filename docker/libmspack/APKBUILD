@@ -10,6 +10,12 @@ subpackages="$pkgname-dev"
 source="${url}libmspack-0.12alpha.tar.gz"
 builddir="$srcdir/libmspack-0.12alpha"
 
+prepare() {
+    default_prepare
+    # Alpine's pkgconf provider requires the underscore in the version suffix.
+    sed -i "s/@VERSION@/$pkgver/" libmspack.pc.in
+}
+
 build() {
     ./configure --build="$CBUILD" --host="$CHOST" --prefix=/usr --disable-static
     make
