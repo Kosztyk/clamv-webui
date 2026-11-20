@@ -25,7 +25,8 @@ def validate(path: Path):
         return vals[0]
     order_names=['Confirm approved tag','Build and push a staging','Assert pushed OCI index',
                  'Fail closed on unfixed HIGH/CRITICAL','Generate CycloneDX',
-                 'Keyless-sign OCI digest','Independently verify signature',
+                 'Generate and validate release-scoped OpenVEX','Attach OpenVEX',
+                 'Verify Docker Scout applies the publisher-authored VEX','Keyless-sign OCI digest','Independently verify signature',
                  'Pull the exact published digest','Launch pulled digest','Promote the SAME verified OCI index']
     idx=[order(s) for s in order_names]
     assert idx==sorted(idx), 'Must scan, sign, verify, digest-smoke BEFORE assigning release tags'
@@ -41,12 +42,19 @@ def validate(path: Path):
              'docker compose up -d --no-build --pull never', 'scripts/smoke-non-root.sh',
              'scripts/smoke-eicar.sh', 'docker inspect --format',
              'docker buildx imagetools create', 'actual" = "$DIGEST"',
-             'release-signed-image','image-reference.json','sbom-amd64.cdx.json','sbom-arm64.cdx.json']
+             'release-signed-image','image-reference.json','sbom-amd64.cdx.json','sbom-arm64.cdx.json',
+             'CVE-2026-107891.vex.json','scripts/vex_release.py generate','https://openvex.dev/ns/v0.2.0']
     for marker in require:
         assert marker in raw, 'Required image-release protection missing: '+marker
     assert 'image-ref: clamav-web-client:release-candidate' in raw, 'Keep prior release-gate local candidate scans'
     assert re.search(r'(?m)^\s*-?\s*uses:\s*sigstore/cosign-installer@[a-f0-9]{40}\b',raw), 'Cosign action must be SHA-pinned'
     assert re.search(r'(?m)^\s*-?\s*uses:\s*docker/build-push-action@[a-f0-9]{40}\b',raw), 'Build action must be SHA-pinned'
+    assert re.search(r'(?m)^\s*-?\s*uses:\s*docker/scout-action@[a-f0-9]{40}\b',raw), 'Docker Scout action must be SHA-pinned'
+    assert 'command: attestation-add' in raw and 'predicate-type: https://openvex.dev/ns/v0.2.0' in raw, 'VEX attestation step missing'
+    assert 'referrer: true' in raw and 'organization: kosztyk' in raw, 'VEX attachment must use OCI referrers with the owning Scout organization'
+    assert 'registry-write-user: ${{ github.actor }}' in raw and 'registry-write-password: ${{ secrets.GITHUB_TOKEN }}' in raw, 'VEX referrer publication requires explicit registry write credentials'
+    assert 'image: ${{ steps.meta.outputs.stage }}' in raw, 'Docker Scout VEX attachment must use the existing staging tag; the VEX document itself remains digest-scoped'
+    assert 'vex-author: https://github.com/Kosztyk/clamv-webui' in raw and 'only-vex-affected: true' in raw, 'Scout verification must explicitly trust the publisher VEX author and filter not_affected findings'
     assert 'python3 scripts/release-assets.py --out artifacts/approval --verify-only --require-image-evidence' in raw, 'Approval must verify signed image evidence'
     assert 'bash scripts/issue51-verify-signature.sh "$ref" "$RELEASE_TAG"' in raw, 'Draft and approval need independent cosign verification'
     assert '${CLAMAV_WEBUI_IMAGE_REF:-clamav-web-client:${CLAMAV_WEBUI_IMAGE_TAG:-local}}' in (ROOT/'docker-compose.yml').read_text(), 'Compose override must accept immutable pushed digest'

@@ -42,7 +42,7 @@
       const sendsCredentials = Boolean(body?.verificationPassword) || Object.entries(body?.changes || {}).some(([key, value]) =>
         this.fields?.get(key)?.definition.secret && String(value).trim());
       if (location.protocol === 'http:' && !this.acknowledgeHttp && sendsCredentials)
-        throw new Error('Select "Allow configuration over HTTP on this trusted network" before submitting credentials, or use HTTPS.');
+        throw new Error('Select "Allow sign-in and configuration over HTTP on this trusted network (saved)" before submitting credentials, or use HTTPS.');
       const headers = {Accept: 'application/json'};
       if (method !== 'GET') headers['Content-Type'] = 'application/json';
       if (this.setup && this.token) headers.Authorization = `Bearer ${this.token}`;
@@ -72,6 +72,12 @@
     }
     setView(view) {
       this.view = view; this.fields = new Map(view.fields.map(field => [field.definition.key, field]));
+      // On a direct-HTTP origin the persisted session-cookie policy is also the
+      // transport acknowledgement: if HTTP sessions were deliberately enabled,
+      // keep the setup/recovery control checked across reloads and container
+      // recreation. HTTPS-only cookies remain the secure default.
+      if (location.protocol === 'http:')
+        this.acknowledgeHttp = this.value('server.servlet.session.cookie.secure') === 'false';
       if (!this.selectionApplied) {
         const requested = new URLSearchParams(location.search);
         const section = view.sections.find(item => item.id === requested.get('section'));
@@ -120,11 +126,30 @@
     render() {
       this.content.replaceChildren();
       if (location.protocol === 'http:') {
-        const confirmation = node('input', {type: 'checkbox', checked: this.acknowledgeHttp});
-        confirmation.addEventListener('change', () => { this.acknowledgeHttp = confirmation.checked; });
+        const key = 'server.servlet.session.cookie.secure';
+        const cookieField = this.fields.get(key);
+        const directHttp = this.value(key) === 'false';
+        const confirmation = node('input', {type: 'checkbox', checked: directHttp, disabled: cookieField?.locked});
+        confirmation.addEventListener('change', () => {
+          // Checking Direct HTTP is both a persistent policy choice and an
+          // acknowledgement for credentials sent during this HTTP session.
+          // When switching back to HTTPS-only cookies, retain the current
+          // session acknowledgement long enough to verify/apply that sensitive
+          // change; setView() clears it after the saved HTTPS-only state loads.
+          if (confirmation.checked) this.acknowledgeHttp = true;
+          this.set(key, confirmation.checked ? 'false' : 'true');
+          this.render();
+        });
+        const status = directHttp
+          ? 'Direct HTTP sessions are enabled. This saved setting allows the browser to return its session cookie over HTTP after restart.'
+          : 'HTTPS-only session cookies are enabled. Browser sign-in over this HTTP address will not persist until Direct HTTP is enabled and the application is restarted.';
+        const source = cookieField?.locked
+          ? ` This setting is controlled by deployment configuration (${cookieField.controlledBy || cookieField.definition.environment[0] || key}) and cannot be changed here.`
+          : ' Checking this stages a persistent configuration change and requires a restart.';
         this.content.append(node('section', {class: 'cc-transport'}, node('h2', {}, 'Direct HTTP configuration'),
-          node('p', {}, 'Setup works at this application address without a reverse proxy. HTTP does not encrypt credentials in transit; use this option only on a trusted network.'),
-          node('label', {}, confirmation, 'Allow configuration over HTTP on this trusted network')));
+          node('p', {}, 'Use this only on a trusted network. HTTP does not encrypt passwords, recovery credentials, session cookies, or other data in transit.'),
+          node('label', {}, confirmation, 'Allow sign-in and configuration over HTTP on this trusted network (saved)'),
+          node('p', {class: 'cc-help'}, status + source)));
       }
       if (this.view.pendingRestart.length) this.content.append(node('div', {class: 'cc-restart'}, 'Restart required to activate: ', this.view.pendingRestart.map(key => this.fields.get(key)?.definition.label || key).join(', '), '. Saved values survive container recreation when conf is persisted.'));
       const tabs = node('nav', {class: 'cc-tabs', role: 'tablist', 'aria-label': 'Configuration categories'});
@@ -280,7 +305,16 @@
         if (definition.secret) input.placeholder = field.locked ? 'Controlled by deployment configuration' : field.configured ? 'Leave blank to retain the saved credential' : 'Not configured';
       }
       const event = input.tagName === 'SELECT' ? 'change' : 'input';
-      input.addEventListener(event, () => { this.set(key, input.value); const card = container.closest('.cc-card'); const section = this.view.sections.find(entry => entry.id === definition.section); if (card) card.querySelector('.cc-summary').textContent = this.summary(section); if (key === 'clamav.identity.ldap.nested-groups') this.render(); });
+      input.addEventListener(event, () => {
+        this.set(key, input.value);
+        const card = container.closest('.cc-card');
+        const section = this.view.sections.find(entry => entry.id === definition.section);
+        if (card) card.querySelector('.cc-summary').textContent = this.summary(section);
+        if (key === 'server.servlet.session.cookie.secure' && location.protocol === 'http:') {
+          if (input.value === 'false') this.acknowledgeHttp = true;
+          this.render();
+        } else if (key === 'clamav.identity.ldap.nested-groups') this.render();
+      });
       container.append(input, node('p', {class: `cc-field-source${field.locked ? ' cc-locked' : ''}`}, `${field.source}${field.pendingRestart ? ' · Restart pending' : ''}${definition.apply === 'restart' ? ' · Restart required' : ''}`));
       if (definition.secret) container.append(node('p', {class: 'cc-help'}, field.configured ? 'A credential is configured. Leave blank to retain it.' : 'No credential is configured.'));
       if (definition.hint) container.append(node('p', {class: 'cc-help'}, definition.hint));

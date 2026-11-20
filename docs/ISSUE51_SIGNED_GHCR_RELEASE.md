@@ -44,7 +44,7 @@ below; GitHub Packages visibility is configured separately.
 8. The image digest/aliases, both CycloneDX SBOMs, and OCI manifest become
    checksummed GitHub release assets alongside the JAR, six CLI files and
    full tracked-source archive. Draft creation and protected publication
-   repeat digest signature checks. `SHA256SUMS` covers **all 12 assets**.
+   repeat digest signature checks. `SHA256SUMS` covers the complete modern release payload: **15 payload assets** (JAR, six CLI binaries, source ZIP, five image/VEX evidence files, and two signed-CLI evidence files). Together with `SHA256SUMS` itself, the release contains 16 files.
 
 Note: BuildKit's provenance and SPDX SBOM are native OCI attestations, while
 additional CycloneDX SBOM attestations are signed through Sigstore. Image
@@ -59,7 +59,7 @@ runs the Web UI against an existing reachable clamd daemon. **The example does
 not package a second clamd process in the Web UI.**
 
 ```bash
-export CLAMAV_WEBUI_RELEASE_VERSION=2.1.0-beta2  # change to the release you approved
+export CLAMAV_WEBUI_RELEASE_VERSION=2.1.0
 export CLAMAV_HOST=192.0.2.73                   # example: set your actual clamd host
 # First verify the release's version, signature and SHA256SUMS before deployment.
 docker compose -f docker-compose.ghcr.yml pull
@@ -76,7 +76,7 @@ docker compose up -d --no-build --pull never
 
 Replace the `<actual_digest...>` placeholder with the release's 64-hex SHA.
 `CLAMAV_WEBUI_IMAGE_REF` is optional; without it, the source Compose file still
-builds and runs `clamav-web-client:local`, as before. The `clamav/clamav:1.4.6`
+builds and runs `clamav-web-client:local`, as before. The `clamav/clamav:1.4.7`
 scanner digest in the source Compose is currently documented as **amd64-only**;
 validate companion scanner images separately for other architectures. This
 is not a limitation of the **multi-arch Web UI** image itself.
@@ -91,7 +91,7 @@ digest in the commands:
 
 ```bash
 IMAGE='ghcr.io/kosztyk/clamav-web-client@sha256:<actual_64_hex_digest>'
-TAG='v2.1.0-beta2'
+TAG='v2.1.0'
 COSIGN_IDENTITY="https://github.com/Kosztyk/clamv-webui/.github/workflows/release.yml@refs/tags/$TAG"
 cosign verify \
   --certificate-identity "$COSIGN_IDENTITY" \
@@ -104,7 +104,7 @@ cosign verify-attestation --type cyclonedx \
 ```
 
 For stable `v2.1.0`, the expected tags are `2.1.0`, `2.1`, `latest`.
-For `v2.1.0-beta2`, the only release alias is `2.1.0-beta2`.
+Historical prerelease tags retain only their prerelease-specific alias; the final `v2.1.0` release publishes `2.1.0`, `2.1`, and `latest`.
 
 The GitHub release stays a *draft* until protected-environment approval;
 **creating GHCR tags does not redeploy production**. The previous Docker Hub
@@ -124,3 +124,25 @@ acceptance criteria require a complete GitHub Actions tag run on `main`,
 GitHub Packages permission, working Trivy databases, OIDC/Sigstore and
 Buildx/QEMU, plus an active clamd scanner. Do not close issue #51 until an
 actual tag pull, cosign verification and published-digest smoke test succeed.
+
+
+## CVE-2026-107891 OpenVEX evidence
+
+The release job generates `artifacts/image/CVE-2026-107891.vex.json` only after
+the immutable multi-architecture image digest exists. The product identifier is
+digest-scoped (`pkg:docker/...@sha256:...`) and the sole subcomponent is exactly
+qualified Alpine 3.24 `musl 1.2.6-r3` package PURLs for both `x86_64` and `aarch64`. The statement is `not_affected` with
+`inline_mitigations_already_exist`, documenting Alpine 3.24's backported fix.
+
+The workflow validates the document locally and then uses the SHA-pinned Docker
+Scout action to attach it through the existing staging tag via OCI referrers
+(`organization: kosztyk`, `referrer: true`) while the VEX product remains bound
+to the exact pushed digest, with predicate type `https://openvex.dev/ns/v0.2.0`.
+A follow-up Scout CVE check explicitly trusts the publisher VEX author and filters
+`not_affected` findings. A failure to generate, validate, attach, or apply the VEX
+statement blocks the image release. The same JSON is carried
+into the signed-image artifact and the checksummed GitHub release assets.
+
+For a separately published Docker Hub copy, the GHCR attestation does not move
+across registries. Run `scripts/attach-release-vex.sh` against the Docker Hub
+reference after that image is pushed. See `docs/VEX_CVE_2026_107891.md`.

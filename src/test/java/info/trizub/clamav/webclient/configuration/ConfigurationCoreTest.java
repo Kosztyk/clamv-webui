@@ -114,6 +114,37 @@ class ConfigurationCoreTest {
   }
 
   @Test
+  void directHttpSessionCookiePolicyIsPersistedAndRestartBound() {
+    var definition = ConfigurationCatalog.get("server.servlet.session.cookie.secure");
+    assertThat(definition.label()).isEqualTo("Require HTTPS for session cookies");
+    assertThat(definition.advanced()).isFalse();
+
+    var store = store();
+    var engine = engine(new MockEnvironment(), store);
+    var review =
+        engine.review(
+            "0", Map.of("server.servlet.session.cookie.secure", "false"), Set.of());
+    assertThat(review.sensitive()).isTrue();
+    assertThat(review.summary())
+        .extracting(ConfigurationEngine.Change::key)
+        .containsExactly("server.servlet.session.cookie.secure");
+    assertThat(review.changes()).doesNotContainKey("server.forward-headers-strategy");
+    engine.apply(review, false, "recovery");
+
+    assertThat(store.saved("server.servlet.session.cookie.secure")).contains("false");
+    assertThat(store.saved("server.forward-headers-strategy")).isEmpty();
+    assertThat(engine.values(true)).containsEntry("server.servlet.session.cookie.secure", "false");
+    assertThat(engine.values(false)).containsEntry("server.servlet.session.cookie.secure", "true");
+    assertThat(engine.view().get("pendingRestart"))
+        .asList()
+        .contains("server.servlet.session.cookie.secure");
+
+    var restarted = engine(new MockEnvironment(), store());
+    assertThat(restarted.values(false))
+        .containsEntry("server.servlet.session.cookie.secure", "false");
+  }
+
+  @Test
   void liveSettingsChangeImmediatelyButStartupSettingsRemainActiveUntilReopen() {
     var store = store();
     var engine = engine(new MockEnvironment(), store);

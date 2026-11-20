@@ -1,3 +1,27 @@
+# ClamAV Web UI v2.1.0 — final release
+
+**Tag:** `v2.1.0`  
+**Release date:** 20 November 2026  
+**Docker Hub image:** `kosztyk/clamav-web-client:v2.1.0`
+
+This final 2.1 release consolidates the security, reliability, performance, database, CI and release-engineering work tracked in issues #25–#57. The beta sections retained below are historical implementation notes; the active release identifier is `v2.1.0`.
+
+## Final-release fixes added after beta validation
+
+- **ClamAV 1.4.7 security update:** the hardened Web UI runtime carries `clamav-libs 1.4.7-r0` and a separately copied `clamdtop`; the `clamav` meta-package is intentionally absent. The default ClamD service is also pinned to 1.4.7. This remediates the 1.4.6 CVE batch reported by Docker Scout.
+- **PostgreSQL legacy upgrade auto-repair:** before Flyway runs, the application checks whether `processed_files.idx_processed_path` is the historical UNIQUE constraint on `path`. Only that exact legacy shape is converted to the standalone unique index expected by V9; already-correct databases are unchanged and V9 itself is not edited.
+- **Persistent Direct HTTP mode:** on trusted direct-HTTP deployments, the Configuration Center can persist `server.servlet.session.cookie.secure=false` so browser login sessions work without a TLS reverse proxy. Only the explicitly selected cookie policy is saved; forwarded-header trust is not changed implicitly. HTTPS-only secure cookies remain the default.
+- **Docker Hub VEX discovery:** `scripts/attach-release-vex.sh` now attaches the digest-scoped OpenVEX document through Docker Scout's normal attestation backend using the short Docker Hub repository reference and verifies the publisher-authored VEX with `--vex-author`. The VEX-aware Scout result for the published image is `0C/0H/0M/0L`; Docker Hub's raw layer view may still display the underlying musl advisory.
+- **Container package floors:** `libfontenc>=1.1.10-r0` is enforced for CVE-2026-109908 and the Alpine 3.24 `musl 1.2.6-r3` backport is documented through release-scoped VEX for CVE-2026-107891.
+
+## Upgrade notes
+
+Back up the application database plus mounted `conf/` and `data/` before upgrading. Existing PostgreSQL installations should be allowed to start normally; the compatibility repair runs automatically before Flyway when the exact legacy constraint is present. Do not run `flyway repair` or manually drop the constraint for this v2.1.0 migration. H2, MySQL and MariaDB use their existing vendor-specific migration paths.
+
+For a direct LAN deployment using `http://host:port`, open **Setup & recovery → Direct HTTP configuration**, enable the trusted-network HTTP option, save, restart, and clear stale browser cookies before signing in again. Do not disable Secure cookies on an HTTPS deployment.
+
+---
+
 ## Issue #55 — OpenAPI/Java/Go CLI API v1 contract gate (13 November 2026)
 
 API v1 now has a blocking Spectral lint and pinned oasdiff breaking-change policy against both the historical `V2.0.0` release specification and the current PR/push baseline. OpenAPI/controller/CLI structural agreement is validated offline and by the new Spring MockMvc response-schema/handler-mapping test; controller/spec changes additionally run the real `clamctl` integration against the built Spring server. The checks are part of the existing single `gate` and tag-triggered verified release preflight; no new production configuration is required. The OpenAPI document now explicitly defines stable response payloads for uploads, path scans, progress, audit pagination, tokens and health. Source checks have passed, but live Maven/Spectral/oasdiff/GitHub acceptance remains pending. See `docs/ISSUE55_API_CONTRACT_GATE.md`.
@@ -58,7 +82,7 @@ reverse proxy, registered DNS name or certificate is required. The interface
 uses the address opened in the browser; application defaults and Compose do
 not contain a homelab IP or preconfigured external REST URL.
 
-On HTTP, select **Allow configuration over HTTP on this trusted network**
+On HTTP, select **Allow sign-in and configuration over HTTP on this trusted network (saved)**; this now persists the session-cookie policy and requires restart
 before submitting database passwords or other configuration secrets. This
 choice resets on a new page. The browser blocks unconfirmed credential
 submission before sending the request, and the server enforces confirmation

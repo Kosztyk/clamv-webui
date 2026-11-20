@@ -35,11 +35,11 @@ This is an *environment snippet*, not a complete install: merge it into your exi
 
 ## Plain HTTP development **only**
 
-Use `SERVER_SERVLET_SESSION_COOKIE_SECURE=false` for a private, isolated local HTTP test. **Do not use this in production.** Secure cookies are not transmitted over ordinary HTTP by browsers, so leaving the secure default on will prevent session-based login from sticking in a plain-HTTP browser. HttpOnly and SameSite=Lax remain enabled.
+For an intentionally direct-HTTP deployment on a trusted network, use **Setup & recovery → Direct HTTP configuration** and enable **Allow sign-in and configuration over HTTP on this trusted network (saved)**. This persists `server.servlet.session.cookie.secure=false`; the equivalent deployment override is `SERVER_SERVLET_SESSION_COOKIE_SECURE=false`. Secure cookies are not transmitted over ordinary HTTP by browsers, so leaving the secure default on prevents session-based login from sticking. HTTP provides no transport encryption; HttpOnly and SameSite=Lax remain enabled.
 
 ## Existing Configuration Center values
 
-Previously saved `server.servlet.session.cookie.secure=false` values are **not overwritten** during upgrades. Inspect Administration → Configuration Center → Network → Secure session cookies and set **ON**, then restart. A Docker environment override takes precedence over GUI configuration and can lock the field. SameSite stays Lax by default. `SameSite=None` must never be used without Secure enabled.
+Previously saved `server.servlet.session.cookie.secure=false` values are **not overwritten** during upgrades. The direct-HTTP banner reflects the saved value, and Administration → Configuration Center → Network exposes **Require HTTPS for session cookies** without hiding it under Advanced settings. Re-enable HTTPS-only cookies when moving the deployment to HTTPS, then restart. A deployment override takes precedence over GUI configuration and can lock the field. SameSite stays Lax by default. `SameSite=None` must never be used without Secure enabled.
 
 ## Security headers and CSP
 

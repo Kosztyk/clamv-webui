@@ -66,7 +66,7 @@ class Handler(socketserver.BaseRequestHandler):
         stamp = datetime.now(timezone.utc).strftime('%a %b %d %H:%M:%S %Y')
         response = {
             b'zPING': b'PONG\0',
-            b'zVERSION': f'ClamAV 1.4.6/27920/{stamp}\0'.encode(),
+            b'zVERSION': f'ClamAV 1.4.7/27920/{stamp}\0'.encode(),
             b'zSTATS': b'POOLS: 1\nTHREADS: live 2 idle 2 max 10\nQUEUE: 0 items\nEND\0',
         }.get(bytes(command), b'UNKNOWN COMMAND ERROR\0')
         self.request.sendall(response)

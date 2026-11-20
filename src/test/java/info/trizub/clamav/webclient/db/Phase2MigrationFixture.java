@@ -15,6 +15,7 @@ final class Phase2MigrationFixture {
         .dataSource(url, user, password)
         .locations("classpath:db/migration/" + vendor)
         .javaMigrations(new V2__reconcile_legacy_columns())
+        .callbacks(new PostgresLegacyProcessedPathCompatibility())
         .baselineVersion("1")
         .baselineOnMigrate(baseline)
         .cleanDisabled(false) // ONLY used on short-lived test databases
@@ -51,6 +52,13 @@ final class Phase2MigrationFixture {
         st.execute("ALTER TABLE audit_events DROP COLUMN transport");
         st.execute("ALTER TABLE audit_events DROP COLUMN endpoint_id");
         st.execute("DROP TABLE api_credentials");
+        if ("postgresql".equals(vendor)) {
+          // Historical PostgreSQL/Hibernate schemas can expose this name as a UNIQUE
+          // constraint rather than the standalone V1 index. V9 must upgrade both shapes.
+          st.execute("DROP INDEX idx_processed_path");
+          st.execute(
+              "ALTER TABLE processed_files ADD CONSTRAINT idx_processed_path UNIQUE (path)");
+        }
       }
     }
     try (Connection c = DriverManager.getConnection(url, user, password)) {

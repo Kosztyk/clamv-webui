@@ -41,7 +41,7 @@ docker compose -f docker-compose.yaml exec -T clamav-web-client sh -c 'cat /app/
 ```
 
 1. Paste the separate owner credential into **Recovery credential** and unlock configuration. Keep it private. If the file does not exist yet, wait for startup and inspect logs/volume permissions. Do not create a token manually.
-2. On direct HTTP, confirm **Allow configuration over HTTP on this trusted network** before entering passwords or other credentials. This does not encrypt HTTP. A reverse proxy, DNS name and certificate are optional for this GUI workflow.
+2. On direct HTTP, enable **Allow sign-in and configuration over HTTP on this trusted network (saved)**. The setting is reviewed and saved like any other configuration change, persists `server.servlet.session.cookie.secure=false`, and requires restart. This does not encrypt HTTP; use it only on a trusted network.
 3. Enter the ClamD connection and select built-in H2 or an existing external database. Enable optional services and complete their fields. Use **Test connection** where available; testing does not save the draft. A test does not create an empty H2 file: a fresh database shows an amber “not initialized yet” explanation. Review/apply/start initializes it, and testing afterward verifies the saved credentials. See [database test behavior](DATABASE_CONNECTION_TESTS.md).
 4. Select **Review changes** or **Review initial configuration**, acknowledge any database selection, apply, then select **Start application**. Wait for the main application to initialize.
 5. For a newly created database with no supplied bootstrap password, obtain the generated administrator password:

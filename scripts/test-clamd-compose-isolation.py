@@ -53,7 +53,7 @@ def main():
         if shared:
             build=scanner.get('build',{})
             source=(ROOT/'Dockerfile.clamd').read_text()
-            check(scanner['image']=='clamav-server:1.4.6-uid10001-local'
+            check(scanner['image']=='clamav-server:1.4.7-uid10001-local'
                   and (build.get('dockerfile')=='Dockerfile.clamd' or build.get('dockerfile_inline','').replace('$$','$')==source)
                   and build.get('context')==str((ROOT/files[0]).parent)
                   and 'FROM '+pin in source, name + ': UID-aligned scanner derives from the pinned official image')

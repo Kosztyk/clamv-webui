@@ -162,7 +162,7 @@ def main():
                 page.get_by_role('button',name='Generate scrape token',exact=True).click()
                 token=page.locator('[data-section="metrics"] .cc-note code').inner_text()
                 check(bool(re.fullmatch('[0-9a-f]{64}',token)),'Scrape-token generation is available in the sole editor and creates a draft')
-                page.get_by_label('Allow configuration over HTTP on this trusted network',exact=True).check()
+                page.get_by_label('Allow sign-in and configuration over HTTP on this trusted network (saved)',exact=True).check()
                 page.get_by_role('button',name='Review changes',exact=False).click()
                 expect(page.get_by_role('dialog')).to_be_visible()
                 check(token not in page.get_by_role('dialog').inner_text() and LEGACY_SECRET not in page.get_by_role('dialog').inner_text(),'Central review masks new and retained credentials')

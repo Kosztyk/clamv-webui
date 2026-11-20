@@ -1,0 +1,40 @@
+# Based on Alpine edge's libfontenc 1.1.10-r0 recipe.
+# Maintainer: Natanael Copa <ncopa@alpinelinux.org>
+pkgname=libfontenc
+pkgver=1.1.10
+pkgrel=0
+pkgdesc="X11 font encoding library"
+url="https://xorg.freedesktop.org/"
+arch="all"
+license="MIT"
+makedepends="
+	meson
+	util-macros
+	xorgproto
+	zlib-dev
+	"
+subpackages="$pkgname-dev"
+source="https://www.x.org/releases/individual/lib/libfontenc-$pkgver.tar.xz"
+options="!check"  # No test suite.
+# secfixes:
+#   1.1.10-r0:
+#     - CVE-2026-109908
+
+build() {
+	abuild-meson \
+		-Dwith-encodingsdir=/usr/share/fonts/encodings \
+		output .
+	meson compile -C output
+}
+
+check() {
+	meson test --print-errorlogs -C output
+}
+
+package() {
+	DESTDIR="$pkgdir" meson install --no-rebuild -C output
+}
+
+sha512sums="
+5908e6a68cdf2af2078454086f408ccff82d08ca7b9a49213d7a1fd6fbd5682742bd000b354e961d1be0654ab73fd59707bdcb4f1b9e19743e2e8fd1b9806e71  libfontenc-1.1.10.tar.xz
+"

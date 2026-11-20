@@ -1,12 +1,20 @@
-### Issue #55 — API v1 contract compatibility gate (source candidate)
+# ClamAV Web UI v2.1.0
+
+> **Stable release tag:** `v2.1.0`  
+> **Docker Hub image:** `kosztyk/clamav-web-client:v2.1.0`  
+> **Release date:** 20 November 2026
+>
+> v2.1.0 consolidates the fixes raised in issues #25–#57, including ClamAV 1.4.7 security remediation, PostgreSQL legacy-upgrade auto-repair before Flyway V9, persistent Direct-HTTP session-cookie configuration, hardened CI/release gates, signed/scanned release artifacts, and digest-scoped OpenVEX handling for Alpine `CVE-2026-107891`. See [v2.1.0 release notes](docs/releases/v2.1.0.md), [CHANGELOG](CHANGELOG.md), and [upgrade/release procedure](RELEASE.md).
+
+### Issue #55 — API v1 contract compatibility gate (included in v2.1.0)
 
 Every API controller, OpenAPI or Go client change now activates **`api-contract`** in the single required GitHub Actions **`gate`** and also selects the real built-server `clamctl` integration job. The gate verifies Java controller/CLI routes against `openapi/clamav-v1.yaml`, lints it with **Spectral 6.17.1** and blocks ERR/WARN-level breaking changes using **oasdiff v1.11.8** against **the latest stable release’s OpenAPI spec and the PR/push base**. The Maven/JUnit **`Issue55OpenApiContractIntegrationTest`** additionally exercises actual Spring MockMvc responses and serialized DTO field contracts for success, validation and not-found cases. New submitted-job, progress, token and audit response schemas are documented. The tag-triggered release workflow repeats lint and compatibility checks before building release artifacts; no change to authentication, Configuration Center or production deployment is required. See [API contract gate](docs/ISSUE55_API_CONTRACT_GATE.md) and [validation evidence](ISSUE55_VALIDATION_RESULTS.md). Local Maven, Spectral and oasdiff checks passed. The GitHub workflow runs the checks on pull requests and release tags.
 
-### Issue #54 — Reproducible, signed clamctl release binaries (source candidate)
+### Issue #54 — Reproducible, signed clamctl release binaries (included in v2.1.0)
 
 The unified CI `gate` now includes separate **`cli-test`**, **`cli-build`** and **`cli-integration`** jobs. Every CLI change runs Go unit/vet/race tests, pinned **staticcheck 2026.1** and **govulncheck v1.1.4**; release builds compile all six platforms twice with `-trimpath`, no build ID, `CGO_ENABLED=0` and a fixed commit-derived `SOURCE_DATE_EPOCH`, and compare SHA-256 checksums before publishing. The version is inherited from `pom.xml` and checked using `clamctl --json --version`. The release process **keyless-signs a separate six-binary `clamctl-SHA256SUMS` manifest**, attaches a Sigstore bundle, verifies the exact GitHub release-workflow identity before drafting **and** after approval, and keeps the existing release-wide `SHA256SUMS`. See [CLI quality, signing and verification](docs/ISSUE54_CLI_QUALITY_SIGNED_RELEASE.md) and [validation limitations](ISSUE54_VALIDATION_RESULTS.md). The local Java and Go integration tests and six-target reproducibility build passed. GitHub releases generate the Cosign signatures.
 
-### Issue #53 — Java quality gates (source candidate)
+### Issue #53 — Java quality gates (included in v2.1.0)
 
 The unified GitHub `gate` now includes a JDK **21/25** test matrix with JaCoCo coverage enforcement (82% minimum), and a `java-quality` job with **Spotless formatting, SpotBugs/FindSecBugs, PMD and Maven Enforcer** dependency convergence. New static-analysis findings are compared against the exact PR/push base; existing reports and coverage evidence are uploaded. The application targets Java 21, so JDK 17 is intentionally not claimed as supported. The tag-triggered release repeats quality validation. The local build measured 83.37% line coverage; see [issue #53 quality guide](docs/ISSUE53_JAVA_QUALITY_GATES.md) and [validation report](ISSUE53_VALIDATION_RESULTS.md).
 
@@ -26,15 +34,13 @@ VIEWER accounts receive numeric ClamD health/queue summaries (not raw STATS, que
 
 > **Issue #30 (beta2):** Upload processing now supports a same-filesystem servlet multipart move, early authenticated 413 checks from request length, and an owner-only Docker multipart spool. Multi-file and chunked bodies remain subject to full server-side per-file checks. See [upload performance and limitations](docs/ISSUE_30_UPLOAD_PERFORMANCE.md). All prior #13–#29 fixes remain present.
 
-> **v2.1.0 — release source:** This archive contains the complete 2.1 source snapshot and deployment updates, including the security fixes for issues #13–#29. The default for fresh installations is secure INSTREAM upload scanning; native ClamD filename scanning is optional and requires an explicitly isolated, tested filesystem share. Review [beta2 release notes](docs/releases/v2.1.0beta2.md), [deployment examples](docs/BETA_DEPLOYMENT_EXAMPLES.md), and [production scanning guidance](docs/PRODUCTION_SCANNING.md). Release verification includes hosted CI and live Docker scans.
+> **v2.1.0 — release source:** This archive contains the complete 2.1 source snapshot and deployment updates, including the security fixes for issues #13–#29. The default for fresh installations is secure INSTREAM upload scanning; native ClamD filename scanning is optional and requires an explicitly isolated, tested filesystem share. Review [final v2.1.0 release notes](docs/releases/v2.1.0.md), [deployment examples](docs/BETA_DEPLOYMENT_EXAMPLES.md), and [production scanning guidance](docs/PRODUCTION_SCANNING.md). Release verification includes hosted CI and live Docker scans.
 
-> **Scanning deployment update (source candidate, not a released image):** Fresh installs now default to INSTREAM (native path OFF, fallback ON), because ClamAV daemons cannot read private `0700`/`0600` uploads unless filesystem access is explicitly configured. See [secure production scanning and upgrade guidance](docs/PRODUCTION_SCANNING.md). Existing saved GUI settings do not change automatically. The root `docker-compose.yml` is a sanitized fresh-install example, **not a replacement for an existing PostgreSQL/NGINX deployment Compose**.
+> **Scanning deployment update (v2.1.0):** Fresh installs now default to INSTREAM (native path OFF, fallback ON), because ClamAV daemons cannot read private `0700`/`0600` uploads unless filesystem access is explicitly configured. See [secure production scanning and upgrade guidance](docs/PRODUCTION_SCANNING.md). Existing saved GUI settings do not change automatically. The root `docker-compose.yml` is a sanitized fresh-install example, **not a replacement for an existing PostgreSQL/NGINX deployment Compose**.
 
 > **Issue #32 (beta2):** External REST job/history reports use a shared five-second single-flight snapshot cache, bounded 10 MiB upstream responses (oversize → HTTP 502), generic upstream error JSON, and reduced polling for idle/hidden tabs. The new REST cache TTL is editable in Configuration Center. See [issue #32 performance and security notes](docs/ISSUE_32_REST_MONITOR_PERFORMANCE.md). Previous fixes #13–#31 are retained.
 
-# ClamAV Web UI
-
-### v2.1.0beta2 — Issue #29 directory-scan throughput and partial-error reporting
+### Historical v2.1.0beta2 — Issue #29 directory-scan throughput and partial-error reporting
 
 Eligible, exclusion-free directories use one guarded native `MULTISCAN` after checking the tree for symlinks, allowed-root boundaries, file types and size limits. Trees with exclusions or daemon errors use a shared four-worker scanner with 16 bounded outstanding tasks per job. Excluded subtrees are pruned; configured roots are resolved once per scan while file paths are still checked individually. A single unreadable file no longer discards detections: clean plus errors yields `ERROR` (not false `OK`), while malware plus errors yields `VIRUS_FOUND` with partial-scan details in the job view. No changes to database schema, Docker requirements or existing security controls. See [issue #29 scan policy and regression tests](docs/ISSUE_29_DIRECTORY_SCAN_PERFORMANCE.md).
 
@@ -66,9 +72,9 @@ New local users are lowercase and use `[a-z0-9._-]{3,64}`; usernames are checked
 
 ## v2.1.0beta2 — audit logging reliability (issue #25)
 
-All audit payloads are bounded to the existing database schema: `username`, `action`, `outcome`, `job_id`, and `ip` (64 characters); `details` (1024); `transport` (32); and `user_agent` (255). Audit writes use a separate `REQUIRES_NEW` transaction with a flush and best-effort error handling; audit failures are logged without failing already-completed scan submissions, endpoint management, login, or other actions. A 10 KiB User-Agent regression test is included. No audit table migration or retention-policy change is required. UI footers now show only **ClamAV Web UI v2.1.0beta2** (without the former marketing tagline).
+All audit payloads are bounded to the existing database schema: `username`, `action`, `outcome`, `job_id`, and `ip` (64 characters); `details` (1024); `transport` (32); and `user_agent` (255). Audit writes use a separate `REQUIRES_NEW` transaction with a flush and best-effort error handling; audit failures are logged without failing already-completed scan submissions, endpoint management, login, or other actions. A 10 KiB User-Agent regression test is included. No audit table migration or retention-policy change is required. UI footers show **ClamAV Web UI v2.1.0** (without the former marketing tagline).
 
-See [beta2 changes and verification](docs/releases/v2.1.0beta2.md).
+See [final v2.1.0 release notes](docs/releases/v2.1.0.md); the beta2 document is retained as historical validation evidence.
 
 **Complete application source with Configuration Center and fixes for issues #10–#31 built in:** build normally:
 
@@ -104,7 +110,7 @@ access. Native mode without an allowlist trusts nobody. Existing explicit
 
 **Watcher coverage (issue #17):** incremental scan cycles eventually traverse the full watched tree without the old 1,000-file or five-level limits. Each one-second continuation tick inspects up to 256 entries and batch-fetches at most 128 indexed fingerprints at a time. Each file's WATCH job and fingerprint commit together; failures are logged and uncommitted files remain eligible for retry. Hourly cleanup removes markers for deleted paths. See [watcher behavior, recovery and tests](docs/WATCHER_RELIABILITY.md).
 
-**PATH/WATCH source quarantine hardening (beta2):** ClamD detection filenames are never treated as permission to move arbitrary host files. Quarantine rechecks each reported source against configured allowed roots and the originally authorized scanned file or directory. Rejections retain the virus verdict with a quarantine failure diagnostic. Scan-finalization metadata writes run through a dedicated Spring transaction bean, keeping scanning and filesystem work outside DB transactions. See [beta2 release notes](docs/releases/v2.1.0beta2.md).
+**PATH/WATCH source quarantine hardening (beta2):** ClamD detection filenames are never treated as permission to move arbitrary host files. Quarantine rechecks each reported source against configured allowed roots and the originally authorized scanned file or directory. Rejections retain the virus verdict with a quarantine failure diagnostic. Scan-finalization metadata writes run through a dedicated Spring transaction bean, keeping scanning and filesystem work outside DB transactions. See [final v2.1.0 release notes](docs/releases/v2.1.0.md).
 
 **Upload cleanup (issue #18):** clean uploads are deleted after completion by default; infected copies are quarantined or deleted. Failed batches roll back their files as well as their jobs. An hourly retention task removes expired orphan/completed copies after 24 hours, protects active work and offers separate opt-in job/audit history retention. Uploads use owner-only POSIX permissions; the standard scanner uses INSTREAM without needing access to upload storage. See [settings, scanner migration and verification](docs/UPLOAD_RETENTION.md).
 
@@ -207,7 +213,7 @@ Open `http://YOUR_DOCKER_HOST:8080/setup/` in your browser; use `http://localhos
 
 ### Complete first-run setup
 
-1. For direct HTTP, select **Allow configuration over HTTP on this trusted network** before submitting credentials. This is a page-scoped confirmation; HTTP remains unencrypted. HTTPS can be configured separately.
+1. For direct HTTP, select **Allow sign-in and configuration over HTTP on this trusted network (saved)**. The choice persists `server.servlet.session.cookie.secure=false`, requires restart, and allows browser sessions to survive on the same HTTP origin. HTTP remains unencrypted, so use this mode only on a trusted network.
 2. Under **Connections**, enter your own ClamD hostname/port or mounted Unix socket. A hostname must be reachable from the Web UI container; `localhost` refers to that container. Choose built-in H2 for a new single-instance installation, or enter an existing PostgreSQL/MySQL/MariaDB connection. Selecting another database does not migrate existing records.
 3. Enable the optional features you need and complete their fields. Disabled features stay collapsed. **Test connection** checks the current draft without saving it.
 4. Select **Review changes**, inspect activation requirements, acknowledge any database change, and apply. Then select **Start application**. Wait for the main application to finish starting before signing in.
@@ -373,7 +379,7 @@ The project is published at [github.com/Kosztyk/clamv-webui](https://github.com/
 
 ### Session and locale cookie hardening (issue #27)
 
-By default, both the authenticated session and language-preference cookie are `Secure; HttpOnly; SameSite=Lax`, and session idle timeout is 30 minutes. This remains secure behind an HTTPS-terminating proxy even when the backend is HTTP. **A plain-HTTP local development server must explicitly set `SERVER_SERVLET_SESSION_COOKIE_SECURE=false`**. Existing GUI-saved `false` values must be reviewed after upgrade. See [issue #27 deployment notes](docs/ISSUE_27_COOKIE_SECURITY.md).
+By default, both the authenticated session and language-preference cookie are `Secure; HttpOnly; SameSite=Lax`, and session idle timeout is 30 minutes. For an intentionally direct-HTTP deployment on a trusted network, **Setup & recovery → Direct HTTP configuration** can persist `server.servlet.session.cookie.secure=false`; restart is required. The equivalent environment override remains `SERVER_SERVLET_SESSION_COOKIE_SECURE=false`. HTTP provides no transport encryption. See [issue #27 deployment notes](docs/ISSUE_27_COOKIE_SECURITY.md).
 
 ### Multipart spool location (Configuration Center)
 
@@ -400,7 +406,7 @@ The Dockerfile now extracts just `clamdtop` from the distribution package, leavi
 
 GitHub Actions use reviewed full commit SHAs; weekly Dependabot checks Maven, Docker and GitHub Actions. The repository's issue #45 CI workflow builds the digest-pinned web image, fails on Trivy CRITICAL OS/library vulnerabilities, and runs Java CodeQL SAST. The locally served full jQuery 3.7.1 file is checksum-verified; Bootstrap and legacy xterm have an asset inventory and manual-update procedure in `src/main/resources/static/js/VENDORED.md`. Trivy/CodeQL are release gates; consult CI results before describing a build as vulnerability-free.
 
-### Issue #46 — scan-service transaction parity and cleanup (v2.1.0-beta2 candidate)
+### Issue #46 — scan-service transaction parity and cleanup (v2.1.0)
 
 Browser and API submissions now use the same explicit transport-aware service methods. File copies stay outside database transactions, while all upload-job metadata for a batch is committed together with rollback and after-commit dispatch. Browser path scans now use the proxied transactional method. Obsolete scan-state code has been removed and quarantine/notification diagnostics improved. See [`docs/maintenance/ISSUE46_SERVICE_LAYER_CLEANUP.md`](docs/maintenance/ISSUE46_SERVICE_LAYER_CLEANUP.md). No new Configuration Center field or environment variable is required.
 
@@ -435,7 +441,7 @@ with required reviewers before enabling the
 `RELEASE_PUBLICATION_ENABLED=true` repository Actions variable. See
 [issue #49 release instructions](docs/ISSUE49_VERIFIED_RELEASE_PIPELINE.md).
 
-Release tags must be `v` plus the version read from `pom.xml`. The release gate rejects nonmatching tags. To promote a beta, change only the POM project version, merge to `main`, wait for its green `gate`, then create the matching tag.
+Release tags must be `v` plus the version read from `pom.xml`. For this release the tag is **`v2.1.0`**. The release gate rejects nonmatching tags; future releases bump only the POM version, merge to `main`, wait for a green `gate`, then create the matching tag.
 
 ### Issue #51 — signed, scanned GitHub Container Registry images
 
@@ -444,14 +450,20 @@ Versioned releases now publish an **immutable multi-arch** Web UI image to
 HIGH/CRITICAL scans, Sigstore keyless signing and **published-digest**
 non-root/EICAR smoke tests succeed. Stable releases carry `X.Y.Z`, `X.Y`,
 and `latest`; prereleases carry **only** their exact version. All signatures,
-CycloneDX SBOMs, BuildKit provenance and release artifact checksums are
-checked before a GitHub release can be drafted. No production upgrade is
-performed automatically.
+CycloneDX SBOMs, BuildKit provenance, the digest-scoped OpenVEX assessment for
+Alpine's `CVE-2026-107891` backport, and release artifact checksums are checked
+before a GitHub release can be drafted. No production upgrade is performed
+automatically.
 
-See [the complete signed-image guide](docs/ISSUE51_SIGNED_GHCR_RELEASE.md)
-and [the GHCR Compose example](docker-compose.ghcr.yml) for verification,
-package visibility, rollout and rollback instructions. The existing local
-Compose development build remains supported.
+See [the complete signed-image guide](docs/ISSUE51_SIGNED_GHCR_RELEASE.md),
+[the CVE-2026-107891 VEX guide](docs/VEX_CVE_2026_107891.md), and
+[the GHCR Compose example](docker-compose.ghcr.yml) for verification, package
+visibility, rollout and rollback instructions. The existing local Compose
+development build remains supported. Docker Hub remains a separate publication
+path; use `scripts/attach-release-vex.sh` after pushing the corresponding Docker
+Hub image if that registry is used. Docker Scout trusts only Docker-authored VEX
+by default, so verification of this publisher-authored statement must explicitly
+accept `https://github.com/Kosztyk/clamv-webui`; see the VEX guide.
 
 ### Issue #52 — CI security scanning (Java/JS/Go, dependencies, image, secrets, lint)
 

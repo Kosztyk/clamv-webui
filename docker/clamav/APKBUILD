@@ -1,6 +1,6 @@
 pkgname=clamav
-pkgver=1.4.6
-pkgrel=1
+pkgver=1.4.7
+pkgrel=0
 pkgdesc="ClamdTop monitor built from ClamAV"
 url="https://www.clamav.net/"
 arch="all"
@@ -8,7 +8,7 @@ license="GPL-2.0-only"
 makedepends="bzip2-dev cargo cmake curl-dev json-c-dev libmspack-dev>=0.12_alpha-r0 libxml2-dev>=2.15.4-r0
     linux-headers musl-fts-dev ncurses-dev openssl-dev>=3.5.9-r1 pcre2-dev python3 samurai zlib-dev"
 subpackages="$pkgname-libs"
-source="https://www.clamav.net/downloads/production/clamav-$pkgver.tar.gz"
+source="https://github.com/Cisco-Talos/clamav/releases/download/clamav-$pkgver/clamav-$pkgver.tar.gz"
 
 build() {
     cmake -B build -G Ninja \
@@ -47,6 +47,8 @@ libs() {
     amove usr/lib
 }
 
-sha512sums="
-5e1978befd63eb1095fc203b41ca5e9084e6eeae350660012fb19e68c74a454c11adae69459dd6f521c5a99d0ff57fd976b19b9e768776a94684fa186440a894  clamav-1.4.6.tar.gz
+# Upstream GitHub release asset digest for clamav-1.4.7.tar.gz.
+# abuild still accepts sha256sums; the value is pinned to the publisher's release metadata.
+sha256sums="
+3f93bf28b193677d09427a19602bf07af30629edbce93fd7f92b92a64e75c027  clamav-1.4.7.tar.gz
 "

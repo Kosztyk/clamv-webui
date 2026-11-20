@@ -1,6 +1,6 @@
 # Issue #55 — API v1 contract, response validation and breaking-change gate
 
-**Status:** source implemented using the complete issue #54 candidate (`2.1.0-beta2`). The GitHub repository has **not** been modified by the archive creation. The actual CI acceptance tests must run on GitHub.
+**Status:** implemented in the final `2.1.0` source. The GitHub CI acceptance tests remain authoritative for the merged release commit.
 
 ## Why this is necessary
 
@@ -52,7 +52,7 @@ mvn -B -ntp '-Dtest=Issue55OpenApiContractIntegrationTest,ApiV1ContractIntegrati
 mvn -B -ntp clean verify
 ```
 
-For the historical release check, run commands inside a real Git checkout with access to the full history and tags. The supplied source ZIP alone does not contain `.git` history and cannot perform tag-based `oasdiff` comparison without a repository clone. A `v2.1.0-beta2` release must be based on the exact green CI commit; `v2.1.0` requires changing the Maven version to `2.1.0` first, consistent with issue #50.
+For the historical release check, run commands inside a real Git checkout with access to the full history and tags. The supplied source ZIP alone does not contain `.git` history and cannot perform tag-based `oasdiff` comparison without a repository clone. The final `v2.1.0` release must be based on the exact green CI commit and the Maven version is already `2.1.0`, consistent with issue #50.
 
 ## Acceptance testing
 

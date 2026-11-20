@@ -1,6 +1,6 @@
 # Issue #50 — One canonical release version
 
-**Canonical version:** top-level `<project><version>` in `pom.xml` (currently `2.1.0-beta2`). The spelling of a git release tag is always the lowercase `v` followed by the **exact** Maven version. Historical `V1.0.0` / `V2.0.0` tags and previous release documentation are not retroactively rewritten.
+**Canonical version:** top-level `<project><version>` in `pom.xml` (currently `2.1.0`). The spelling of a git release tag is always the lowercase `v` followed by the **exact** Maven version. Historical `V1.0.0` / `V2.0.0` tags and previous release documentation are not retroactively rewritten.
 
 ## What updates automatically
 
@@ -21,7 +21,7 @@ Only the six explicitly listed Maven resources are filtered. The delimiter is `@
 
 ## Release procedure: one manual change
 
-Edit the `<project><version>` under the root project in `pom.xml`, **not** the Spring Boot parent dependency version. For example, promote `2.1.0-beta2` to `2.1.0`. Then run:
+For the final 2.1 release the root `<project><version>` is already `2.1.0`. For a future release, edit that root project version only (not the Spring Boot parent dependency version), then run:
 
 ```bash
 python3 scripts/check-versions.py
@@ -46,10 +46,10 @@ The local image tag is `clamav-web-client:local` unless `CLAMAV_WEBUI_IMAGE_TAG`
 
 ```bash
 python3 scripts/check-versions.py --tag v2.1.0
-# On this beta2 source: FAIL — Tag/POM mismatch: tag='v2.1.0', pom.xml version='2.1.0-beta2'; expected tag v2.1.0-beta2
+# PASS — tag and current POM version match.
 
 python3 scripts/check-versions.py --tag v2.1.0-beta2
-# PASS — on this source
+# FAIL — tag/POM mismatch on the final 2.1.0 source.
 ```
 
 The regression suite simulates a POM-only bump and proves that no downstream version sources require manual modification. It intentionally corrupts the app version, OpenAPI, CLI, Compose, README and release gate independently and verifies each failure. With `--verify-built` the checker also inspects Maven-filtered `target/classes` to catch misconfigured resource filtering, missing files, or stale values.

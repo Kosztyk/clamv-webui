@@ -33,6 +33,8 @@ python3 scripts/test-issue49-policy.py
 python3 scripts/check-issue51-container-release.py
 python3 scripts/test-issue51-image-release.py
 python3 scripts/test-issue51-policy.py
+python3 scripts/test-vex-release.py
+python3 scripts/test-clamav-security-floor.py
 python3 scripts/check-issue52-security-gates.py
 python3 scripts/test-issue52-security-gates.py
 python3 scripts/check-issue53-java-quality.py

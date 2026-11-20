@@ -105,6 +105,14 @@ closed when essential tables are absent or PostgreSQL OIDs are detected. On
 some substantially older variants additional schema reconciliation may be
 required; restore a clone instead of using Hibernate `update` blindly.
 
+For PostgreSQL legacy schemas, the pre-migration callback
+`beforeMigrate__repair_legacy_processed_path_constraint.sql` also recognizes the
+historical `processed_files.idx_processed_path` UNIQUE-constraint shape. It
+converts that constraint to the standalone unique index expected by V9 before
+versioned migrations run. Fresh databases, already Flyway-managed V1-V8
+databases, and V9+ databases are no-ops. This keeps the original V9 migration
+checksum unchanged for installations that already applied it successfully.
+
 ### PostgreSQL historical OID Large Objects
 
 Historical `@Lob` mappings may store OID identifiers in

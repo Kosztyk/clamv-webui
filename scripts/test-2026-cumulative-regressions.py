@@ -56,6 +56,17 @@ assert 'allArtifactsAbsent' in retention
 assert 'getScanTargetWasDirectory()' in coordinator and 'scanTargetWasDirectory' in source('model/ScanJob.java')
 assert 'synchronized (dispatchLock)' in worker and re.search(r'synchronized \(dispatchLock\)\s*\{\s*if \(stopping\) return;\s*claimed = markRunning',worker)
 assert 'lifecyclePhaseTimeout.toSeconds() - 5' in worker
+pg_legacy_repair = source('db/PostgresLegacyProcessedPathCompatibility.java')
+assert 'Event.BEFORE_MIGRATE' in pg_legacy_repair
+assert '"PostgreSQL".equals(connection.getMetaData().getDatabaseProductName())' in pg_legacy_repair
+assert "c.conname = 'idx_processed_path'" in pg_legacy_repair
+assert "c.contype = 'u'" in pg_legacy_repair
+assert '"UNIQUE (path)".equals(legacy.definition())' in pg_legacy_repair
+assert 'DROP CONSTRAINT' in pg_legacy_repair and 'CREATE UNIQUE INDEX' in pg_legacy_repair
+fixture = (root / 'src/test/java/info/trizub/clamav/webclient/db/Phase2MigrationFixture.java').read_text()
+assert 'ADD CONSTRAINT idx_processed_path UNIQUE (path)' in fixture
+assert '.callbacks(new PostgresLegacyProcessedPathCompatibility())' in fixture
+
 for vendor in ('h2','postgresql','mysql','mariadb'):
     migration = root / f'src/main/resources/db/migration/{vendor}/V9__watcher_endpoint_and_quarantine_journal.sql'
     sql = migration.read_text()

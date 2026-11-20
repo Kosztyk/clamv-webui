@@ -1,15 +1,3 @@
-## Unreleased — v2.1.0 cross-feature audit fixes
-
-- **V12 (local release candidate):** track WATCH job ownership and retry errors with bounded backoff; periodically recover stranded positive and orphan RUNNING jobs without racing active local workers; preflight remote daemon directory trees without depending on local config discovery; and surface truncated positive results as incomplete in API v1. See [V12 behavior and migration notes](docs/WATCHER_RETRY_LIVE_RECOVERY_V12.md). Maven/Flyway/Docker integration is still required.
-
-- Follow-up fixes: recover every staged infected file after a multi-file interruption; reject finishing with an unresolved quarantine-journal transition; retry interrupted permission hardening; and enforce a 48 KiB serialized ClamAV detection limit across scan transports.
-- Add a V10 migration persisting the original file-versus-directory scan target type, remove obsolete path-only watcher repository methods, and protect per-file quarantine evidence during history retention. See [V10 recovery notes](docs/QUARANTINE_RECOVERY_V10.md).
-- The source archive is not production approved until Maven, all four Flyway migration families, and Docker/ClamAV fault-injection tests run successfully.
-- Harden source-quarantine journaling, positive verdict recovery and API warnings; make directory watcher fingerprints endpoint-aware with independent per-root deadlines.
-- Add V9 Flyway migrations for H2, PostgreSQL, MySQL, and MariaDB and extend security/CI/concurrency regression coverage.
-- Correct outdated CI assertions, bound directory virus aggregation, serialize scan claims versus shutdown, and align scan shutdown budgets.
-- Production readiness remains conditional on Maven, database integration, Docker and live ClamAV validation.
-
 # Changelog
 
 All notable **user-visible** changes to ClamAV Web UI are documented here.
@@ -17,10 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 releases use [Semantic Versioning](https://semver.org/). The project's
 canonical build/version value comes from `pom.xml`. A version is **released**
 only after its Git tag, verified artifacts and GitHub release have been published.
-The entries below describe the *current release candidate*; they do not imply
-that unreleased CI functionality has already been deployed to GitHub.
+The entries below describe released source when a dated version heading is present.
 
 ## [Unreleased]
+
+_No unreleased user-visible changes yet._
+
+## [2.1.0] - 2026-11-20
+
+- Direct-HTTP setup/recovery now persists only `server.servlet.session.cookie.secure=false` when explicitly enabled on a trusted HTTP network; forwarded-header trust is not silently changed.
+- PostgreSQL startup now detects the legacy `processed_files.idx_processed_path` UNIQUE constraint shape and safely normalizes it before Flyway V9, while leaving the V9 migration checksum unchanged.
+- Docker Hub OpenVEX attachment now uses Docker Scout's normal discoverable attestation backend with the short Hub repository reference and publisher-author verification.
+- Fixed the ClamAV 1.4.7 hardened-runtime validation so the final Web UI image requires the installed `clamav-libs>=1.4.7-r0` package while explicitly rejecting the `clamav` meta-package. The native `clamdtop` binary is copied from the build stage, so requiring the meta-package made otherwise-correct images fail during Docker build.
 
 ### Quarantine identity and recovery hardening (Flyway V11)
 
@@ -64,6 +60,10 @@ that unreleased CI functionality has already been deployed to GitHub.
 
 ### Security
 
+- Upgraded the bundled native ClamAV monitor/library package and the default pinned ClamD service from 1.4.6 to 1.4.7, the upstream security patch release fixing CVE-2026-76411, CVE-2026-76414, CVE-2026-76415, CVE-2026-76416, CVE-2026-76417, CVE-2026-76421, CVE-2026-76422, CVE-2026-76430, CVE-2026-76515, and CVE-2026-76516. Docker/runtime smoke checks require installed `clamav-libs>=1.4.7-r0` and explicitly reject installing the `clamav` meta-package in the hardened Web UI runtime; native `clamdtop` is copied separately.
+- Release VEX generation now uses Docker Scout 1.29-compatible qualified Alpine package PURLs for both x86_64 and aarch64 so the `CVE-2026-107891` `not_affected` statement is actually suppressed rather than merely displayed.
+- Release images now generate a digest-scoped OpenVEX statement for `CVE-2026-107891`, validate that it names exactly Alpine `musl 1.2.6-r3`, attach it through the existing pushed registry tag with Docker Scout while retaining the exact digest inside the VEX product, and include the exact VEX document in checksummed release evidence. A registry-agnostic helper can attach the same release-scoped statement to the separately published Docker Hub image.
+- Container runtime now builds and installs `libfontenc 1.1.10-r0` from the Alpine recipe to remediate `CVE-2026-109908` while retaining Alpine 3.24's distribution-patched `musl 1.2.6-r3` for `CVE-2026-107891`. Runtime and Docker smoke assertions enforce the fixed `libfontenc` floor.
 - HTTP REST scanner credential safeguards, safe audit logging, webhook HMAC,
   server-side redaction, session revocation, runtime configuration protection,
   ClamdTop process isolation and stricter authorization/validation parity.
@@ -75,7 +75,7 @@ that unreleased CI functionality has already been deployed to GitHub.
 - Corrected references to a historical, unshipped server-package validation JSON; documentation now links to validation reports actually included in the source archive. A CI regression guard checks these links and confirms that the scan-type quarantine authorization and absence of obsolete suppression remain intact.
 - Directory watching is now incremental and bounded per scheduler tick: up to 256 filesystem entries and 128 indexed fingerprint lookups per batch, with resumable depth-first directory cursors and fair progress across watched roots. The historical full-prefix marker preload is removed; persistence and retry semantics are preserved.
 - CI change detection now treats the JaCoCo coverage-ratchet script and its structural/regression tests as Java-quality control-plane changes, ensuring Maven quality and coverage comparison jobs cannot be silently skipped on coverage-policy-only PRs.
-- GitHub source-publisher regression fixtures now match the v2.1.0beta2 ZIP root and required source files, include the real source-privacy auditor, and assert the current PR description. A new test ensures legacy ZIP root layouts remain rejected before authentication.
+- GitHub source-publisher regression fixtures preserve the historical v2.1.0beta2 ZIP-root regression case and required source files, include the real source-privacy auditor, and assert the current PR description. A new test ensures legacy ZIP root layouts remain rejected before authentication.
 - Native upload path scans now select their transport before finalizing the result. Only native ClamD I/O failures trigger the configured INSTREAM fallback; database, quarantine and notification failures never cause a duplicate scan. Added targeted regression tests.
 - Coordinated scan-worker shutdown during Spring context stop: durable queued jobs are preserved, active scans receive a grace period, forced interruption does not persist a false terminal error, and interrupted jobs are recovered on next single-instance startup. Added concurrency/restart regression tests and configurable shutdown budgets.
 - H2 shutdown/legacy database-close behavior and Flyway migration compatibility.

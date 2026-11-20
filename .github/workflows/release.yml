@@ -534,6 +534,43 @@ jobs:
               --output "artifacts/image/sbom-$arch.cdx.json" "$IMAGE@$DIGEST"
             python3 scripts/issue51-image-release.py sbom --input "artifacts/image/sbom-$arch.cdx.json"
           done
+      - name: Generate and validate release-scoped OpenVEX for Alpine musl backport
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+        run: |
+          python3 scripts/vex_release.py generate \
+            --image "$IMAGE" --digest "$DIGEST" --version "$VERSION" \
+            --output artifacts/image/CVE-2026-107891.vex.json
+          python3 scripts/vex_release.py validate \
+            --file artifacts/image/CVE-2026-107891.vex.json \
+            --image "$IMAGE" --digest "$DIGEST" --version "$VERSION"
+      - name: Attach OpenVEX via OCI referrers on the staging tag
+        uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+        with:
+          command: attestation-add
+          organization: kosztyk
+          image: ${{ steps.meta.outputs.stage }}
+          file: artifacts/image/CVE-2026-107891.vex.json
+          predicate-type: https://openvex.dev/ns/v0.2.0
+          referrer: true
+          registry-user: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          registry-write-user: ${{ github.actor }}
+          registry-write-password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify Docker Scout applies the publisher-authored VEX
+        uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+        with:
+          command: cves
+          organization: kosztyk
+          image: registry://${{ steps.meta.outputs.stage }}
+          vex-author: https://github.com/Kosztyk/clamv-webui
+          only-vex-affected: true
+          only-severities: critical,high
+          exit-code: true
+          registry-user: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
       - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
         with:
           cosign-release: v2.5.3
@@ -618,6 +655,7 @@ jobs:
             artifacts/image/sbom-amd64.cdx.json
             artifacts/image/sbom-arm64.cdx.json
             artifacts/image/oci-index.json
+            artifacts/image/CVE-2026-107891.vex.json
           if-no-files-found: error
           retention-days: 30
       - name: Capture digest smoke logs on success or failure

@@ -30,9 +30,9 @@ its required checks. Nothing in a GitHub release deploys to a production server.
 
 1. Choose the version. The **only manually edited version is the root
    `pom.xml` `<version>`**; do not change resource placeholders, OpenAPI,
-   Compose, or CLI version separately. Stable `2.1.0` uses `v2.1.0`;
-   prerelease `2.1.0-beta2` uses `v2.1.0-beta2`. Uppercase historical tags
-   are not the format for new releases.
+   Compose, or CLI version separately. The final 2.1 release is `2.1.0` and uses the exact tag **`v2.1.0`**.
+   Prerelease forms such as the historical `v2.1.0-beta2` remain historical;
+   uppercase legacy tags are not the format for new releases.
 2. Open a PR against `main`; complete the `.github/pull_request_template.md`
    checklist. Update `CHANGELOG.md` **Unreleased** with user-visible changes;
    separate security, fixed, changed, and migration/compatibility notes.
@@ -136,11 +136,24 @@ docker pull ghcr.io/kosztyk/clamav-web-client:2.1.0
 ```
 
 Verify release assets, image pullability, GHCR package visibility, and API/
-smoke tests. Announce changes from `CHANGELOG.md` and generated GitHub notes.
-Document upgrade migrations and backup/restore paths. A published release is
-**not** a Docker Hub push and does **not** restart any production container.
-A production rollout is a separate, scheduled approval using the verified
-image **digest** (see `docker-compose.ghcr.yml`).
+smoke tests. Confirm `CVE-2026-107891.vex.json` is present in the release assets
+and that Docker Scout reports VEX statements from the registry for the published image;
+the VEX product must still name the exact immutable digest. Announce changes from `CHANGELOG.md` and generated GitHub
+notes. Document upgrade migrations and backup/restore paths. A published release
+is **not** a Docker Hub push and does **not** restart any production container.
+If the same release is published separately to Docker Hub, authenticate to that
+registry and run:
+
+```bash
+bash scripts/attach-release-vex.sh docker.io/kosztyk/clamav-web-client:2.1.0 2.1.0
+
+# Scout trusts only Docker-authored VEX by default; explicitly trust this publisher:
+docker scout cves --org kosztyk --vex-author 'https://github.com/Kosztyk/clamv-webui' --only-vex-affected registry://docker.io/kosztyk/clamav-web-client:v2.1.0
+```
+
+This lets Docker Scout apply the same digest-scoped assessment there. A production rollout is
+a separate, scheduled approval using the verified image **digest** (see
+`docker-compose.ghcr.yml`).
 
 ## 5. Rollback, yank or withdraw
 

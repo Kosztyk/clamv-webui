@@ -98,10 +98,10 @@ class TcpClamdClientTest {
     exchange(
         (in, out) -> {
           assertThat(request(in)).isEqualTo("zVERSION");
-          for (byte value : "ClamAV 1.4.6/27920/date\0".getBytes(StandardCharsets.UTF_8))
+          for (byte value : "ClamAV 1.4.7/27920/date\0".getBytes(StandardCharsets.UTF_8))
             out.write(value);
         },
-        client -> assertThat(client.version()).isEqualTo("ClamAV 1.4.6/27920/date"));
+        client -> assertThat(client.version()).isEqualTo("ClamAV 1.4.7/27920/date"));
     exchange(
         (in, out) -> {
           assertThat(request(in)).isEqualTo("zSTATS");

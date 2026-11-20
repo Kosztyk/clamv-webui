@@ -145,7 +145,7 @@ def main():
                     if definition['enableKey'] and definition['id']!='proxy':
                         desired=changes.get(definition['enableKey'],original)
                         page.get_by_role('switch',name=definition['title'],exact=True).set_checked(desired==definition['enabledValue'])
-                page.get_by_label('Allow configuration over HTTP on this trusted network',exact=True).check()
+                page.get_by_label('Allow sign-in and configuration over HTTP on this trusted network (saved)',exact=True).check()
                 page.get_by_role('button',name='Review changes',exact=False).click();expect(page.get_by_role('dialog')).to_be_visible()
                 check(all(secret not in page.get_by_role('dialog').inner_text() for secret in (token,rest_secret,trust_password)),'Multi-category review masks every submitted credential')
                 page.get_by_label('Local administrator password',exact=True).fill(smoke.ADMIN_PASSWORD)

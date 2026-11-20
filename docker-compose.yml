@@ -1,6 +1,6 @@
 # Safe default for fresh installations. Do not replace an existing production
 # Compose file; merge changes into that deployment after backup and testing.
-# The scanner uses the verified 1.4.6 digest by default (see docs/security/clamd-image-pin.json).
+# The scanner uses the verified 1.4.7 digest by default (see docs/security/clamd-image-pin.json).
 # For an intentional update, change the digest in this default, the pin manifest,
 # Dockerfile.clamd and .env.example together after verifying multi-arch support.
 services:
@@ -36,7 +36,7 @@ services:
     restart: unless-stopped
 
   clamav-server:
-    image: "${CLAMAV_BASE_IMAGE:-clamav/clamav:1.4.6@sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9}"
+    image: "${CLAMAV_BASE_IMAGE:-clamav/clamav:1.4.7@sha256:b7357e2c1c59480628839df301b0d27923561389b36cf341911e1dd9e02cdd05}"
     container_name: clamav
     # No host-published TCP/3310 and no application-data mount (issue #15).
     restart: unless-stopped

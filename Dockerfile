@@ -39,7 +39,7 @@ RUN set -eux; \
            "$packages/libssl3-3.5.9-r1.apk" "$packages/openssl-dev-3.5.9-r1.apk" /tmp/openssl-apks/; \
         apk add --no-cache /tmp/openssl-apks/*.apk; \
     fi; \
-    for package in libmspack libxml2 fontconfig clamav; do \
+    for package in libmspack libxml2 libfontenc fontconfig clamav; do \
         echo "Building $package"; \
         if ! abuild -F -r -C "$package" -P /tmp/release-apks > /tmp/native-package.log 2>&1; then \
             tail -n 100 /tmp/native-package.log >&2; \
@@ -52,10 +52,10 @@ RUN set -eux; \
     cp /tmp/openssl-apks/openssl-3.5.9-r1.apk /tmp/openssl-apks/libcrypto3-3.5.9-r1.apk \
        /tmp/openssl-apks/libssl3-3.5.9-r1.apk "$packages/libmspack-0.12_alpha-r0.apk" \
        "$packages/libxml2-2.15.4-r0.apk" "$packages/libxml2-16-2.15.4-r0.apk" \
-       "$packages/fontconfig-2.17.1-r2.apk" \
-       "$packages/clamav-libs-1.4.6-r1.apk" /runtime-apks/; \
+       "$packages/libfontenc-1.1.10-r0.apk" "$packages/fontconfig-2.17.1-r2.apk" \
+       "$packages/clamav-libs-1.4.7-r0.apk" /runtime-apks/; \
     cp -a /etc/apk/keys /runtime-apks/keys; \
-    apk add --no-cache /runtime-apks/*.apk "$packages/clamav-1.4.6-r1.apk"; \
+    apk add --no-cache /runtime-apks/*.apk "$packages/clamav-1.4.7-r0.apk"; \
     test -x /usr/bin/clamdtop
 
 FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474 AS runtime-rootfs
@@ -68,14 +68,16 @@ RUN --mount=type=bind,from=clamdtop-extract,source=/runtime-apks,target=/runtime
     apk add --no-cache --upgrade busybox musl curl ncurses-terminfo 'so:libncursesw.so.6' util-linux-misc; \
     apk del gnupg coreutils; \
     apk -v info -e 'openssl>=3.5.9-r1' 'libcrypto3>=3.5.9-r1' 'libssl3>=3.5.9-r1' \
-        'musl>=1.2.6-r3' 'libxml2>=2.15.4-r0' 'libxml2-16>=2.15.4-r0' 'libmspack>=0.12_alpha-r0'; \
+        'musl>=1.2.6-r3' 'libxml2>=2.15.4-r0' 'libxml2-16>=2.15.4-r0' 'libmspack>=0.12_alpha-r0' \
+        'libfontenc>=1.1.10-r0' 'clamav-libs>=1.4.7-r0'; \
     test ! -e /usr/lib/libexpat.so.1; \
     test -e /usr/lib/libxml2.so.16; \
     test ! -e /usr/lib/libxml2.so.2; \
     /usr/bin/clamdtop --version; \
     test -x /usr/bin/script; \
     test ! -e /usr/sbin/clamd; \
-    test ! -e /usr/bin/freshclam
+    test ! -e /usr/bin/freshclam; \
+    ! apk info -e clamav >/dev/null 2>&1
 
 # Fixed numeric IDs work with Kubernetes runAsNonRoot admission checks.
 RUN addgroup -g 10001 clamav-web && \

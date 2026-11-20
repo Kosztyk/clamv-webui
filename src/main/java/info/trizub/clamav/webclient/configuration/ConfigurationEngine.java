@@ -258,7 +258,13 @@ public final class ConfigurationEngine {
     // including when they filled a draft and switched it back off.
     for (var section : ConfigurationCatalog.document().sections()) {
       String enabled = section.enableKey();
-      if (enabled.isBlank()
+      // The proxy section is a transport/session-settings group, not an inferred
+      // on/off feature. Editing the direct-HTTP cookie policy (or another session
+      // field) must not silently persist the forwarded-header strategy. The proxy
+      // strategy is visible/editable on its own and is saved only when explicitly
+      // changed by the administrator.
+      if (section.id().equals("proxy")
+          || enabled.isBlank()
           || changes.containsKey(enabled)
           || store.saved(enabled).isPresent()
           || locked(enabled)) continue;

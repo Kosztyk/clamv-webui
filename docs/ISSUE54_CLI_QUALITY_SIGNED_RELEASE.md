@@ -41,7 +41,7 @@ Download the six CLI binaries and both `clamctl-SHA256SUMS*` assets from the sam
 ```bash
 export GITHUB_REPOSITORY=Kosztyk/clamv-webui
 bash scripts/issue54-verify-cli-signature.sh \
-  clamctl-SHA256SUMS clamctl-SHA256SUMS.sigstore.json v2.1.0-beta2
+  clamctl-SHA256SUMS clamctl-SHA256SUMS.sigstore.json v2.1.0
 sha256sum -c clamctl-SHA256SUMS
 ```
 

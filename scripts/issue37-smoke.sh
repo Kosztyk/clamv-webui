@@ -63,7 +63,8 @@ docker exec "$name" /bin/sh -ec '
     . /etc/os-release
     test "$ID" = alpine
     apk -v info -e "openssl>=3.5.9-r1" "libcrypto3>=3.5.9-r1" "libssl3>=3.5.9-r1" \
-        "musl>=1.2.6-r3" "libxml2>=2.15.4-r0" "libxml2-16>=2.15.4-r0" "libmspack>=0.12_alpha-r0"
+        "musl>=1.2.6-r3" "libxml2>=2.15.4-r0" "libxml2-16>=2.15.4-r0" "libmspack>=0.12_alpha-r0" \
+        "libfontenc>=1.1.10-r0" "clamav-libs>=1.4.7-r0"
     for package in coreutils dash dpkg gnupg libexpat shadow tar wget; do
         if apk info -e "$package" >/dev/null 2>&1; then
             echo "FAIL: unexpected runtime package $package" >&2
@@ -77,10 +78,11 @@ docker exec "$name" /bin/sh -ec '
     family="$(fc-match -f "%{family}" sans-serif)"
     test "$family" = "DejaVu Sans"
     echo "PASS: Fontconfig resolves DejaVu Sans"
-    apk -v info -e busybox clamav-libs curl fontconfig libxml2 musl util-linux-misc
+    apk -v info -e busybox clamav-libs curl fontconfig libfontenc libxml2 musl util-linux-misc
     test -x /usr/bin/clamdtop
     test ! -e /usr/sbin/clamd
     test ! -e /usr/bin/freshclam
+    ! apk info -e clamav >/dev/null 2>&1
     /usr/bin/clamdtop --version
     curl --noproxy "*" -fsS --max-time 4 http://127.0.0.1:8080/actuator/health/liveness | grep -q "\"status\":\"UP\""
     for path in /actuator/health /actuator/health/readiness /actuator/info; do

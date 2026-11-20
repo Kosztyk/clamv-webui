@@ -125,7 +125,7 @@ Generated from `src/main/resources/configuration-center/catalog.json`, the same 
 | Additional proxy chain allowlist | `server.tomcat.remoteip.trusted-proxies` | `SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES` | `(?!)` (trust nobody) | Restart |
 | Application HTTPS base URL | `clamav.public-url` | `CLAMAV_PUBLIC_URL` | Not configured | Restart |
 | URL prefix | `server.servlet.context-path` | `SERVER_SERVLET_CONTEXT_PATH` | Not configured | Restart |
-| Secure session cookies | `server.servlet.session.cookie.secure` | `SERVER_SERVLET_SESSION_COOKIE_SECURE` | `true` | Restart |
+| Require HTTPS for session cookies | `server.servlet.session.cookie.secure` | `SERVER_SERVLET_SESSION_COOKIE_SECURE` | `true` | Restart |
 | Cookie SameSite policy | `server.servlet.session.cookie.same-site` | `SERVER_SERVLET_SESSION_COOKIE_SAME_SITE` | `lax` | Restart |
 | Java truststore path | `javax.net.ssl.trustStore` | `CLAMAV_TRUSTSTORE_PATH` | Not configured | Restart |
 | Truststore password (private) | `javax.net.ssl.trustStorePassword` | `CLAMAV_TRUSTSTORE_PASSWORD` | Not configured | Restart |

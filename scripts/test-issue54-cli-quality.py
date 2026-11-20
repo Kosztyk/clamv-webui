@@ -21,6 +21,7 @@ sign=mod('cli_sign54', 'issue54-cli-signing.py')
 assets=mod('release_assets54', 'release-assets.py')
 repro=mod('repro54', 'issue54-cli-repro.py')
 image51=mod('image51for54', 'issue51-image-release.py')
+vexrelease=mod('vexrelease54', 'vex_release.py')
 selector=mod('selector54', 'ci-detect-changes.py')
 
 
@@ -111,9 +112,11 @@ def release_fixture():
         (image/'oci-index.json').write_text(json.dumps({'schemaVersion':2,'mediaType':'application/vnd.oci.image.index.v1+json','manifests':manifests}))
         for arch in ('amd64','arm64'):
             (image/f'sbom-{arch}.cdx.json').write_text(json.dumps({'bomFormat':'CycloneDX','specVersion':'1.6','components':[{'name':'fixture','type':'library'}]}))
+        (image/'CVE-2026-107891.vex.json').write_text(json.dumps(vexrelease.build_document(
+            'ghcr.io/kosztyk/clamav-web-client','sha256:'+'a'*64,'2.1.0-beta2','2026-11-20T07:00:00Z')))
         combined=root/'combined'
         files=assets.make_release('v2.1.0-beta2',jar,cli,combined,src,image,evidence)
-        assert len(files)==15
+        assert len(files)==16
         assets.verify_release(combined,require_cli_signature=True)
         (combined/sign.MANIFEST).write_text('tampered')
         try: assets.verify_release(combined,require_cli_signature=True)

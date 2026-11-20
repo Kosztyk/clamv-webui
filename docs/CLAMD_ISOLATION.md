@@ -61,12 +61,12 @@ It publishes `127.0.0.1:3310:3310`. This limits network reachability and does no
 The native-path scanner is now a local UID-aligned build from `Dockerfile.clamd`, with its official base pinned to:
 
 ```text
-clamav/clamav:1.4.6@sha256:cbc30de94b6e9b33ac14136ff45306cee02a1f9ae522394a3cc5b9215d1affe9
+clamav/clamav:1.4.7@sha256:b7357e2c1c59480628839df301b0d27923561389b36cf341911e1dd9e02cdd05
 ```
 
 The digest was verified against the upstream Docker registry manifest. This Alpine image manifest contains `linux/amd64`; select and verify a suitable upstream image for other architectures. The upstream Debian image is multi-architecture, but is a separate image choice rather than an implicit platform substitution. Pin metadata is in `docs/security/clamd-image-pin.json`.
 
-The standalone INSTREAM example uses that official image directly. The root/native setup derives `clamav-server:1.4.6-uid10001-local` from the pinned base, changing only the scanner account IDs and signature/log ownership. Rebuild both services when upgrading to private uploads. A digest fixes the upstream base image. FreshClam still updates signature databases in the independent volume during production operation. Review and refresh the image pin when applying upstream engine or base-image security updates.
+The standalone INSTREAM example uses that official image directly. The root/native setup derives `clamav-server:1.4.7-uid10001-local` from the pinned base, changing only the scanner account IDs and signature/log ownership. Rebuild both services when upgrading to private uploads. A digest fixes the upstream base image. FreshClam still updates signature databases in the independent volume during production operation. Review and refresh the image pin when applying upstream engine or base-image security updates.
 
 `CLAMAV_REST_URL` is optional and blank by default. Set it only for an existing separate REST scanner reachable from the Web UI container, with `CLAMAV_REST_API_KEY` when required. It is unrelated to the internal ClamD TCP connection. No private author's LAN URL is preconfigured.
 

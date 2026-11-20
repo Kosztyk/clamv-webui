@@ -90,7 +90,7 @@ def make_release(tag: str, jar_dir: Path, cli_dir: Path, out: Path, source: Path
     if image_dir is not None:
         # Attach evidence for the actual published digest and both architectures,
         # not independently fabricated metadata from a local candidate image.
-        extra = ('image-reference.json', 'oci-index.json', 'sbom-amd64.cdx.json', 'sbom-arm64.cdx.json')
+        extra = ('image-reference.json', 'oci-index.json', 'sbom-amd64.cdx.json', 'sbom-arm64.cdx.json', 'CVE-2026-107891.vex.json')
         for name in extra:
             src = image_dir / name
             if not src.is_file() or src.stat().st_size == 0:
@@ -108,6 +108,12 @@ def make_release(tag: str, jar_dir: Path, cli_dir: Path, out: Path, source: Path
             image51.read_manifest(out/'oci-index.json')
             for arch in ('amd64', 'arm64'):
                 image51.check_sbom(out/f'sbom-{arch}.cdx.json')
+            vex_spec = importlib.util.spec_from_file_location('release_vex', Path(__file__).with_name('vex_release.py'))
+            release_vex = importlib.util.module_from_spec(vex_spec)
+            vex_spec.loader.exec_module(release_vex)
+            release_vex.load_and_validate(
+                out/'CVE-2026-107891.vex.json', image=ref['image'], digest=ref['digest'], version=tag[1:]
+            )
         except (ValueError, KeyError, OSError, json.JSONDecodeError) as exc:
             raise AssetError(f'Invalid image release evidence: {exc}') from exc
     if cli_sign_dir is not None:
@@ -117,7 +123,7 @@ def make_release(tag: str, jar_dir: Path, cli_dir: Path, out: Path, source: Path
                 raise AssetError('Required keyless CLI signature evidence missing: ' + name)
             shutil.copyfile(src, out / name)
     names = sorted(f.name for f in out.iterdir() if f.is_file())
-    expected_total = 8 + (4 if image_dir is not None else 0) + (2 if cli_sign_dir is not None else 0)
+    expected_total = 8 + (5 if image_dir is not None else 0) + (2 if cli_sign_dir is not None else 0)
     if len(names) != expected_total:
         raise AssetError('Incorrect release asset count')
     (out / 'SHA256SUMS').write_text(''.join(f'{sha256(out/name)}  {name}\n' for name in names))
@@ -144,17 +150,17 @@ def verify_release(out: Path, require_cli_signature: bool = False) -> None:
             raise AssetError('Missing/tampered release asset: ' + name)
     present = {p.name for p in out.iterdir() if p.is_file() and p.name != 'SHA256SUMS'}
     baseline = {name for name in listed if re.fullmatch(r'clamctl-(linux|darwin|windows)-(amd64|arm64)(?:\.exe)?', name)}
-    image_extra = {'image-reference.json', 'oci-index.json', 'sbom-amd64.cdx.json', 'sbom-arm64.cdx.json'}
+    image_extra = {'image-reference.json', 'oci-index.json', 'sbom-amd64.cdx.json', 'sbom-arm64.cdx.json', 'CVE-2026-107891.vex.json'}
     cli_extra = {'clamctl-SHA256SUMS', 'clamctl-SHA256SUMS.sigstore.json'}
     if (listed & cli_extra) not in (set(), cli_extra):
         raise AssetError('Signed CLI evidence must include both checksum and Sigstore bundle')
     if require_cli_signature and not cli_extra.issubset(listed):
         raise AssetError('Keyless-signed CLI checksums are required for release approval')
-    expected_count = 8 + (4 if image_extra.issubset(listed) else 0) + (2 if cli_extra.issubset(listed) else 0)
+    expected_count = 8 + (5 if image_extra.issubset(listed) else 0) + (2 if cli_extra.issubset(listed) else 0)
     if listed != present or len(listed) != expected_count or len(baseline) != 6:
         raise AssetError('Checksum manifest is incomplete or includes extra files')
     if (listed & image_extra) not in (set(), image_extra):
-        raise AssetError('Image evidence must include all four files')
+        raise AssetError('Image evidence must include all five files')
     if cli_extra.issubset(listed):
         import importlib.util
         module_path = Path(__file__).with_name('issue54-cli-signing.py')
@@ -179,6 +185,12 @@ def verify_release(out: Path, require_cli_signature: bool = False) -> None:
             image51.read_manifest(out/'oci-index.json')
             for arch in ('amd64','arm64'):
                 image51.check_sbom(out/f'sbom-{arch}.cdx.json')
+            vex_spec = importlib.util.spec_from_file_location('release_vex_verify', Path(__file__).with_name('vex_release.py'))
+            release_vex = importlib.util.module_from_spec(vex_spec)
+            vex_spec.loader.exec_module(release_vex)
+            release_vex.load_and_validate(
+                out/'CVE-2026-107891.vex.json', image=ref['image'], digest=ref['digest'], version=tag[1:]
+            )
         except (ValueError, KeyError, OSError, json.JSONDecodeError) as exc:
             raise AssetError(f'Invalid approved image evidence: {exc}') from exc
 

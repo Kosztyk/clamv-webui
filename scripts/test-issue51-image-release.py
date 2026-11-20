@@ -107,9 +107,13 @@ class ImagePolicy(unittest.TestCase):
             (image/'oci-index.json').write_text(json.dumps(make_index()))
             for arch in ('amd64','arm64'):
                 (image/f'sbom-{arch}.cdx.json').write_text(json.dumps({'bomFormat':'CycloneDX','specVersion':'1.6','components':[{'name':'test','type':'library'}]}))
+            vex_spec=importlib.util.spec_from_file_location('releasevex', ROOT/'scripts/vex_release.py')
+            releasevex=importlib.util.module_from_spec(vex_spec);vex_spec.loader.exec_module(releasevex)
+            (image/'CVE-2026-107891.vex.json').write_text(json.dumps(releasevex.build_document(
+                'ghcr.io/kosztyk/clamav-web-client','sha256:'+SHA,'2.1.0-beta2','2026-11-20T07:00:00Z')))
             out=root/'out'
             names=assets.make_release('v2.1.0-beta2',j,cli,out,src,image)
-            self.assertEqual(len(names),13)
+            self.assertEqual(len(names),14)
             assets.verify_release(out)
             (out/'sbom-arm64.cdx.json').write_text('tampered')
             with self.assertRaises(assets.AssetError):assets.verify_release(out)

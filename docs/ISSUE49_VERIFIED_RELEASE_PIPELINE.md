@@ -58,29 +58,27 @@ publish a draft manually in GitHub after verifying the assets.
 
 ### Correct version and tag
 
-The current source is **`2.1.0-beta2`** in `pom.xml`, so the canonical matching
-tag is **`v2.1.0-beta2`**. Historical `v2.1.0beta2` does **not** match the POM
-version and is rejected. For a stable `v2.1.0` release, first change the POM
-to `2.1.0` and make no other manual version edits: Maven resource filtering,
-the CLI build and Compose local tag automatically follow the POM source of truth
-(issue #50). Merge that commit into `main` and require its **green main-push
-`gate`** before tagging. The version check rejects any inconsistent metadata.
+The current source is **`2.1.0`** in `pom.xml`, so the canonical final-release
+tag is **`v2.1.0`**. Historical prerelease spellings remain historical and are
+not reused. The release workflow requires the tag to match the Maven version
+exactly and to point at a commit already merged into `main` with a successful
+main-push `gate` run.
 
-Once your change is merged into `main` and its `gate` is green:
+Once this change is merged into `main` and its `gate` is green:
 
 ```bash
 git fetch origin main --tags
 git switch main
 git pull --ff-only origin main
-git tag -a v2.1.0-beta2 -m 'ClamAV Web UI v2.1.0-beta2'
-git push origin v2.1.0-beta2
+git tag -a v2.1.0 -m 'ClamAV Web UI v2.1.0'
+git push origin v2.1.0
 ```
 
-The above tag is only an example: do not reuse an existing published tag. For
-an offline/CI dry run without creating a release:
+Do not move or reuse an already published release tag. For an offline/CI dry
+run without creating a release:
 
 ```bash
-gh workflow run release.yml --ref main -f tag=v2.1.0-beta2
+gh workflow run release.yml --ref main -f tag=v2.1.0
 ```
 
 The tag must already exist in GitHub; dry-run still verifies its provenance
