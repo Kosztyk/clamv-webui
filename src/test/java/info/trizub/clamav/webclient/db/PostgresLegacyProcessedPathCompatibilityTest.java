@@ -1,7 +1,6 @@
 package info.trizub.clamav.webclient.db;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.*;
 
 import java.sql.Connection;
@@ -49,8 +48,8 @@ class PostgresLegacyProcessedPathCompatibilityTest {
 
     callback.handle(Event.BEFORE_MIGRATE, fixture.context());
 
-    verify(ddl).execute(contains("ALTER TABLE \"public\".\"processed_files\" DROP CONSTRAINT"));
-    verify(ddl).execute(contains("CREATE UNIQUE INDEX \"idx_processed_path\""));
+    verify(ddl).execute("ALTER TABLE processed_files DROP CONSTRAINT idx_processed_path");
+    verify(ddl).execute("CREATE UNIQUE INDEX idx_processed_path ON processed_files(path)");
   }
 
   @Test
@@ -74,7 +73,6 @@ class PostgresLegacyProcessedPathCompatibilityTest {
     when(context.getConnection()).thenReturn(connection);
     when(connection.getMetaData()).thenReturn(metadata);
     when(metadata.getDatabaseProductName()).thenReturn("PostgreSQL");
-    when(metadata.getIdentifierQuoteString()).thenReturn("\"");
     when(connection.prepareStatement(anyString())).thenReturn(query);
     when(query.executeQuery()).thenReturn(rows);
     if (constraintPresent) {
