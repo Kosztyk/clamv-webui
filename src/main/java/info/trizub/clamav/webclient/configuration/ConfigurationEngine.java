@@ -263,7 +263,7 @@ public final class ConfigurationEngine {
       // field) must not silently persist the forwarded-header strategy. The proxy
       // strategy is visible/editable on its own and is saved only when explicitly
       // changed by the administrator.
-      if (section.id().equals("proxy")
+      if ("proxy".equals(section.id())
           || enabled.isBlank()
           || changes.containsKey(enabled)
           || store.saved(enabled).isPresent()

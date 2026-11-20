@@ -58,25 +58,13 @@ public final class PostgresLegacyProcessedPathCompatibility implements Callback 
                 + legacy.definition());
       }
 
-      String schema = quoteIdentifier(connection, legacy.schema());
-      String table = schema + "." + quoteIdentifier(connection, "processed_files");
-      String constraint = quoteIdentifier(connection, "idx_processed_path");
-
       log.warn(
-          "Detected legacy PostgreSQL UNIQUE constraint {}.processed_files.idx_processed_path; "
-              + "converting it to a standalone unique index before Flyway V9.",
-          legacy.schema());
+          "Detected legacy PostgreSQL processed_files.idx_processed_path UNIQUE constraint; "
+              + "converting it to a standalone unique index before Flyway V9.");
 
       try (Statement statement = connection.createStatement()) {
-        statement.execute("ALTER TABLE " + table + " DROP CONSTRAINT " + constraint);
-        statement.execute(
-            "CREATE UNIQUE INDEX "
-                + constraint
-                + " ON "
-                + table
-                + " ("
-                + quoteIdentifier(connection, "path")
-                + ")");
+        statement.execute("ALTER TABLE processed_files DROP CONSTRAINT idx_processed_path");
+        statement.execute("CREATE UNIQUE INDEX idx_processed_path ON processed_files(path)");
       }
 
       log.info(
@@ -112,15 +100,6 @@ public final class PostgresLegacyProcessedPathCompatibility implements Callback 
       }
       return result;
     }
-  }
-
-  private static String quoteIdentifier(Connection connection, String identifier)
-      throws SQLException {
-    String quote = connection.getMetaData().getIdentifierQuoteString();
-    if (quote == null || quote.isBlank()) {
-      throw new SQLException("Database does not expose an identifier quote character");
-    }
-    return quote + identifier.replace(quote, quote + quote) + quote;
   }
 
   private record LegacyConstraint(String schema, String definition) {}
