@@ -997,3 +997,242 @@ docker compose pull clamav-web-client            # when using the registry image
 docker compose up -d --no-deps --no-build clamav-web-client
 docker compose logs --tail=200 clamav-web-client
 ```
+
+8. Verify startup, absence of Flyway mismatch errors, SQL job/user counts, local admin recovery, any LDAP/OIDC provider, endpoint reachability, scan results and audit, persistence after restart, metrics and REST bridge if enabled. Hard-refresh browser assets if necessary.
+9. Roll back **application image and matching SQL/data/conf snapshot together** if migration made irreversible changes. Restoring only an older image may be incompatible with a newer schema. Never delete `flyway_schema_history` or call `flyway repair` as a generic fix.
+
+**Database limitations:** a standalone H2 database cannot be shared among running replicas. Even with PostgreSQL, queue ownership, watches, uploads and per-instance rate limits are not coordinated as a supported multi-replica HA product. Do **not** scale the Web UI service beyond one active instance against the same DB. A SQL outage may need an application restart/reconciliation to recover interrupted jobs; inspect jobs before resubmitting.
+
+## 22. Reverse proxy, certificates, secrets and network security
+
+### 22.1 Safe HTTPS recognition behind a proxy
+
+The packaged default is `server.forward-headers-strategy=none` (issue #13).
+Direct clients cannot forge their socket IP or HTTPS status with forwarded
+headers. For TLS termination select `native` and set
+`SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` to the actual proxy address/CIDR seen
+by the application. Both internal and additional trusted peers default to
+`(?!)`, which trusts nobody. Native mode alone therefore ignores all peers.
+
+The proxy must overwrite incoming forwarded headers and be the only permitted
+backend entry point. Use `X-Forwarded-Proto` and `X-Forwarded-For`; RFC `Forwarded`
+alone is not interpreted in native mode. Replace old explicit `framework`
+overrides in Compose, external Spring configuration or saved GUI settings.
+Use the external HTTPS URL in `clamctl`, MCP and API clients. See
+[the complete proxy settings, migration and examples](REVERSE_PROXY_TLS.md).
+
+A `403 tls_required` behind a TLS proxy means native forwarding is not enabled,
+the actual socket peer is not allowlisted, or the proxy is not sending an HTTPS
+scheme. Token validity, scopes and revocation remain enforced.
+
+### 22.2 Nginx and network configuration
+
+Run the Web UI behind HTTPS on a trusted hostname; don't publish username/password or machine Bearer tokens over plain HTTP. A minimal Nginx configuration (adjust certificate paths, DNS, host proxy reachability and body limit) is:
+
+```nginx
+map $http_upgrade $clamav_ws_connection {
+    default upgrade;
+    ''      close;
+}
+server {
+    listen 443 ssl;
+    server_name clamav.example.com;
+    ssl_certificate /etc/nginx/certs/clamav.crt;
+    ssl_certificate_key /etc/nginx/certs/clamav.key;
+    client_max_body_size 2048m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Prefix "";
+        proxy_set_header X-Forwarded-Ssl "";
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $clamav_ws_connection;
+        proxy_read_timeout 3600s;
+    }
+}
+```
+
+`proxy_pass` addresses **the Docker host reachable from Nginx**, not blindly `localhost` when proxy and UI run on different machines. Native proxy mode requires an explicit proxy allowlist, an exclusive proxy path and replacement of untrusted forwarded headers. This Nginx example assumes it is the TLS edge; configure an explicit trust chain for multiple proxies. The proxy must support `/ws/clamdtop` upgrades. Set upload limit appropriately for real capacity, not just the application's 2 GiB default.
+
+**Network hardening:** restrict `clamd:3310` to trusted internal clients only; restrict SQL 5432/3306 and management 9091 similarly. When using remote ClamD, verify firewall/ACL, correct host and storage policy. Make `./conf`, `.env`, LDAP bind secret files, OIDC client secrets and token files owner-readable only. Back up `conf/auth-settings.key` safely. Trust private CAs in the **Java JVM** when it connects to LDAPS/OIDC/HTTPS REST, and separately trust the Web UI certificate CA in `clamctl`/MCP clients. A trusted CA alone is not sufficient: hostname/SAN verification must also succeed. Avoid global `verify=false` or insecure HTTP redirects.
+
+**Security revision:** the uploaded source changed Java dependencies to address findings observed in an earlier container scan. It has a documented local Maven/HTTP smoke check, but not a universal production sign-off or proof that the published `v2` tag already contains it. Scan your **actual** running image, including OS/JRE layers, and pin deployment by verified digest where appropriate.
+
+## 23. `clamctl` CLI — installation, commands and exit codes
+
+`clamctl` is a **separate** portable executable available for Linux, macOS and Windows on AMD64/ARM64 in the uploaded full-source archive's `cli/dist`. Choose the binary matching your CPU and OS. The archive includes `cli/dist/SHA256SUMS`; verify the artifact checksum before use. A Git checkout may not include compiled release binaries; obtain a published release or build from `cli/` with Go as documented in [`cli/README.md`](../cli/README.md).
+
+**macOS Apple Silicon example** when the full-source ZIP is unpacked:
+
+```bash
+chmod +x cli/dist/darwin_arm64/clamctl
+./cli/dist/darwin_arm64/clamctl --help
+# Optional install, after checking SHA256SUMS:
+sudo install -m 0755 cli/dist/darwin_arm64/clamctl /usr/local/bin/clamctl
+```
+
+**Configure the HTTPS server, CA and credentials** (one-time):
+
+```bash
+clamctl config set-server https://clamav.example.com --ca-file /secure/web-ca.pem
+clamctl login --token-stdin < /secure/clamav-api-token
+clamctl status --json
+clamctl endpoints list
+clamctl scan upload ./sample.txt --wait --json
+clamctl scan path /scandir/incoming/sample.txt --wait
+clamctl jobs list --status RUNNING
+clamctl jobs get YOUR_JOB_ID
+clamctl jobs watch YOUR_JOB_ID
+clamctl audit list --limit 20
+clamctl logout
+```
+
+You need corresponding API scopes (`health:read`, `endpoints:read`, `scan:upload`, `scan:path` with permitted roots, `jobs:read`, `audit:read`). Waiting for completion also needs `jobs:read`. Output defaults to readable tables; `--json` is machine-friendly, job watches emit NDJSON. File upload with `clamctl` sends bytes from the **CLI host**; server path scans operate on the **server filesystem**, not on the CLI machine. HTTPS certificate verification is mandatory; do not expect an insecure-verify flag.
+
+| Exit status | Interpretation |
+|---|---|
+| `0` | Success / accepted / clean result |
+| `1` | Error / daemon unavailable / operation failed |
+| `2` | Usage or configuration error |
+| `3` | Malware-positive scan verdict |
+| `4` | Wait timeout |
+| `130` | Locally interrupted operation |
+
+Interrupting a wait does **not** retract an already accepted server job. Default saved client config contains sensitive credentials; protect the file (POSIX mode `0600`) and use environment/secret managers in CI. The CLI can also authenticate with local Basic credentials but the official client handles the necessary CSRF flow.
+
+## 24. MCP — assistant-facing tools, resources and deployment
+
+MCP is provided by the **separate `clamctl` executable**, not by a listening endpoint automatically enabled in the Java Web UI. Install/configure the CLI's HTTPS server and a least-privilege `/api/v1` Bearer token, then configure an MCP client to launch **stdio**:
+
+```bash
+clamctl mcp serve --upload-root /srv/artifacts
+```
+
+Use absolute allowlisted **MCP-host** upload roots; they restrict which files the assistant may send. MCP server-path tools are different: their input path is a **Web UI/ClamD server** path subject to Admin allowed roots and token path-root restrictions.
+
+**Five exposed tools:** `clamav_scan_file` (MCP-host upload), `clamav_scan_path` (server-side scan), `clamav_get_job` (inspect result/progress), `clamav_check_health` (reachability/readiness), `clamav_list_endpoints`. **Three resources:** `clamav://stats`, `clamav://jobs/recent`, `clamav://audit/recent`. Token scopes determine which each can access. Example client JSON configurations are in `examples/mcp/stdio.json` and `examples/mcp/vscode.json`; update binary location, server CA, root and token credentials.
+
+**Optional Streamable HTTP:** launch `clamctl mcp serve --transport http ...` (see `docs/MCP.md` for exact flags) with a separate 32+ character bridge token, **loopback-only listener** and Origin restrictions. Use a same-host TLS gateway if remote assistants must reach that bridge; do **not** bind to public `0.0.0.0`. The HTTP bridge token is distinct from the API Bearer token used to contact Web UI. Default local upload limit is about 100 MiB and operations have bounded waits/timeouts; adjust safely. There is no embedded OAuth MCP authorization server, old SSE transport or subscription feed. Closing an assistant connection does not automatically cancel an accepted server scan.
+
+**Safe MCP rollout:** limit token scopes and endpoint IDs, limit path roots and upload roots, start read-only health/list endpoints tests, then test scan on harmless files, and audit every machine action. See [`docs/MCP.md`](MCP.md) for full stdio/HTTP configs, tool arguments, return fields and diagnostics.
+
+## 25. End-to-end verification and EICAR detection
+
+For the non-root, reverse-proxy HTTPS and webhook changes, start with
+[the dedicated upgrade verification guide](UPDATE_AND_VERIFY.md). It includes
+expected HTTP statuses, local CA handling and focused timeout/address-policy tests.
+
+Run through the checks after install or upgrade:
+
+1. **Containers:** `docker compose ps`; `docker compose logs --tail=100 clamav-web-client`; verify `clamav-server` is started, reachable and has current signatures.
+2. **Login:** generated admin password is usable; rotate it; test local recovery plus one low-privilege account.
+3. **Daemon:** Main PING/VERSION/STATS, ClamdTop Connect and endpoint selection all function. For a remote ClamD test network reachability from **inside the Java container**.
+4. **Simple scan:** Upload a small harmless file; verify accepted job, `FINISHED` + `OK`, timestamps, one audit entry.
+5. **EICAR:** Use the standard **harmless EICAR antivirus test string** to validate detection; never execute it as code. Follow [`scripts/smoke-eicar.sh`](../scripts/smoke-eicar.sh) or [`docs/HOME_LAB_TESTING.md`](HOME_LAB_TESTING.md) in a test environment. Expect `VIRUS_FOUND`, signature, audit and optional webhook. Avoid putting EICAR in watched production directories accidentally.
+6. **Path mode:** Verify `/scandir` mount on **both** app and ClamD, Admin allowed root and correct native upload setting; ensure ClamdTop displays a filename when the native path command is used.
+7. **Watch:** Enable a narrow root, add one file, look for a single WATCH job; test unchanged-file suppression.
+8. **Quarantine:** Use a controlled test destination and verify file existence separately from the recorded job verdict/evidence; check source permissions.
+9. **REST:** If enabled, check upstream status and reports with its own service online; do not conflate external and local jobs.
+10. **Database:** Restart only Web UI, confirm users/job history/endpoint records persist, no Flyway/LOB validation exceptions. Use a restored clone for schema changes.
+11. **Identity:** Test local and configured LDAP/OIDC with user/group examples; verify viewer cannot access Administration routes. Test OIDC issuer and callback through real HTTPS hostname.
+12. **Monitoring:** Unknown/no token returns 403, saved token returns metrics 200 on the appropriate listener; Grafana graphs real samples and not assumed zero data.
+13. **CLI/MCP:** `clamctl status --json`; upload a safe fixture; confirm job and token scope restrictions; MCP health and safe file scan.
+14. **Settings and backup:** Verify `conf` and `data` ownership, saved UI options after restart, decryptable LDAP/OIDC secrets and a recoverable complete database + mount backup.
+
+The provided source has tests and security verification notes, but a test report **does not establish** that your particular LDAP/AD servers, proxy, ClamD storage, PostgreSQL schema and Docker Hub tag are working. Perform these live checks before production rollout.
+
+## 26. Troubleshooting by symptom
+
+| Symptom | Most likely investigation / fix |
+|---|---|
+| Nginx `502` and `conf/integrations.properties: Operation not permitted` | Backend startup failed while setting owner-only permissions; migrate existing `conf`/`data` ownership to UID/GID 10001. `writable=true` alone does not prove ownership. See `NON_ROOT_CONTAINER.md` |
+| curl error 60 with a local/self-signed HTTPS certificate | Trust the correct local CA/server certificate using `--cacert` and match the URL to its SAN; public DNS is not required. See `UPDATE_AND_VERIFY.md` |
+| Login page loops or SSO redirect wrong | Check HTTPS hostname, trusted proxy headers (`SERVER_FORWARD_HEADERS_STRATEGY`), exact OIDC `/login/oauth2/code/clamav` callback |
+| `403 tls_required` for Bearer tokens behind HTTPS proxy | Explicitly select `native`, allowlist the actual proxy peer, and verify the proxy sends HTTPS scheme and blocks direct backend access; see Section 22.1 |
+| Cannot log in as `admin` | Check persistent H2/SQL database, use actual bootstrap file for *new DB only*, local account status. Do not delete database to reinitialize |
+| Web UI starts but cannot scan | Check endpoint Enabled, ClamD host/port **from inside container**, daemon signatures, SQL readiness and policy |
+| ClamdTop black/blank or Connect fails | WebSocket `/ws/clamdtop` upgrade, proxy timeouts, native binary availability in image, daemon network/socket permissions |
+| ClamdTop shows stream instead of path | INSTREAM mode or fallback; for filenames use native path command plus **identical absolute mounts** across UI and ClamD |
+| `Can't access file`/path rejected | `/scandir` not mounted on UI or ClamD, mount is different absolute path, `app.allowedScanRoots`, permissions/symlink, inherited `ExcludePath` |
+| File too large | Proxy limit, Spring multipart ceiling, `app.upload.maxBytes`, ClamD `StreamMaxLength`/`MaxFileSize`/`MaxScanSize`, available disk |
+| Jobs persist after client timeout | Expected asynchronous behavior; query job ID before retry, `--wait` needs jobs:read |
+| Watch sends no jobs | `app.watch.enabled`, watched row/endpoint Enabled, allowed mount, unchanged mtime/size, configured poll interval, watcher WARN logs and QUEUED job reconciliation; see [watcher recovery](WATCHER_RELIABILITY.md) |
+| `VIRUS_FOUND` but no quarantine file | Disabled quarantine, read-only original source, directory permission, recorded evidence not proof of filesystem move |
+| REST monitor unconfigured/unavailable | `CLAMAV_REST_URL` points to missing/non-compatible external scanner, wrong API key/path, upstream connectivity |
+| Webhook doesn't arrive | Direct vs upstream REST webhook, address policy/private receiver opt-in, timeout or queue-drop warnings, receiver status; see `WEBHOOK_RESILIENCE.md`; no durable retry queue |
+| LDAP TLS bind fails | Java trusts CA, certificate SAN matches LDAP hostname, correct LDAPS/StartTLS choice, bind DN/filter/group schema |
+| LDAP logs in but wrong role | Group search base/filter/member attribute, nested group depth, explicit VIEWER/OPERATOR/ADMIN mappings |
+| OIDC logs in but no privilege | IdP must actually emit groups claim; confirm path/values, do not rely only on requested scope |
+| `Authentication` settings lost after restart | Check `./conf` persistence, SQL persistence, unchanged auth-settings encryption key, Save (not only Test) |
+| PostgreSQL Flyway validation error | Inspect existing schema/history, migrations and Hibernate validation; never force `baseline=true` on unknown production DB |
+| PostgreSQL `oid`/large object mismatch | Inspect `scan_jobs` data type, follow guarded migration on a restored clone; JDBC LOB flag is not schema conversion |
+| SQL driver error | Match JDBC prefix, credentials and driver; remove stale H2-only URL/driver/dialect overrides |
+| Prometheus always 403 | No/incorrect separate scrape Bearer token, disabled UI setting, wrong management listener port |
+| Metrics empty or NaN | ClamD unreachable/unsupported sample or old timestamp; unknown values are not zeros; inspect Configuration mapping |
+| UI shows `clamd.conf` but daemon ignores changes | Observer reads disk; it does not reload ClamD; check daemon own active configuration and service restart/reload |
+| CLI certificate error | Correct hostname/SAN and trusted client `--ca-file`, TLS origin; no insecure TLS switch |
+| API 401/403 | Token expired/revoked/missing scope or endpoint/path restriction; legacy Basic+CSRF restrictions; HTTPS needed |
+| API Scan jobs not in Jobs | External REST bridge and managed `/api/v1` store **separate** job histories |
+| Upload/Clamd service healthy but first scans fail | Wait for FreshClam signature availability and ClamD readiness; `depends_on: service_started` alone is not health check |
+
+Useful diagnostics (**redact secrets**):
+
+```bash
+docker compose ps
+docker compose logs --tail=250 clamav-web-client
+docker compose exec -T clamav-web-client sh -lc 'ls -ld /app/conf /app/data; env | grep -E "^(CLAMAV_HOST|CLAMAV_PORT|TZ|SPRING_DATASOURCE_URL)="'
+docker compose exec -T clamav-web-client sh -lc 'command -v clamdtop; command -v script'
+# With API token:
+curl -H 'Authorization: Bearer YOUR_TOKEN' https://clamav.example.com/api/v1/health/clamd
+```
+
+**Don't run `docker compose config` into public issue comments** without checking interpolation and redacting sensitive values. Never share original complete server logs if they contain credentials, filenames, cookies or database error details that identify systems.
+
+## 27. Operational security checklist
+
+- [ ] TLS reverse proxy for public login/API; WebSocket upgrade and correct trusted forwarded headers.
+- [ ] Local administrator rotated; break-glass account working, accounts minimum privilege.
+- [ ] ClamD TCP/private socket and database/management ports unreachable from untrusted clients.
+- [ ] Single active Web UI instance; consistent SQL + `conf` + `data` off-host backups, recovery test.
+- [ ] File roots restricted; native path mode **only** when shared storage is correct, quarantine outside watches.
+- [ ] LDAP/AD uses trusted LDAPS/StartTLS; OIDC issuer/callback/claims and roles verified.
+- [ ] API tokens scoped, expiring, restricted to endpoints/roots, revoked after use.
+- [ ] Webhook receivers use trusted protocols/permissions and do not unintentionally leak sensitive target paths.
+- [ ] Metrics token separate from API/admin tokens; monitor labels/signatures and restrict 9091.
+- [ ] Real ClamD signatures fresh; positive EICAR smoke test on safe fixtures; ClamdTop operational.
+- [ ] Image tag/digest and security revision verified; current runtime image scanned, not just source dependency versions.
+- [ ] Flyway baseline disabled by default; migration tested on restored clone; no ad hoc Hibernate update.
+
+## 28. Further reference inside the repository
+
+This guide deliberately consolidates the complete deployment and user workflow. Source details and validation transcripts for advanced audits still exist:
+
+| File | Topic |
+|---|---|
+| [`docs/SECURITY_DEPENDENCY_UPDATE.md`](SECURITY_DEPENDENCY_UPDATE.md) | Security.1 Spring Boot 4 upgrade, vulnerability and verification notes |
+| [`docs/PHASE1_API_SECURITY.md`](PHASE1_API_SECURITY.md) | Token authorization, API contract and security tests |
+| [`docs/PHASE2_DATABASE_PORTABILITY.md`](PHASE2_DATABASE_PORTABILITY.md) | Flyway baseline, legacy PostgreSQL OID handling and rollback |
+| [`docs/PHASE3_ENTERPRISE_IDENTITY.md`](PHASE3_ENTERPRISE_IDENTITY.md) | LDAP/OIDC design and validation matrix |
+| [`docs/PHASE31_AUTH_MANAGEMENT.md`](PHASE31_AUTH_MANAGEMENT.md) | UI-managed auth persistence and controls |
+| [`docs/DAEMON_CONFIGURATION_SYNC.md`](DAEMON_CONFIGURATION_SYNC.md) | Detailed clamd/freshclam inheritance and precedence |
+| [`docs/PHASE4_OPERATIONS.md`](PHASE4_OPERATIONS.md) | Daemon metrics and config observer architecture |
+| [`docs/HOME_LAB_TESTING.md`](HOME_LAB_TESTING.md) | Operator acceptance checklist and lab scenarios |
+| [`docs/MCP.md`](MCP.md) | MCP implementation, tools, resources, Streamable HTTP setup |
+| [`cli/README.md`](../cli/README.md) | Every CLI command, flag, installation and exit behavior |
+| [`dashboards/`](../dashboards/) | Grafana JSON, Prometheus job example, alert YAML |
+| [`examples/mcp/`](../examples/mcp/) | MCP client JSON configurations |
+| [`examples/home-lab/`](../examples/home-lab/) | Prometheus/Grafana lab Compose |
+| [`src/main/resources/openapi/clamav-v1.yaml`](../src/main/resources/openapi/clamav-v1.yaml) | Machine-readable REST API specification |
+| [`conf/clamav-web-client.properties.example`](../conf/clamav-web-client.properties.example) | Initial persisted application setting keys |
+
+**Maintenance rule:** If the code changes, validate the feature and update this guide (plus the relevant example) in the same commit. Do not present staged or unverified runtime behavior as completed deployment validation.
+
+
+For VIEWER privacy, the native ClamdTop terminal and scan path details now require OPERATOR/ADMIN. VIEWER sees a sanitized health summary on `/clamdtop`, `/main` and `/api/clamdtop`. See `docs/ISSUE39_VIEWER_WEBHOOK_SECURITY.md` for all settings, signature verification, the fail-closed webhook migration, and examples.
