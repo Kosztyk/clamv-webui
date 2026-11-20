@@ -122,8 +122,7 @@ class ConfigurationCoreTest {
     var store = store();
     var engine = engine(new MockEnvironment(), store);
     var review =
-        engine.review(
-            "0", Map.of("server.servlet.session.cookie.secure", "false"), Set.of());
+        engine.review("0", Map.of("server.servlet.session.cookie.secure", "false"), Set.of());
     assertThat(review.sensitive()).isTrue();
     assertThat(review.summary())
         .extracting(ConfigurationEngine.Change::key)

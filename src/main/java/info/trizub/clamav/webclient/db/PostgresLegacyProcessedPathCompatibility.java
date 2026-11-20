@@ -83,7 +83,8 @@ public final class PostgresLegacyProcessedPathCompatibility implements Callback 
           "PostgreSQL legacy processed_files compatibility repair completed; Flyway migrations may continue.");
     } catch (SQLException failure) {
       throw new FlywayException(
-          "Could not check or repair legacy PostgreSQL processed_files index compatibility", failure);
+          "Could not check or repair legacy PostgreSQL processed_files index compatibility",
+          failure);
     }
   }
 
@@ -113,7 +114,8 @@ public final class PostgresLegacyProcessedPathCompatibility implements Callback 
     }
   }
 
-  private static String quoteIdentifier(Connection connection, String identifier) throws SQLException {
+  private static String quoteIdentifier(Connection connection, String identifier)
+      throws SQLException {
     String quote = connection.getMetaData().getIdentifierQuoteString();
     if (quote == null || quote.isBlank()) {
       throw new SQLException("Database does not expose an identifier quote character");

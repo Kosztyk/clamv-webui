@@ -56,8 +56,7 @@ final class Phase2MigrationFixture {
           // Historical PostgreSQL/Hibernate schemas can expose this name as a UNIQUE
           // constraint rather than the standalone V1 index. V9 must upgrade both shapes.
           st.execute("DROP INDEX idx_processed_path");
-          st.execute(
-              "ALTER TABLE processed_files ADD CONSTRAINT idx_processed_path UNIQUE (path)");
+          st.execute("ALTER TABLE processed_files ADD CONSTRAINT idx_processed_path UNIQUE (path)");
         }
       }
     }
