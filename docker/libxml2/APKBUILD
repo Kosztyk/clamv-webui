@@ -1,0 +1,46 @@
+pkgname=libxml2
+pkgver=2.15.4
+pkgrel=0
+pkgdesc="GNOME XML parsing library"
+url="https://gitlab.gnome.org/GNOME/libxml2"
+arch="all"
+license="MIT"
+makedepends="zlib-dev"
+checkdepends="perl tar"
+# LLVM in the build stage still uses Alpine's libxml2.so.2.
+# Let the development package link to ABI 16 while both ABIs are installed.
+depends="$pkgname-16=$pkgver-r$pkgrel"
+depends_dev="$pkgname-16=$pkgver-r$pkgrel"
+subpackages="$pkgname-16:abi16 $pkgname-dev $pkgname-utils $pkgname-doc"
+source="https://download.gnome.org/sources/libxml2/2.15/libxml2-$pkgver.tar.xz"
+
+build() {
+    ./configure --build="$CBUILD" --host="$CHOST" --prefix=/usr --sysconfdir=/etc \
+        --without-python --with-legacy --with-sax1 --with-zlib --disable-static
+    make
+}
+
+check() {
+    make runtests
+}
+
+package() {
+    make -j1 DESTDIR="$pkgdir" install
+    install -Dm644 Copyright "$pkgdir/usr/share/licenses/$pkgname/Copyright"
+}
+
+abi16() {
+    pkgdesc="GNOME XML parsing shared library (ABI 16)"
+    depends=""
+    cd "$pkgdir"
+    amove usr/lib/libxml2.so.16*
+}
+
+utils() {
+    pkgdesc="Command line tools for libxml2"
+    amove usr/bin/xmllint usr/bin/xmlcatalog
+}
+
+sha256sums="
+98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821  libxml2-2.15.4.tar.xz
+"

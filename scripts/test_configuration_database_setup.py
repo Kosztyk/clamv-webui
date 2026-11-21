@@ -101,7 +101,7 @@ def main():
                 before=len([request for request in requests if request.endswith('/api/test')]);test(card)
                 expect(card.locator('.cc-test-result')).to_contain_text('Allow configuration over HTTP')
                 check(len([request for request in requests if request.endswith('/api/test')])==before,'HTTP testing still requires explicit confirmation before sending a new database password')
-                page.get_by_label('Allow configuration over HTTP on this trusted network',exact=True).check()
+                page.get_by_label('Allow sign-in and configuration over HTTP on this trusted network (saved)',exact=True).check()
                 postgres.delay=4;test(card);expect(card.locator('.cc-test-result')).to_have_attribute('data-test-status','succeeded',timeout=12000)
                 check('SELECT 1 succeeded' in card.locator('.cc-test-result').inner_text(),'PostgreSQL login slower than three seconds succeeds over direct HTTP before Spring startup')
                 check('SELECT 1' in postgres.queries and not any('CREATE ' in query.upper() for query in postgres.queries),'The actual PostgreSQL driver authenticates and validates SELECT 1 without schema creation')
@@ -127,7 +127,7 @@ def main():
                 check('SELECT 1 succeeded' in card.locator('.cc-test-result').inner_text(),'The same H2 database verifies successfully after startup using its saved credential')
                 _,view=app.api('view',{});version=view['version']
                 card.locator('[data-key="spring.datasource.password"] input[type="password"]').fill('synthetic-invalid-password')
-                page.get_by_label('Allow configuration over HTTP on this trusted network',exact=True).check();test(card)
+                page.get_by_label('Allow sign-in and configuration over HTTP on this trusted network (saved)',exact=True).check();test(card)
                 expect(card.locator('.cc-test-result.cc-error')).to_contain_text('authentication failed')
                 _,after=app.api('view',{});check(after['version']==version,'Failed tests against the initialized H2 database do not replace saved credentials')
                 check(PASSWORD not in (work/'conf/configuration-center.properties').read_text(),'The approved database password remains encrypted')

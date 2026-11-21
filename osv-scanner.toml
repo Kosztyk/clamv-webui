@@ -1,0 +1,8 @@
+# OSV-Scanner policy: zero suppressions by default.
+# Only reviewed, narrowly scoped advisories with an expiry and explanation may be added.
+# Example (do NOT enable without a security review):
+# [[IgnoredVulns]]
+# id = "GHSA-..."
+# reason = "Document why exploitation is impossible and link an issue"
+# effectiveUntil = 2026-12-31
+# The CI policy checker rejects expired or unreasoned suppressions.

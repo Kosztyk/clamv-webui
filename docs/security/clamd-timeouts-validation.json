@@ -1,0 +1,361 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15",
+    "https://github.com/Kosztyk/clamv-webui/issues/16",
+    "https://github.com/Kosztyk/clamv-webui/issues/17",
+    "https://github.com/Kosztyk/clamv-webui/issues/18",
+    "https://github.com/Kosztyk/clamv-webui/issues/19",
+    "https://github.com/Kosztyk/clamv-webui/issues/20"
+  ],
+  "verified_at_utc": "2026-11-10T15:13:46.619016+00:00",
+  "application_version": "2.1.0",
+  "java_verification": {
+    "command": "mvn verify",
+    "jdk": 21,
+    "result": "passed",
+    "tests": 734,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 729,
+    "new_tests_total": 26,
+    "focused_suites": [
+      {
+        "class": "info.trizub.clamav.webclient.api.v1.ClamdProbeTimeoutIntegrationTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "aNonRoutableEndpointAlsoReturnsABoundedFailure",
+          "apiMainAndV1HealthReturnPromptlyWhenTheRealTcpPeerNeverAnswers"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.config.ClamdSchedulingTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[1]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[2]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[3]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[4]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[5]",
+          "unboundedOrInvalidTimeoutsFailAtStartup(String, String)[6]",
+          "aRealBlockedMetricsPollDoesNotStopOtherScheduledTasks",
+          "defaultsUseFourSchedulerThreadsAndSeparateValidatedBudgets",
+          "deploymentCanAdjustThePoolAndBudgetsEvenWithVirtualThreadsEnabled",
+          "unsafeSchedulerSizesFailAtStartup(String)[1]",
+          "unsafeSchedulerSizesFailAtStartup(String)[2]",
+          "unsafeSchedulerSizesFailAtStartup(String)[3]"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.metrics.ScanMetricsTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "countsEachFileSignatureOnceWithoutExportingFileNames",
+          "durationUsesLowercaseTypeOnlyAndIgnoresMissingOrNegativeIntervals",
+          "initializesAllRequestedLowercaseJobSeriesAtZero",
+          "cleanAndFailedScansDoNotRecordVirusDetections",
+          "limitsFailureReasons",
+          "missingOrLegacySignatureResultsUseUnknownWithoutBreakingCompletion",
+          "boundedClientDeadlinesAreClassifiedAsTimeoutsWithoutPublishingPrivateDetails",
+          "recordsBoundedCompletedCounterAndTimer"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.TcpClamdClientTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "multiscanCollectsAllRecordsAndRejectsMalformedOrIncompleteVerdicts",
+          "aProbeSharesOneBudgetAcrossAllCommands",
+          "stalledDnsHasBoundedCapacityAndDoesNotBlockLiteralAddresses",
+          "aPeerThatStopsReadingCannotBlockAnInstreamWriteIndefinitely",
+          "instreamUsesNetworkByteOrderAndPreservesDetectionSignatures",
+          "trickledRepliesCannotExtendTheTotalCommandDeadline",
+          "nonRespondingPeerTimesOutAndSeesTheConnectionClose",
+          "scanHasItsOwnLongerBudgetAndAlsoTimesOut",
+          "pingVersionAndStatsHonorFramingAndDoNotWaitForEofAfterEnd",
+          "tcpRetainsTheConfiguredWindowsPathConversion",
+          "oversizedRepliesAreCappedAndPathCommandInjectionIsRejectedBeforeConnecting"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdProtocolTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "multiscanCollectsEveryNullDelimitedDetectionRatherThanStoppingAtTheFirst",
+          "errorsEmptyRepliesAndTimeoutsNeverBecomeCleanResultsAndAlwaysClose",
+          "controlsHandleFragmentedResponsesAndPartialWrites",
+          "streamUsesNetworkByteOrderChunksAndZeroLengthEndMarker"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UploadBatchPersistenceTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "anAmbientTransactionIsRejectedBeforeAnyCopyCanHoldItsConnection",
+          "optionalHistoryRetentionPrunesAllOldBatchesAndKeepsActiveRecentAndQuarantinedJobs",
+          "aDatabaseFailureAtCommitAlsoRemovesAlreadyWrittenFiles",
+          "historyPruningIsDisabledByDefault",
+          "a400CharacterFilenamePersistsItsDisplayNameAndUsesABoundedPrivateStorageName(String)[1]",
+          "a400CharacterFilenamePersistsItsDisplayNameAndUsesABoundedPrivateStorageName(String)[2]",
+          "failedMultiFileBatchRollsBackRowsAndRemovesCompleteAndPartialFilesForBothPublicOverloads(boolean)[1]",
+          "failedMultiFileBatchRollsBackRowsAndRemovesCompleteAndPartialFilesForBothPublicOverloads(boolean)[2]",
+          "threeCopiesLeaveASingleConnectionPoolAvailableForOtherQueries",
+          "successfulCommitKeepsQueuedFilesAndAnAfterCommitQueueFailureDoesNotDeleteThem"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UploadStorageTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "cleanupRefusesPathsOutsideStorageAndDoesNotDeletePathScans",
+          "janitorRemovesExpiredOrphansButPreservesYoungUnknownAndSymlinkedFiles",
+          "retainedCleanFilesExpireButActiveAndRecentlyFinishedUploadsDoNot",
+          "uploadFilesAndDirectoriesArePrivateOnPosixAndNameCollisionsPreserveExistingFiles",
+          "inProgressBatchesAreProtectedEvenIfTheirFilesAreOld",
+          "infectedUploadsAreDeletedOrQuarantinedAndNeverLeftInUploads(boolean)[1]",
+          "infectedUploadsAreDeletedOrQuarantinedAndNeverLeftInUploads(boolean)[2]",
+          "aCleanScanRemovesItsUploadAfterPersistingTheVerdict",
+          "quarantineNamesDoNotGrowWithAnAlreadyMaximumLengthSourceName",
+          "quarantineFailureDeletesTheInfectedUploadedCopy"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherConfigurationTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "liveIntervalChangesRunAtTheSelectedTimeRatherThanMultiplesOfThirtySeconds",
+          "schedulingTickIsFineEnoughForAllSupportedIntervals",
+          "disabledEndpointsAndFailedEnqueuesDoNotConsumeFilesBeforeTheyCanBeScanned"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherCoverageTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "aFailedFileDoesNotPreventOtherFilesFromBeingSubmitted",
+          "twoConcurrentPollsCannotSubmitTheSameSnapshot",
+          "changedFileFailurePreservesCommittedFingerprintAndRetriesWithAWarnPath",
+          "traversalIncludesFilesDeeperThanTheOldFiveLevelLimit",
+          "symlinkFilesAreCheckedAgainstRealRootsAndDirectoryLinksAreNotTraversed"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherPersistenceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "hourlyPruningTraversesAllBatchesWithoutDeletingExistingFiles",
+          "bulkLookupEscapesWildcardCharactersAndExcludesSiblingDirectoryPrefixes",
+          "failedChangedFileRetainsItsOldFingerprintAndRetriesWithoutTouchingTheFileAgain",
+          "postCommitQueueFailureRetainsRecoverableDurableWorkRatherThanLosingTheFile",
+          "directoryWith2500FilesCreates2500DurableJobsAndDoesNotRepeatUnchangedFiles",
+          "markerWriteFailureRollsBackItsJobAndNoWorkerSeesUncommittedWork",
+          "createFailureRollsBackTheJobAndLeavesANewFileEligibleForTheNextPoll"
+        ]
+      }
+    ],
+    "skipped_tests": [
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "multiscanReadsAllNullDelimitedResultsUntilConnectionClose"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "nonResponsiveSocketTimesOutAndClosesWithoutHangingAWorker"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "pingVersionAndStatsUseTheMountedSocketAndCorrectTerminators"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "cleanErrorsAndEmptyRepliesAreDistinct"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "instreamSendsLengthPrefixedChunksAndAZeroTerminatorThenReturnsDetections"
+      }
+    ]
+  },
+  "packaged_application_sha256": "f3dc1ebf72afcbd0d33fa449078bef0542ab85b400f90d7220004e1b56aa4fd9",
+  "network_limits": {
+    "connect_timeout_default": "3s, including bounded DNS lookup",
+    "command_timeout_default": "5s; one shared total deadline per health snapshot",
+    "scan_timeout_default": "24h total per INSTREAM/MULTISCAN operation",
+    "write_inactivity_limit": "Command budget, capped by remaining scan time",
+    "response_limit_bytes": 4194304,
+    "dns_workers": 2,
+    "dns_queue_capacity": 16,
+    "numeric_address_resolution_independent_of_dns_queue": true,
+    "scheduler_default_threads": 4,
+    "scheduler_pool_range": [
+      4,
+      64
+    ],
+    "invalid_timeout_configuration": "Rejected during application startup",
+    "connect_and_command_range": "1ms to 1 minute",
+    "scan_range": "1ms to 7 days",
+    "fixed_delay_pool_retained_with_virtual_threads_enabled": true,
+    "library_unbounded_clamav_client_constructed": false,
+    "native_upload_raw_socket_path_removed": true
+  },
+  "socket_regressions": {
+    "real_tcp_peer_tests": 11,
+    "scheduling_and_property_tests": 12,
+    "mockmvc_real_socket_tests": 2,
+    "new_timeout_metric_test": 1,
+    "assertions": [
+      "Silent peers time out and see client closure",
+      "Trickled data does not renew total deadlines",
+      "Upload write backpressure is bounded",
+      "Scan replies use independent long budgets and still time out",
+      "Replies larger than 4 MiB are rejected",
+      "Malformed/error replies never become clean results",
+      "PING/VERSION/STATS, length-prefixed INSTREAM and multi-record MULTISCAN preserve framing",
+      "Windows endpoint path conversion retained",
+      "Blocked metrics poll leaves another Spring scheduled task running",
+      "Default/overridden/virtual-thread scheduler modes retain the configured pool",
+      "Twenty callers and uninterruptible fake DNS cannot create more than two active resolver lookups",
+      "Legacy API, Main and v1 health return bounded errors for silent/TEST-NET endpoints"
+    ]
+  },
+  "packaged_http_scheduler_runtime": {
+    "result": "passed",
+    "checks": 10,
+    "runner": "tools/verify-clamd-timeouts.py",
+    "command_budget_seconds": 5,
+    "scheduler_default_threads": 4,
+    "daemon": "Synthetic TCP peers; this test does not scan malware",
+    "assertions": [
+      {
+        "description": "Scheduled metrics reaches a real TCP peer that never answers"
+      },
+      {
+        "description": "Metrics probe remains pending before its five-second deadline"
+      },
+      {
+        "description": "Actual scheduled configuration polling updates the endpoint while metrics is still blocked",
+        "seconds": 1.045
+      },
+      {
+        "description": "Healthy endpoint and servlet requests remain available during the blocked metrics poll",
+        "seconds": 0.028
+      },
+      {
+        "description": "Administrator creates an independent silent endpoint for HTTP deadline checks"
+      },
+      {
+        "description": "/api/clamdtop returns a bounded failure using the default five-second budget",
+        "seconds": 5.013
+      },
+      {
+        "description": "/api/v1/health/clamd returns a bounded failure using the default five-second budget",
+        "seconds": 5.013
+      },
+      {
+        "description": "/main returns a bounded failure using the default five-second budget",
+        "seconds": 5.02
+      },
+      {
+        "description": "Timed-out metrics and HTTP probes close their real TCP connections",
+        "closed_connections": 4
+      },
+      {
+        "description": "Application remains live after the failed probes"
+      }
+    ]
+  },
+  "configuration_runtime": {
+    "checks": 36,
+    "result": "passed",
+    "runner": "tools/verify-configuration-center.py",
+    "updated_optional_defer_polls_argument": "Default behavior rerun and passed; timeout runner enables real polls"
+  },
+  "native_scan_runtime": {
+    "result": "passed",
+    "engine": "Official ClamAV 1.4.6 Linux package",
+    "package_sha256": "d3ee9e401974855a1edc1761b1425417d126de618d5f0c91cd51209f69f6fcc2",
+    "signature_database": "Local harmless EICAR-only signature fixture",
+    "runner": "scripts/test-eicar-native.py --isolate",
+    "scenarios": [
+      "Quarantine disabled",
+      "--quarantine-failure with deliberately invalid quarantine destination"
+    ],
+    "assertions": [
+      "Native MULTISCAN through the new shared client with INSTREAM fallback disabled",
+      "Real clean and EICAR verdicts, signatures and audit persisted",
+      "400-character upload labels preserved",
+      "Quarantine failure remains visible without losing VIRUS_FOUND",
+      "Completed clean/infected upload copies removed",
+      "Actual H2/bootstrap files inaccessible to scanner namespace",
+      "Linux read-only upload mount enforced"
+    ]
+  },
+  "previous_fixes": {
+    "issues_13_through_19_retained": true,
+    "all_previous_java_regressions_reran": true,
+    "other_main_java_files_unchanged": 121,
+    "dependencies_and_scanner_deployment_unchanged": true,
+    "configuration_catalogue_fields": 113,
+    "new_configuration_center_fields": 0,
+    "issue_19_single_connection_pool_and_upload_rollback_tests_reran": true
+  },
+  "retained_deployment_evidence": {
+    "source_unchanged": true,
+    "compose_contract_checks": 32,
+    "simulated_docker_helper_scenarios": 11,
+    "report": "docs/security/upload-retention-validation.json",
+    "scope": "Unchanged Compose/helper checks retain issue #18 execution scope; current native isolation was rerun."
+  },
+  "docker_runtime": {
+    "local_result": "not_run",
+    "reason": "No Docker Engine is available in this environment",
+    "workflow": ".github/workflows/phase0-ci.yml"
+  },
+  "limits": [
+    "Native namespace tests do not execute the derived Docker image or verify Docker networking.",
+    "No live external PostgreSQL/MySQL/MariaDB server was tested for this issue.",
+    "Five AF_UNIX integration cases remain skipped; shared framing tests and actual TCP channels ran.",
+    "DNS OS calls may outlive cancellation, within two bounded daemon workers and a bounded queue.",
+    "Network deadlines do not interrupt arbitrary blocking file/InputStream implementations.",
+    "Multiple endpoint metrics probes are sequential; each has its own short budget.",
+    "Unrelated filesystem/database stalls and custom scheduler replacements retain their own operational limits."
+  ],
+  "database_schema_migrations": "None",
+  "upgrade_instructions": "docs/CLAMD_TIMEOUTS.md",
+  "references": [
+    "https://docs.clamav.net/manual/Usage/ClamdProtocol.html",
+    "https://docs.spring.io/spring-boot/reference/features/task-execution-and-scheduling.html"
+  ]
+}

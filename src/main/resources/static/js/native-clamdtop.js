@@ -22,6 +22,7 @@
     let intentional = false;
     let activeSize = null;
     let resizeTimer = null;
+    let heartbeatTimer = null;
     let observer = null;
 
     // xterm-vendored measures a monospace cell after term.open(). The old
@@ -57,6 +58,8 @@
 
     function disconnect() {
       intentional = true;
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
       if (socket) { socket.close(1000, 'Disconnected by user'); socket = null; }
       if (term) { term.destroy(); term = null; }
       activeSize = null;
@@ -87,7 +90,18 @@
       term.on('data', data => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data }));
       });
-      ws.addEventListener('open', () => { if (socket === ws) state.textContent = 'Connected'; });
+      ws.addEventListener('open', () => {
+        if (socket !== ws) return;
+        state.textContent = 'Connected';
+        // Heartbeats prove that a visible browser still owns this passive monitor.
+        // Hidden/abandoned tabs stop refreshing their lease and are reaped by the server.
+        heartbeatTimer = setInterval(() => {
+          if (socket === ws && ws.readyState === WebSocket.OPEN
+              && document.visibilityState === 'visible') {
+            ws.send(JSON.stringify({ type: 'heartbeat' }));
+          }
+        }, 30000);
+      });
       ws.addEventListener('message', event => {
         if (socket !== ws || !term) return;
         try {
@@ -105,6 +119,8 @@
       });
       ws.addEventListener('close', event => {
         if (socket === ws) {
+          clearInterval(heartbeatTimer);
+          heartbeatTimer = null;
           socket = null;
           state.textContent = intentional ? 'Disconnected'
             : 'Native clamdtop disconnected (code ' + event.code + ')';

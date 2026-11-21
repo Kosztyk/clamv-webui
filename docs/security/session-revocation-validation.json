@@ -1,0 +1,223 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15",
+    "https://github.com/Kosztyk/clamv-webui/issues/16",
+    "https://github.com/Kosztyk/clamv-webui/issues/17",
+    "https://github.com/Kosztyk/clamv-webui/issues/18",
+    "https://github.com/Kosztyk/clamv-webui/issues/19",
+    "https://github.com/Kosztyk/clamv-webui/issues/20",
+    "https://github.com/Kosztyk/clamv-webui/issues/21",
+    "https://github.com/Kosztyk/clamv-webui/issues/22"
+  ],
+  "verified_at_utc": "2026-11-10T21:10:32.698441+00:00",
+  "application_version": "2.1.0",
+  "java_verification": {
+    "command": "mvn verify",
+    "result": "passed",
+    "jdk": 21,
+    "tests": 801,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 796,
+    "new_test_cases": 45,
+    "new_cases": {
+      "real_form_session_revocation": 20,
+      "real_servlet_registry_lifecycle": 2,
+      "state_external_lifetime_and_fail_closed_checks": 11,
+      "websocket_session_guard": 6,
+      "custom_ldap_filter_registration": 1,
+      "session_duration_validation": 1,
+      "generic_persistence_and_precedence_for_two_new_fields": 4
+    },
+    "skip_reason": "Five existing UnixClamdClientTest cases require AF_UNIX sockets, which this execution environment prohibits."
+  },
+  "packaged_http_checks": {
+    "result": "passed",
+    "total": 112,
+    "session_revocation": {
+      "checks": 34,
+      "passed": 34,
+      "assertions": [
+        "Real bootstrap administrator form login succeeds",
+        "Independent control session authenticates",
+        "session-delete: both existing sessions access protected API before change",
+        "session-delete: administrator action succeeds",
+        "session-delete: both sessions receive 401 on their next real HTTP request",
+        "session-delete: other accounts remain authenticated",
+        "Deleted account cannot authenticate",
+        "session-reset: both existing sessions access protected API before change",
+        "session-reset: administrator action succeeds",
+        "session-reset: both sessions receive 401 on their next real HTTP request",
+        "session-reset: other accounts remain authenticated",
+        "Reset requires the new password for a fresh login",
+        "session-disable: both existing sessions access protected API before change",
+        "session-disable: administrator action succeeds",
+        "session-disable: both sessions receive 401 on their next real HTTP request",
+        "session-disable: other accounts remain authenticated",
+        "Disabled account cannot sign in again",
+        "Re-enabled account can create a fresh session",
+        "session-demote: both existing sessions access protected API before change",
+        "session-demote: administrator action succeeds",
+        "session-demote: both sessions receive 401 on their next real HTTP request",
+        "session-demote: other accounts remain authenticated",
+        "Demoted account receives current viewer permissions on fresh login",
+        "session-manual: both existing sessions access protected API before change",
+        "session-manual: administrator action succeeds",
+        "session-manual: both sessions receive 401 on their next real HTTP request",
+        "session-manual: other accounts remain authenticated",
+        "Manual revocation allows a fresh authentication",
+        "Session revocation requires the administrator CSRF token",
+        "Viewer cannot revoke another account session",
+        "Revoked browser navigation redirects to the explanatory login page",
+        "Last enabled local administrator cannot be disabled or demoted",
+        "Short absolute-lifetime runtime authenticates",
+        "Four-second absolute expiry rejects an actively used session before the 30-minute idle limit"
+      ],
+      "scope": "Packaged executable JAR, real Tomcat HTTP, isolated H2, real form logins and separate cookie jars; no external LDAP/OIDC server or Docker runtime."
+    },
+    "basic_lockout": {
+      "runner": "scripts/test-basic-lockout-runtime.py",
+      "passed": 17,
+      "transport": "Cookie-free Basic requests through an explicit loopback trusted native proxy-header fixture."
+    },
+    "configuration_center": {
+      "runner": "tools/verify-configuration-center.py",
+      "passed": 36,
+      "scope": "Real JAR and isolated H2; direct HTTP and explicit loopback trusted native proxy-header fixtures."
+    },
+    "token_path_scopes": {
+      "result": "passed",
+      "checks": 25,
+      "runner": "tools/verify-token-path-scopes.py",
+      "backend": "Real packaged Spring application and H2 with synthetic ClamD verdicts",
+      "transport": "Loopback trusted native proxy-header fixture; no external TLS or daemon",
+      "assertions": [
+        {
+          "description": "Administrator issues tenant A"
+        },
+        {
+          "description": "Administrator issues tenant B"
+        },
+        {
+          "description": "Administrator issues endpoint history"
+        },
+        {
+          "description": "Alias root is returned and stored as the canonical directory"
+        },
+        {
+          "description": "Scoped token submits a permitted canonical path"
+        },
+        {
+          "description": "Scoped token submits a permitted canonical path"
+        },
+        {
+          "description": "Scoped token submits its own upload"
+        },
+        {
+          "description": "Scoped token submits its own upload"
+        },
+        {
+          "description": "Authorized job remains readable after the synthetic worker result"
+        },
+        {
+          "description": "Authorized job remains readable after the synthetic worker result"
+        },
+        {
+          "description": "Authorized job remains readable after the synthetic worker result"
+        },
+        {
+          "description": "Authorized job remains readable after the synthetic worker result"
+        },
+        {
+          "description": "Root-scoped job list excludes another root and another token upload",
+          "visible_jobs": 2
+        },
+        {
+          "description": "Hidden signatures and upload labels do not leak into the authorized list"
+        },
+        {
+          "description": "Pagination totals and records contain only visible jobs"
+        },
+        {
+          "description": "Details/progress rejects a hidden path or foreign upload"
+        },
+        {
+          "description": "Details/progress rejects a hidden path or foreign upload"
+        },
+        {
+          "description": "Details/progress rejects a hidden path or foreign upload"
+        },
+        {
+          "description": "Details/progress rejects a hidden path or foreign upload"
+        },
+        {
+          "description": "Empty-root history credentials retain explicit endpoint-wide reads",
+          "visible_jobs": 4
+        },
+        {
+          "description": "Linked audit records obey the same job visibility and exclude administrative events"
+        },
+        {
+          "description": "Retargeting the original alias does not expand the pinned grant"
+        },
+        {
+          "description": "Existing canonical in-root history remains accessible after alias retargeting"
+        },
+        {
+          "description": "Bearer token cannot bypass v1 restrictions through legacy job routes"
+        },
+        {
+          "description": "Administrator token page explains and displays the effective root policy"
+        }
+      ]
+    }
+  },
+  "behavior": {
+    "local_account_changes": [
+      "delete",
+      "password reset",
+      "disable/enable",
+      "role change"
+    ],
+    "registry_revocation": "All sessions for the immutable local account ID expire after a successful commit; rollback does not revoke.",
+    "per_request_validation": "Local ID, username, enabled flag, role set and credential stamp must still match the database.",
+    "database_unavailable": "503 authentication_unavailable; no cached-privilege authorization and recoverable session retained.",
+    "api_response": "401 session_expired",
+    "browser_response": "302 /login?expired",
+    "idle_timeout": "30m",
+    "absolute_lifetime": "1h",
+    "absolute_range": "1s–24h",
+    "external_identities": "Login-time memberships; source-qualified manual revocation, active provider revision/disable checks and absolute expiry.",
+    "websocket": "Explicit revocation and servlet destruction close connections; input and one-second scheduled checks revalidate sessions.",
+    "basic": "Fresh password verification for explicit Basic headers; anonymous CLI CSRF cookies remain supported.",
+    "token_credentials": "Independent scoped Bearer credentials retain their separate expiry/revocation policy.",
+    "configuration_center_fields": 115,
+    "schema_migration_required": false
+  },
+  "verification_limits": {
+    "external_ldap_oidc": "Synthetic external principals and a stub authentication manager exercise registration and revocation; no live remote IdP.",
+    "websocket_transport": "Focused decorator/servlet-event tests with mocked WebSocket transports; no native PTY/WebSocket end-to-end run.",
+    "chromium_ui": "Attempted tools/verify-session-ui.py. Chromium could not start because the environment prohibits its Unix process-singleton socket (Operation not permitted). Browser interaction checks are not claimed.",
+    "ui_other_checks": "Real server-rendered user pages and mutations passed; configuration JavaScript syntax checked with node --check.",
+    "docker_runtime": "Not run for issue #22. Earlier scanner/Compose/native-engine results retain their original scope.",
+    "external_sql": "H2 used for current tests. Existing external SQL schema/probe tests run in Maven; no new live external database run.",
+    "deployment_scope": "Registry/manual revocation is per instance; direct local database state checks work for each instance sharing that database. No supported distributed session cluster.",
+    "remote_groups": "Remote membership removal is not pushed automatically: remove IdP access and revoke each instance, or wait for absolute expiry/relogin.",
+    "in_flight_work": "A request already executing when an account change commits is not retroactively undone."
+  },
+  "packaging": {
+    "baseline_source_files": 1085,
+    "all_baseline_paths_retained": true,
+    "jar_resources_compared_to_current_source": 653,
+    "jar_resource_mismatches": 0,
+    "manifest": "SOURCE_MANIFEST.sha256",
+    "root": "clamv-webui-v2.1.0",
+    "source_privacy_audit": "Passed tools/audit-source-package.py with the private deny input: 1,105 source files, 26 binary assets; no prohibited state or configured private identifiers.",
+    "publisher_check": "Passed publish-clamav-webui.sh --check; manifest, root, CRC and safe source paths verified without GitHub or network access.",
+    "relative_document_links_missing": 0,
+    "complete_source_files": 1105
+  }
+}

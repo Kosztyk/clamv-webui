@@ -293,22 +293,31 @@ func TestMCPLocalFileBoundaries(t *testing.T) {
 }
 
 func TestMCPWaitErrorsAndConcurrency(t *testing.T) {
+	const jobID = "pending-1"
 	b, root := testMCPBridge(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/scans/uploads":
-			_, _ = io.Copy(io.Discard, r.Body)
-			writeJSON(w, submitted{1, []string{"pending-1"}})
-		case "/api/v1/jobs/pending-1":
-			writeJSON(w, job{ID: "pending-1", Status: "RUNNING"})
-		default:
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/scans/uploads" {
 			http.NotFound(w, r)
+			return
 		}
-	}, "--timeout=25ms")
+		_, _ = io.Copy(io.Discard, r.Body)
+		writeJSON(w, submitted{1, []string{jobID}})
+	})
+	transport := &mcpPollTimeoutTransport{
+		RoundTripper: b.client.http.Transport,
+		path:         "/api/v1/jobs/" + jobID,
+	}
+	b.client.http.Transport = transport
+	t.Cleanup(func() { b.client.http.Transport = transport.RoundTripper })
 	file := filepath.Join(root, "sample")
-	_ = os.WriteFile(file, []byte("sample"), 0600)
+	if err := os.WriteFile(file, []byte("sample"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	session := mcpSession(t, b.server("2.1.0"))
 	result := mcpCall(t, session, "clamav_scan_file", map[string]any{"file_path": file}, true)
-	if text := result.Content[0].(*mcp.TextContent).Text; !strings.Contains(text, "timed out") || !strings.Contains(text, "pending-1") {
+	if !transport.polled.Load() {
+		t.Fatal("the accepted job ID was never polled")
+	}
+	if text := result.Content[0].(*mcp.TextContent).Text; !strings.Contains(text, "timed out") || !strings.Contains(text, "accepted job ID: "+jobID) {
 		t.Fatal("cannot resume timed-out job", text)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -323,6 +332,20 @@ func TestMCPWaitErrorsAndConcurrency(t *testing.T) {
 	for i := 0; i < cap(b.slots); i++ {
 		<-b.slots
 	}
+}
+
+type mcpPollTimeoutTransport struct {
+	http.RoundTripper
+	path   string
+	polled atomic.Bool
+}
+
+func (tr *mcpPollTimeoutTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.Method == http.MethodGet && r.URL.Path == tr.path {
+		tr.polled.Store(true)
+		return nil, context.DeadlineExceeded
+	}
+	return tr.RoundTripper.RoundTrip(r)
 }
 
 type mcpAuthTransport struct {

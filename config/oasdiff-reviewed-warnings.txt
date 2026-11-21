@@ -1,0 +1,5 @@
+# 2.1.0 reports quarantine failure while preserving the original scan verdict.
+GET /jobs added the new 'FAILED' enum value to the 'items/items/quarantineStatus' response property for the response status '200'
+GET /jobs added the new 'QUARANTINE_FAILED' enum value to the 'items/items/error/code' response property for the response status '200'
+GET /jobs/{id} added the new 'FAILED' enum value to the 'quarantineStatus' response property for the response status '200'
+GET /jobs/{id} added the new 'QUARANTINE_FAILED' enum value to the 'error/code' response property for the response status '200'

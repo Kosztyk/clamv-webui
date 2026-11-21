@@ -11,7 +11,7 @@ mounted configuration/data remain compatible. No database migration is required.
 |---|---|---|
 | `clamav_scans_total` | Counter | `type="upload|path|watch"`, `verdict="ok|virus_found|error"`; completed scan jobs |
 | `clamav_scan_duration_seconds` | Histogram family | `type="upload|path|watch"`; `_bucket`, `_count`, `_sum` and `_max` series; execution time excluding queue time |
-| `clamav_viruses_detected_total` | Counter | `signature="..."`; unique file/signature detections from completed positive jobs |
+| `clamav_viruses_detected_total` | Counter | `signature="...|other|unknown"`; at most 100 exact names by default, plus two fixed buckets; unique file/signature detections from completed positive jobs |
 | `clamav_queue_items` | Gauge | ClamD queued items from native STATS |
 | `clamav_threads_live` | Gauge | Live ClamD threads |
 | `clamav_threads_idle` | Gauge | Idle ClamD threads |
@@ -38,9 +38,11 @@ availability/staleness metrics remain available.
   signature in two files counts twice. Duplicate signature entries for one file
   count once. Only stored result values become labels; file keys, usernames and
   job IDs are not exported as labels.
+- Up to 100 distinct exact signature names are admitted per application process by default; excess names and names over 160 characters are counted in `signature="other"`. `unknown` and `other` are fixed, pre-registered buckets, separate from the configured exact-name capacity. The first admitted names stay until restart (no LRU churn); this is a bounded first-seen set, not a top-N frequency ranking. Configure `clamav.metrics.signatures.max-distinct` in Configuration Center (1–500, restart required; Compose `CLAMAV_METRICS_SIGNATURES_MAX_DISTINCT` overrides). Full signatures remain in scan details/API.
 - A positive job without readable signature metadata increments
   `signature="unknown"` once. Clean and failed jobs do not increment detection
   counters. The zero-valued `unknown` series is initialized at startup.
+- Scan execution duration histograms extend to **24 hours**, including explicit 1h, 6h, 12h and 24h buckets to cover the configured maximum scan timeout (instead of the previous 5-minute bound).
 - All nine normal scan type/verdict combinations and three duration histograms
   start at zero. Counters reset on process restart. Prometheus stores historical
   samples; existing database jobs are not replayed into counters.
@@ -92,14 +94,14 @@ nonexistent queue-capacity value.
 
 | Previous name / labels | Current behaviour |
 |---|---|
-| `clamav_scan_completed_total` with uppercase type/verdict | Retained as a compatibility counter; use `clamav_scans_total` for the new contract |
+| `clamav_scan_completed_total` with uppercase type/verdict | **Retired in issue #35** to avoid counting each completion twice. Replace any custom queries with canonical `clamav_scans_total` (lowercase `type` and `verdict`). |
 | `clamav_scan_detections_total` | Retained as a count of malware-positive jobs; the new signature counter counts file/signature pairs |
 | `clamav_scan_duration_seconds` with uppercase type/verdict | Now uses lowercase `type` only; update any custom queries selecting uppercase values or `verdict` |
 | `clamav_clamd_queue_items`, `clamav_clamd_threads_*`, `clamav_clamd_database_version` / `_age` | Retained as aliases to the same daemon sample |
 | `clamav_clamd_queue_max` | Retained, but NaN when the native response does not report capacity |
 
-Use one naming family in aggregate queries so compatibility aliases are not
-counted twice. Signature-specific series are created as their signatures occur.
+Use the canonical `clamav_scans_total` for completion counts, and do not add `clamav_scan_detections_total` to it: the latter counts the subset of malware-positive jobs.
+The distinct exact-signature meter budget is fixed for the process lifetime, so 10,000 different signatures cannot produce more than the configured number plus `other` and `unknown`.
 
 ## References and validation
 

@@ -1,0 +1,16 @@
+# OPTIONAL overlay for native filenames. Apply with:
+# docker compose -f docker-compose.yml -f docker-compose.native-path.yml up -d --build
+# Native scan stays OFF until enabled in the GUI after verify-native.sh succeeds.
+services:
+  clamav-server:
+    image: clamav-uid10001:local
+    build:
+      context: .
+      dockerfile: Dockerfile.clamd-uid
+      args:
+        CLAMAV_BASE_IMAGE: "${CLAMAV_BASE_IMAGE:?Set a verified image digest in .env}"
+    volumes:
+      - type: bind
+        source: ./data/uploads
+        target: /app/data/uploads
+        read_only: true

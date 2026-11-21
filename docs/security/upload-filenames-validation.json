@@ -1,0 +1,250 @@
+{
+  "issues": [
+    "https://github.com/Kosztyk/clamv-webui/issues/13",
+    "https://github.com/Kosztyk/clamv-webui/issues/14",
+    "https://github.com/Kosztyk/clamv-webui/issues/15",
+    "https://github.com/Kosztyk/clamv-webui/issues/16",
+    "https://github.com/Kosztyk/clamv-webui/issues/17",
+    "https://github.com/Kosztyk/clamv-webui/issues/18",
+    "https://github.com/Kosztyk/clamv-webui/issues/19"
+  ],
+  "verified_at_utc": "2026-11-10T14:32:02.005488+00:00",
+  "application_version": "2.1.0",
+  "java_verification": {
+    "command": "mvn verify",
+    "jdk": 21,
+    "result": "passed",
+    "tests": 708,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 703,
+    "new_tests_total": 6,
+    "focused_suites": [
+      {
+        "class": "info.trizub.clamav.webclient.api.v1.ApiV1CliSupportIntegrationTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "quarantineFailureIsVisibleInBothApisWithoutChangingTheInfectedVerdict",
+          "failedJobsReturnSafeErrorSummariesAndNoPrivateDiagnosticText",
+          "jobDetailsReturnSignaturesAndDurationWhileRetainingEndpointRestrictions",
+          "authenticationProbeWorksForAnyValidScopeAndRejectsInvalidOrPlaintextCredentials",
+          "metricsExposePoolStatisticsThroughAnAllowlistWithoutDaemonCommandsOrPaths",
+          "bearerUploadsRemainCsrfExemptAndRoleAndScopeChecksStillApply",
+          "basicScanWritesRequireAndAcceptARealSessionCsrfToken",
+          "healthReportsParsedDatabaseTimestampAndKeepsUnknownValuesUnknown"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UploadBatchPersistenceTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "anAmbientTransactionIsRejectedBeforeAnyCopyCanHoldItsConnection",
+          "optionalHistoryRetentionPrunesAllOldBatchesAndKeepsActiveRecentAndQuarantinedJobs",
+          "aDatabaseFailureAtCommitAlsoRemovesAlreadyWrittenFiles",
+          "historyPruningIsDisabledByDefault",
+          "a400CharacterFilenamePersistsItsDisplayNameAndUsesABoundedPrivateStorageName(String)[1]",
+          "a400CharacterFilenamePersistsItsDisplayNameAndUsesABoundedPrivateStorageName(String)[2]",
+          "failedMultiFileBatchRollsBackRowsAndRemovesCompleteAndPartialFilesForBothPublicOverloads(boolean)[1]",
+          "failedMultiFileBatchRollsBackRowsAndRemovesCompleteAndPartialFilesForBothPublicOverloads(boolean)[2]",
+          "threeCopiesLeaveASingleConnectionPoolAvailableForOtherQueries",
+          "successfulCommitKeepsQueuedFilesAndAnAfterCommitQueueFailureDoesNotDeleteThem"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UploadStorageTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "cleanupRefusesPathsOutsideStorageAndDoesNotDeletePathScans",
+          "janitorRemovesExpiredOrphansButPreservesYoungUnknownAndSymlinkedFiles",
+          "retainedCleanFilesExpireButActiveAndRecentlyFinishedUploadsDoNot",
+          "uploadFilesAndDirectoriesArePrivateOnPosixAndNameCollisionsPreserveExistingFiles",
+          "inProgressBatchesAreProtectedEvenIfTheirFilesAreOld",
+          "infectedUploadsAreDeletedOrQuarantinedAndNeverLeftInUploads(boolean)[1]",
+          "infectedUploadsAreDeletedOrQuarantinedAndNeverLeftInUploads(boolean)[2]",
+          "aCleanScanRemovesItsUploadAfterPersistingTheVerdict",
+          "quarantineNamesDoNotGrowWithAnAlreadyMaximumLengthSourceName",
+          "quarantineFailureDeletesTheInfectedUploadedCopy"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherConfigurationTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "liveIntervalChangesRunAtTheSelectedTimeRatherThanMultiplesOfThirtySeconds",
+          "schedulingTickIsFineEnoughForAllSupportedIntervals",
+          "disabledEndpointsAndFailedEnqueuesDoNotConsumeFilesBeforeTheyCanBeScanned"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherCoverageTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "aFailedFileDoesNotPreventOtherFilesFromBeingSubmitted",
+          "twoConcurrentPollsCannotSubmitTheSameSnapshot",
+          "changedFileFailurePreservesCommittedFingerprintAndRetriesWithAWarnPath",
+          "traversalIncludesFilesDeeperThanTheOldFiveLevelLimit",
+          "symlinkFilesAreCheckedAgainstRealRootsAndDirectoryLinksAreNotTraversed"
+        ]
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.WatcherPersistenceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          "hourlyPruningTraversesAllBatchesWithoutDeletingExistingFiles",
+          "bulkLookupEscapesWildcardCharactersAndExcludesSiblingDirectoryPrefixes",
+          "failedChangedFileRetainsItsOldFingerprintAndRetriesWithoutTouchingTheFileAgain",
+          "postCommitQueueFailureRetainsRecoverableDurableWorkRatherThanLosingTheFile",
+          "directoryWith2500FilesCreates2500DurableJobsAndDoesNotRepeatUnchangedFiles",
+          "markerWriteFailureRollsBackItsJobAndNoWorkerSeesUncommittedWork",
+          "createFailureRollsBackTheJobAndLeavesANewFileEligibleForTheNextPoll"
+        ]
+      }
+    ],
+    "skipped_tests": [
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "multiscanReadsAllNullDelimitedResultsUntilConnectionClose"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "nonResponsiveSocketTimesOutAndClosesWithoutHangingAWorker"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "pingVersionAndStatsUseTheMountedSocketAndCorrectTerminators"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "cleanErrorsAndEmptyRepliesAreDistinct"
+      },
+      {
+        "class": "info.trizub.clamav.webclient.service.UnixClamdClientTest",
+        "test": "instreamSendsLengthPrefixedChunksAndAZeroTerminatorThenReturnsDetections"
+      }
+    ]
+  },
+  "packaged_application_sha256": "874a077b0ef1a948bdc9d1408b190981838625a0ee1862d04d69b711158b32e7",
+  "filename_bounds": {
+    "label_max_utf16_units": 1024,
+    "storage_ascii_name_max_characters": 120,
+    "full_upload_component_max_bytes": 153,
+    "quarantine_component_bytes": 36,
+    "extension_preserved_up_to_characters_including_dot": 20,
+    "four_hundred_character_ascii_and_unicode_integration_tests": "passed",
+    "maximum_255_byte_source_quarantine_test": "passed"
+  },
+  "copy_transaction_test": {
+    "result": "passed",
+    "database": "Real H2/JPA and HikariCP",
+    "application_maximum_pool_size": 1,
+    "simultaneous_mid_copy_blocked_uploads": 3,
+    "real_pre_copy_query": "SELECT 1 executed through JdbcTemplate",
+    "active_transactions_during_copy": 0,
+    "borrowed_application_connections_during_copy": 0,
+    "independent_query_while_copies_blocked": "SELECT 1 succeeds using the sole application pool connection",
+    "eventual_persisted_and_enqueued_jobs": 3,
+    "migration_setup": "Separate direct Flyway datasource prepares the same H2 database; it does not enlarge the application pool",
+    "ambient_transaction": "Rejected before opening the upload stream",
+    "request_scoped_persistence": "spring.jpa.open-in-view=false",
+    "copy_and_hash": "One-pass DigestInputStream; no database transaction around file copy",
+    "commit": "Separate REQUIRES_NEW metadata transaction; scans enqueue after commit"
+  },
+  "quarantine_reporting": {
+    "result": "passed",
+    "verdict": "VIRUS_FOUND",
+    "quarantineStatus": "FAILED",
+    "error_code": "QUARANTINE_FAILED",
+    "surfaces": [
+      "legacy job API",
+      "v1 job API",
+      "administrator job detail"
+    ],
+    "raw_paths_and_exception_text_exposed_by_public_dto": false,
+    "known_failure_note_persisted": true,
+    "permission_failure_after_move_retains_recorded_path": true
+  },
+  "native_scan_runtime": {
+    "result": "passed",
+    "engine": "Official ClamAV 1.4.6 Linux package",
+    "package_sha256": "d3ee9e401974855a1edc1761b1425417d126de618d5f0c91cd51209f69f6fcc2",
+    "signature_database": "Local harmless EICAR-only signature fixture",
+    "runner": "scripts/test-eicar-native.py --isolate",
+    "scenarios": [
+      "Quarantine disabled",
+      "--quarantine-failure with enabled quarantine and a deliberately invalid destination"
+    ],
+    "assertions": [
+      "Real clean OK and EICAR VIRUS_FOUND jobs persisted with signatures and audit",
+      "400-character submitted clean filename preserved in job API in both runs",
+      "Quarantine failure reported in API while retaining the positive malware verdict",
+      "Native MULTISCAN with INSTREAM fallback disabled",
+      "Completed clean and infected uploaded copies removed",
+      "Actual H2 database and bootstrap password inaccessible in scanner mount namespace",
+      "Linux enforced read-only shared upload mount"
+    ]
+  },
+  "configuration_runtime": {
+    "checks": 36,
+    "result": "passed",
+    "runner": "tools/verify-configuration-center.py"
+  },
+  "retained_checks_from_issue_18": {
+    "source_unchanged": true,
+    "compose_contracts": {
+      "checks": 32,
+      "result": "passed",
+      "renderer": "Official Docker Compose v5.7.0"
+    },
+    "deployment_helper": {
+      "scenarios": 11,
+      "result": "passed",
+      "method": "Real Bash helper with simulated Docker CLI"
+    },
+    "report": "docs/security/upload-retention-validation.json",
+    "scope": "These unchanged deployment checks were not rerun for #19. Java regressions and native isolation checks were rerun."
+  },
+  "previous_fixes": {
+    "issues_13_through_18_retained": true,
+    "other_main_java_files_unchanged": 121,
+    "scanner_images_and_compose_unchanged": true,
+    "forwarding_defaults_unchanged": true,
+    "all_previous_java_regressions_reran": true,
+    "watcher_persistence_tests": 7,
+    "watcher_total_tests": 15,
+    "configuration_catalogue_fields": 113,
+    "new_configuration_fields": 0
+  },
+  "docker_runtime": {
+    "local_result": "not_run",
+    "reason": "No Docker Engine is available in this environment",
+    "workflow": ".github/workflows/phase0-ci.yml"
+  },
+  "limits": [
+    "Native Linux engine tests do not execute the derived Docker image or verify Docker networking.",
+    "H2/JPA pool and transaction tests do not constitute live external PostgreSQL/MySQL/MariaDB verification.",
+    "Historical quarantine outcomes are not retroactively inferred; recorded locations are not live filesystem checks.",
+    "Unknown transaction outcomes retain upload files conservatively for database-aware retention.",
+    "Non-POSIX ACLs, operator-managed quarantine files and log rotation retain the limitations documented for #18."
+  ],
+  "database_schema_migrations": "None",
+  "upgrade_instructions": "docs/UPLOAD_FILENAMES.md"
+}

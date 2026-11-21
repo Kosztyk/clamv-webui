@@ -3,7 +3,7 @@
 # Example placeholders do not name a real deployment. This creates no ClamD or SQL service.
 services:
   clamav-web-client:
-    image: clamav-web-client:2.1.0-local
+    image: clamav-web-client:${CLAMAV_WEBUI_IMAGE_TAG:-local}
     pull_policy: never
     container_name: clamav-web-client
     ports:
@@ -18,6 +18,8 @@ services:
     volumes:
       - clamav-conf:/app/conf
       - clamav-data:/app/data
+    # Allow Hikari / embedded file H2 to release the DB lock before Docker SIGKILL.
+    stop_grace_period: 60s
     restart: unless-stopped
 
 volumes:

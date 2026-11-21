@@ -27,8 +27,9 @@ Because its source is missing, the REST monitor was reconstructed as a configura
 
 Existing values preserved:
 
-- `CLAMAV_REST_URL` (for example `http://rest-scanner:3000`)
+- `CLAMAV_REST_URL` (for example `https://rest-scanner.example:3000`)
 - `CLAMAV_REST_API_KEY` (blank if the API does not require auth)
+- `CLAMAV_REST_ALLOW_INSECURE` (default `false`; required to send an API key over non-loopback `http://`; **use HTTPS whenever possible**; also configurable in Configuration Center)
 - `CLAMAV_REST_FORM_KEY` (default `FILES`)
 - `CLAMAV_REST_TIMEOUT_SECONDS` (default `10`)
 - `CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS` (default `3600`)
@@ -45,9 +46,15 @@ Optional route overrides, necessary if the REST API has different paths:
 - `CLAMAV_REST_WEBHOOK_FIELD` default `webhookId`
 - `CLAMAV_REST_AUTH_MODE` `x-api-key` (default) or `bearer`
 
+With a nonempty API key, HTTP to any non-loopback destination without `CLAMAV_REST_ALLOW_INSECURE=true` is rejected at startup. See [issue #40 migration details](ISSUE40_REST_TRANSPORT_SECURITY.md).
+
 Routes under `/rest-monitor/` are authenticated browser-to-WebUI requests. All upstream calls originate from the Web UI container. `GET /rest-monitor/summary` allows VIEWER, OPERATOR and ADMIN; the job/history/detail, upload, export and analytics routes require OPERATOR/ADMIN. `/api-scan` and `/api-reports` are OPERATOR/ADMIN pages.
 
 Upstream jobs/history responses may be an array or `{jobs:[...]}`, `{history:[...]}`, `{items:[...]}`, `{results:[...]}` or `{data:[...]}`. Returned timestamps, status and modes are passed through from the upstream service. Reports are limited to the *returned page*; metrics and CSV/JSON exports must not be interpreted as complete lifetime totals without verifying pagination on the upstream REST service. Do not claim that ClamAV signatures replace a sandbox or reputation API.
+
+### CSV export formula safety (issue #41)
+
+CSV exports prefix an apostrophe to potential spreadsheet formulas while preserving every original character (`-5` → `'-5`, `==x` → `'==x`). Leading `|` and `%` are also protected, and normal values keep their original text after CSV unquoting. For exact unmodified source values with no spreadsheet-specific prefix, use JSON export. See [issue #41](ISSUE41_CSV_EXPORT_INTEGRITY.md).
 
 ## Verification
 

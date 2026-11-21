@@ -1,0 +1,9 @@
+<!doctype html><html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/shell :: shell(~{::section})}"><section>
+<h1>ClamdTop — health summary</h1>
+<p class="muted">Scan counts and engine load are available to VIEWER accounts. Raw terminal output, queued filenames, server addresses and scan commands require OPERATOR or ADMIN access.</p>
+<form method="get" th:action="@{/clamdtop}" class="inline-form"><label>Endpoint <select class="form-select" name="endpointId"><option th:each="ep : ${endpoints}" th:value="${ep.id}" th:text="${ep.name}" th:selected="${ep.id == endpointId}"></option></select></label><button class="btn btn-primary" type="submit">Select</button></form>
+<div id="clamdtop-monitor" th:attr="data-endpoint-id=${endpointId}">
+<p id="clamdtop-state" role="status">Connecting…</p>
+<p>Live threads: <strong id="clamdtop-live">—</strong> · Busy: <strong id="clamdtop-busy">—</strong> · Queued scans: <strong id="clamdtop-queue">—</strong></p>
+</div>
+</section></html>

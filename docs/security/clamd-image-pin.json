@@ -1,0 +1,14 @@
+{
+  "image": "clamav/clamav:1.4.7@sha256:b7357e2c1c59480628839df301b0d27923561389b36cf341911e1dd9e02cdd05",
+  "tag": "1.4.7",
+  "digest": "sha256:b7357e2c1c59480628839df301b0d27923561389b36cf341911e1dd9e02cdd05",
+  "platforms": [
+    {
+      "architecture": "amd64",
+      "os": "linux"
+    }
+  ],
+  "source": "https://registry-1.docker.io/v2/clamav/clamav/manifests/1.4.7",
+  "verified_date": "2026-11-20",
+  "image_source": "https://docs.clamav.net/manual/Installing/Docker.html"
+}

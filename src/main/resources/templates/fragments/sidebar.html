@@ -1,0 +1,44 @@
+<div th:fragment="sidebar" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+    <div class="sidebar-header">
+        <img class="sidebar-logo" th:src="@{/images/logo.jpg}" alt="" />
+        <div class="sidebar-header__text">
+            <div class="sidebar-appname">ClamAV Web UI</div>
+            <div class="sidebar-caption">Endpoints • Scans • Jobs</div>
+        </div>
+    </div>
+
+    <div class="sidebar-section">
+        <a class="nav-btn" th:classappend="${action}=='dashboard' ? ' active' : ''" th:href="@{/dashboard}" href="#">
+            <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
+        </a>
+        <a class="nav-btn" sec:authorize="hasAnyRole('OPERATOR','ADMIN')" th:classappend="${action}=='scan' ? ' active' : ''" th:href="@{/scan}" href="#">
+            <i class="fa-solid fa-shield-virus"></i><span>Scan</span>
+        </a>
+</div>
+
+    <div class="sidebar-divider" sec:authorize="hasRole('ADMIN')"></div>
+
+    <div class="sidebar-section" sec:authorize="hasRole('ADMIN')">
+        <div class="sidebar-section__title">Admin</div>
+
+        <a class="nav-btn" th:classappend="${action}=='settings' ? ' active' : ''" th:href="@{/admin/settings}" href="#">
+            <i class="fa-solid fa-gear"></i><span>Settings</span>
+        </a>
+        <a class="nav-btn" th:classappend="${action}=='endpoints' ? ' active' : ''" th:href="@{/admin/endpoints}" href="#">
+            <i class="fa-solid fa-network-wired"></i><span>Endpoints</span>
+        </a>
+        <a class="nav-btn" th:classappend="${action}=='watch' ? ' active' : ''" th:href="@{/admin/watch}" href="#">
+            <i class="fa-solid fa-eye"></i><span>Watch</span>
+        </a>
+        <a class="nav-btn" th:classappend="${action}=='users' ? ' active' : ''" th:href="@{/admin/users}" href="#">
+            <i class="fa-solid fa-users"></i><span>Users</span>
+        </a>
+        <a class="nav-btn" th:classappend="${action}=='audit' ? ' active' : ''" th:href="@{/admin/audit}" href="#">
+            <i class="fa-solid fa-clipboard-list"></i><span>Audit</span>
+        </a>
+    </div>
+
+    <div class="sidebar-footer">
+        <div class="small muted">Backend must connect to clamd endpoint(s).</div>
+    </div>
+</div>

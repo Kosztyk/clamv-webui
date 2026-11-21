@@ -1,4 +1,4 @@
-# clamctl — ClamAV Web UI CLI v2.1.0
+# clamctl — ClamAV Web UI CLI (version inherited from root `pom.xml`)
 
 `clamctl` talks to the Web UI's `/api/v1` API. Each platform uses one executable;
 Python, Java, Go, Docker and ClamAV are not required on the CLI machine. The Web UI
@@ -6,7 +6,7 @@ server and its ClamD backend remain separate services.
 
 ## Ready-built executables
 
-The full-source distribution includes these files under `cli/dist`:
+Build outputs and GitHub release assets provide the following six executables. The **full-source archive does not contain generated binaries**; run `python3 scripts/issue54-cli-repro.py --out cli/dist` in a Git checkout with Go 1.25+ or download them from the verified GitHub release:
 
 | Platform | Executable |
 |---|---|
@@ -39,6 +39,33 @@ Get-FileHash ./windows_amd64/clamctl.exe -Algorithm SHA256
 
 Compare with `SHA256SUMS`. `manifest.json` records each target, compiler version,
 version and checksum.
+
+For **official signed releases**, also download `clamctl-SHA256SUMS` and
+`clamctl-SHA256SUMS.sigstore.json` into the same directory as the six *flattened*
+release binaries (`clamctl-linux-amd64`, etc.). Before trusting a binary, verify
+both the SHA-256 digest and the GitHub Actions signing identity:
+
+```bash
+# Example: release v2.1.0-beta2. Use the actual tag from the GitHub release.
+export GITHUB_REPOSITORY=Kosztyk/clamv-webui
+bash scripts/issue54-verify-cli-signature.sh \
+  clamctl-SHA256SUMS clamctl-SHA256SUMS.sigstore.json v2.1.0-beta2
+sha256sum -c clamctl-SHA256SUMS
+```
+
+`cosign` must be installed for the signature verification. The expected keyless
+certificate identity is exactly
+`https://github.com/Kosztyk/clamv-webui/.github/workflows/release.yml@refs/tags/v2.1.0-beta2`
+for that tag; `--certificate-oidc-issuer` must equal
+`https://token.actions.githubusercontent.com`. The identity changes with the
+release tag. **Checksums alone provide integrity, not authenticity**; the
+Sigstore verification prevents accepting a replacement checksum file.
+
+The signed `clamctl-SHA256SUMS` covers only the six CLI binaries; the existing
+release-wide `SHA256SUMS` also covers the application JAR, source archive, SBOMs,
+image evidence, and the signed CLI manifest and Sigstore bundle. The
+release-wide file cannot include its own checksum and is not itself the detached
+signed CLI manifest.
 
 ## Configure and authenticate
 
@@ -182,7 +209,7 @@ server's documented trusted-forwarded-header configuration.
 ## Build, test and release
 
 Go 1.25+ is required only when building from source. Release binaries in this
-distribution were built with Go 1.26.8. MCP support uses the pinned official Go
+distribution were built with Go 1.26.11. MCP support uses the pinned official Go
 MCP SDK and its dependencies in `go.mod`/`go.sum`; the executable still needs no
 additional runtime. See `THIRD_PARTY_NOTICES.md` for dependency licenses.
 
@@ -196,8 +223,7 @@ go run ./tools/build.go
 The builder compiles all six targets with `CGO_ENABLED=0`, stripped symbols and
 trimmed source paths, then writes checksums and a manifest. A single target can
 be selected with `-targets linux/amd64`. Source builds do not require the server
-JAR. `.github/workflows/clamctl.yml` defines native Linux/macOS/Windows tests,
-cross-platform builds and the real Spring/native CLI integration check.
+JAR. The `go-cli` matrix in `.github/workflows/ci.yml` runs native Linux/macOS/Windows tests; its Linux leg cross-compiles all six binaries. The additional real Spring/native CLI integration test is available as a separate local check below.
 
 The optional full pipeline test requires the built server JAR, Go and the native
 Linux CLI, then runs from the source root:

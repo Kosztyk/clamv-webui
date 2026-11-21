@@ -45,8 +45,13 @@ utf8mb4; full paths remain stored, and hash collision risk is negligible.
 ## New installation — no variables needed for H2
 
 Use the existing `docker-compose.yml`, unchanged: the default is
-`jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE`
-with `sa` / empty password. Flyway creates schema V1+V2; Hibernate validates.
+`jdbc:h2:file:./data/clamav-web-client;MODE=PostgreSQL;DB_CLOSE_DELAY=0`
+with `sa` / empty password for backward compatibility. `DB_CLOSE_DELAY=0` repairs older
+file databases whose `-1` setting persisted, and the H2 JVM shutdown hook is no
+longer disabled. A new H2 installation can set `SPRING_DATASOURCE_PASSWORD` via a
+private Compose `.env`; do **not** set a new password on an existing database without
+rotating the H2 user credential first. H2 is intended for one Web UI instance;
+**PostgreSQL is recommended for production**. Flyway creates the schema; Hibernate validates.
 First run creates one administrator credential, never an insecure default.
 If the data directory already contains a DB, **do not treat it as new**.
 
@@ -99,6 +104,14 @@ matching V1. It does not copy data. V2 adds missing fields only and fails
 closed when essential tables are absent or PostgreSQL OIDs are detected. On
 some substantially older variants additional schema reconciliation may be
 required; restore a clone instead of using Hibernate `update` blindly.
+
+For PostgreSQL legacy schemas, the pre-migration callback
+`beforeMigrate__repair_legacy_processed_path_constraint.sql` also recognizes the
+historical `processed_files.idx_processed_path` UNIQUE-constraint shape. It
+converts that constraint to the standalone unique index expected by V9 before
+versioned migrations run. Fresh databases, already Flyway-managed V1-V8
+databases, and V9+ databases are no-ops. This keeps the original V9 migration
+checksum unchanged for installations that already applied it successfully.
 
 ### PostgreSQL historical OID Large Objects
 

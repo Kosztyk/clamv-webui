@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"os"
@@ -15,14 +16,24 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 )
 
 func main() {
-	version := flag.String("version", "2.1.0", "CLI version")
+	version := flag.String("version", "", "CLI version (must match ../pom.xml; default: POM)")
 	out := flag.String("out", "dist", "Output directory")
 	targets := flag.String("targets", "linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64", "Comma-separated GOOS/GOARCH pairs")
 	flag.Parse()
+	pomVersion, err := pomVersion("../pom.xml")
+	if err != nil {
+		fatal("cannot read canonical POM version: " + err.Error())
+	}
+	if *version == "" {
+		*version = pomVersion
+	} else if *version != pomVersion {
+		fatal("CLI/POM mismatch: " + *version + " != " + pomVersion)
+	}
 	if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9_.-]+)?$`).MatchString(*version) {
 		fatal("invalid version")
 	}
@@ -87,7 +98,14 @@ func main() {
 }
 
 func buildEnvironment(goos, goarch string) []string {
-	settings := map[string]string{"GOOS": goos, "GOARCH": goarch, "CGO_ENABLED": "0", "GOTOOLCHAIN": "local"}
+	epoch := os.Getenv("SOURCE_DATE_EPOCH")
+	if epoch == "" {
+		epoch = "0"
+	}
+	if n, err := strconv.ParseInt(epoch, 10, 64); err != nil || n < 0 {
+		fatal("SOURCE_DATE_EPOCH must be a non-negative Unix timestamp")
+	}
+	settings := map[string]string{"GOOS": goos, "GOARCH": goarch, "CGO_ENABLED": "0", "GOTOOLCHAIN": "local", "GOFLAGS": "", "SOURCE_DATE_EPOCH": epoch}
 	var env []string
 	for _, value := range os.Environ() {
 		name, _, _ := strings.Cut(value, "=")
@@ -109,3 +127,21 @@ func allowed(value string, choices ...string) bool {
 	return false
 }
 func fatal(message string) { fmt.Fprintln(os.Stderr, message); os.Exit(1) }
+
+// The project's root POM is the only manually edited release-version source.
+func pomVersion(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	var pom struct {
+		Version string `xml:"version"`
+	}
+	if err := xml.Unmarshal(data, &pom); err != nil {
+		return "", err
+	}
+	if pom.Version == "" {
+		return "", fmt.Errorf("missing project version")
+	}
+	return pom.Version, nil
+}

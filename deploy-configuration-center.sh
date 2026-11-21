@@ -7,7 +7,7 @@ command -v docker >/dev/null || { echo 'Install Docker and its Compose plugin fi
 docker compose version >/dev/null
 docker info >/dev/null
 mkdir -p conf data
-image='clamav-web-client:2.1.0-local'
+image='clamav-web-client:local'
 docker build --pull -t "$image" .
 if ! docker run --rm --network none --entrypoint /bin/sh \
     --mount "type=bind,src=$PWD/conf,dst=/app/conf" \

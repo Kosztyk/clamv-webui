@@ -1,0 +1,24 @@
+# Review ownership for sensitive paths. Enforced only if branch protection or
+# a ruleset requires Code Owner review and an eligible *other* reviewer approves.
+/.github/ @Kosztyk
+/.github/workflows/ @Kosztyk
+/.github/dependabot.yml @Kosztyk
+/RELEASE.md @Kosztyk
+/SECURITY.md @Kosztyk
+/.github/CODEOWNERS @Kosztyk
+/pom.xml @Kosztyk
+/Dockerfile @Kosztyk
+/Dockerfile.clamd @Kosztyk
+/Dockerfile.clamd-uid @Kosztyk
+/docker-compose*.yml @Kosztyk
+/docker-compose*.yaml @Kosztyk
+/src/main/java/info/trizub/clamav/webclient/config/SecurityConfig.java @Kosztyk
+/src/main/java/info/trizub/clamav/webclient/config/SessionSecurityConfig.java @Kosztyk
+/src/main/java/info/trizub/clamav/webclient/identity/ @Kosztyk
+/src/main/java/info/trizub/clamav/webclient/security/ @Kosztyk
+/src/main/java/info/trizub/clamav/webclient/configuration/ @Kosztyk
+/src/main/resources/db/migration/ @Kosztyk
+/src/main/resources/openapi/ @Kosztyk
+/scripts/release-gate.sh @Kosztyk
+/scripts/release-verify-tag.py @Kosztyk
+/tools/audit-source-package.py @Kosztyk

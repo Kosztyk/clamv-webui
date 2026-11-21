@@ -1,0 +1,35 @@
+# Based on Alpine's libmspack package recipe for 3.24.
+pkgname=libmspack
+pkgver=0.12_alpha
+pkgrel=0
+pkgdesc="Library for Microsoft CAB compression formats"
+url="https://www.cabextract.org.uk/libmspack/"
+arch="all"
+license="LGPL-2.1-only"
+subpackages="$pkgname-dev"
+source="${url}libmspack-0.12alpha.tar.gz"
+builddir="$srcdir/libmspack-0.12alpha"
+
+prepare() {
+    default_prepare
+    # Alpine's pkgconf provider requires the underscore in the version suffix.
+    sed -i "s/@VERSION@/$pkgver/" libmspack.pc.in
+}
+
+build() {
+    ./configure --build="$CBUILD" --host="$CHOST" --prefix=/usr --disable-static
+    make
+}
+
+check() {
+    make check
+}
+
+package() {
+    make DESTDIR="$pkgdir" install
+    install -Dm644 COPYING.LIB "$pkgdir/usr/share/licenses/$pkgname/COPYING.LIB"
+}
+
+sha256sums="
+1834d1079a6e8db9546fa95d3a1fc2cf676124a8a60bbdd7f30b2db4eb4ad683  libmspack-0.12alpha.tar.gz
+"

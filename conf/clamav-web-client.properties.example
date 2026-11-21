@@ -1,16 +1,18 @@
-#Tue May 12 10:40:06 GMT 2026
+# Optional starter values for a new installation. Copy to
+# conf/clamav-web-client.properties if you need a legacy local settings file.
+# The running application writes that file; never commit it.
+# Configure webhook URL and signing secret in Configuration Center instead.
 app.allowedScanRoots=/scandir
 app.concurrentScans=2
 app.quarantine.enabled=false
 app.storage.quarantineDir=./data/quarantine
 app.storage.uploadDir=./data/uploads
 app.upload.maxBytes=2147483648
-app.upload.pathScan.enabled=true
-app.upload.pathScan.fallbackToInstream=false
+app.upload.pathScan.enabled=false
+app.upload.pathScan.fallbackToInstream=true
 app.watch.enabled=false
 app.watch.pollSeconds=30
 app.webhook.enabled=false
-app.webhook.url=
 clamav.service.host=localhost
 clamav.service.platform=UNIX
 clamav.service.port=3310

@@ -32,7 +32,7 @@ services:
       CLAMAV_REST_UPLOAD_TIMEOUT_SECONDS: "3600"
       CLAMAV_REST_REPORT_MAX_JOBS: "5000"
       # Packaged default; restrict backend access to the proxy and replace headers there.
-      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-framework}"
+      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-none}"
       # Optional webhook tuning; finite timeouts and public destinations are the built-in defaults.
       CLAMAV_WEBHOOK_CONNECT_TIMEOUT: "${CLAMAV_WEBHOOK_CONNECT_TIMEOUT:-5s}"
       CLAMAV_WEBHOOK_READ_TIMEOUT: "${CLAMAV_WEBHOOK_READ_TIMEOUT:-10s}"

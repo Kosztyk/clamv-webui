@@ -12,7 +12,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-framework}"
+      SERVER_FORWARD_HEADERS_STRATEGY: "${SERVER_FORWARD_HEADERS_STRATEGY:-none}"
       # Optional webhook tuning; finite timeouts and public destinations are the built-in defaults.
       CLAMAV_WEBHOOK_CONNECT_TIMEOUT: "${CLAMAV_WEBHOOK_CONNECT_TIMEOUT:-5s}"
       CLAMAV_WEBHOOK_READ_TIMEOUT: "${CLAMAV_WEBHOOK_READ_TIMEOUT:-10s}"
@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
 
   clamav-server:
-    image: clamav/clamav:latest
+    image: clamav/clamav:1.4.7@sha256:b7357e2c1c59480628839df301b0d27923561389b36cf341911e1dd9e02cdd05
     container_name: clamav-server
     volumes:
       - clamav-signatures:/var/lib/clamav

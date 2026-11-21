@@ -1,0 +1,131 @@
+<div th:fragment="clamdTop" data-page="clamdtop">
+  <div class="card mb-3 clamdtop-card">
+    <div class="card-body">
+      <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+        <div>
+          <h4 class="card-title mb-1">Clamdtop / Live Monitor</h4>
+          <div class="text-muted">
+            Live clamd STATS view. This connects to the configured clamd endpoint directly; no Docker socket or docker exec is required.
+          </div>
+        </div>
+        <div class="clamdtop-state">
+          <span id="clamdtopStatusDot" class="clamdtop-dot"></span>
+          <span id="clamdtopStatusText">Waiting for refresh…</span>
+        </div>
+      </div>
+
+      <form id="clamdtopForm" method="get" th:action="@{/clamdtop}" action="/clamdtop" class="row g-2 align-items-end mt-3">
+        <div class="col-lg-5 col-md-6">
+          <label class="form-label">Endpoint</label>
+          <select id="clamdtopEndpoint" class="form-select" name="endpointId">
+            <option th:each="ep : ${endpoints}"
+                    th:value="${ep.id}"
+                    th:selected="${endpoint != null and ep.id == endpoint.id}"
+                    th:text="${ep.name + ' (' + ep.host + ':' + ep.port + ' / ' + ep.platform + ')'}"></option>
+          </select>
+        </div>
+        <div class="col-lg-2 col-md-3">
+          <label class="form-label">Refresh</label>
+          <select id="clamdtopInterval" class="form-select">
+            <option value="1000">1 second</option>
+            <option value="2000" selected>2 seconds</option>
+            <option value="5000">5 seconds</option>
+            <option value="10000">10 seconds</option>
+          </select>
+        </div>
+        <div class="col-lg-2 col-md-3">
+          <button id="clamdtopRefresh" type="button" class="btn btn-primary w-100">Refresh now</button>
+        </div>
+        <div class="col-lg-3 col-md-12">
+          <label class="form-check form-switch clamdtop-switch">
+            <input id="clamdtopAuto" class="form-check-input" type="checkbox" checked>
+            <span class="form-check-label">Auto refresh</span>
+          </label>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-xl-3 col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted">Daemon</div>
+          <div id="clamdtopVersion" class="kpi-sm">—</div>
+          <div id="clamdtopDb" class="small text-muted mt-1">DB: —</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted">Threads</div>
+          <div id="clamdtopThreads" class="kpi-sm">—</div>
+          <div class="clamdtop-meter mt-2"><div id="clamdtopThreadsBar"></div></div>
+          <div id="clamdtopThreadsMeta" class="small text-muted mt-1">live / idle / max</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted">Queue</div>
+          <div id="clamdtopQueue" class="kpi-sm">—</div>
+          <div class="clamdtop-meter mt-2"><div id="clamdtopQueueBar"></div></div>
+          <div id="clamdtopQueueMeta" class="small text-muted mt-1">items / max</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted">Memory pool</div>
+          <div id="clamdtopMemory" class="kpi-sm">—</div>
+          <div id="clamdtopMemoryMeta" class="small text-muted mt-1">used / total</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-xl-7">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h5 class="m-0">Command queue</h5>
+            <span id="clamdtopUpdated" class="small text-muted">Not updated yet</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle clamdtop-table">
+              <thead>
+              <tr>
+                <th>Command</th>
+                <th>Queued since</th>
+                <th>File</th>
+              </tr>
+              </thead>
+              <tbody id="clamdtopCommands">
+              <tr><td colspan="3" class="text-muted">Waiting for data…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="clamdtopNoCommands" class="small text-muted mt-2 d-none">
+            clamd STATS does not always expose individual filenames. When queue details are not provided by clamd, only the aggregate queue counters are shown.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-5">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h5 class="m-0">Raw STATS output</h5>
+            <span id="clamdtopEndpointLabel" class="small text-muted">—</span>
+          </div>
+          <pre id="clamdtopRaw" class="clamdtop-raw">Waiting for data…</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

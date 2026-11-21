@@ -254,7 +254,7 @@ func (a *App) run(ctx context.Context, options globals, words []string) (int, er
 	if err != nil {
 		return 2, err
 	}
-	client, err := newClient(server, auth, caFile, options.RequestTimeout, a.Transport)
+	client, err := newClient(server, auth, caFile, options.RequestTimeout, a.Transport, a.Version)
 	if err != nil {
 		return 2, err
 	}
@@ -382,7 +382,7 @@ func (a *App) login(ctx context.Context, options globals, args []string, saved c
 			return 2, err
 		}
 	}
-	client, err := newClient(server, auth, caFile, options.RequestTimeout, a.Transport)
+	client, err := newClient(server, auth, caFile, options.RequestTimeout, a.Transport, a.Version)
 	if err != nil {
 		return 2, err
 	}
