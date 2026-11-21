@@ -11,7 +11,7 @@ The entries below describe released source when a dated version heading is prese
 
 _No unreleased user-visible changes yet._
 
-## [2.1.0] - 2026-11-20
+## [2.1.0] - 2026-11-21
 
 - Direct-HTTP setup/recovery now persists only `server.servlet.session.cookie.secure=false` when explicitly enabled on a trusted HTTP network; forwarded-header trust is not silently changed.
 - PostgreSQL startup now detects the legacy `processed_files.idx_processed_path` UNIQUE constraint shape and safely normalizes it before Flyway V9, while leaving the V9 migration checksum unchanged.
