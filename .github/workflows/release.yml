@@ -476,7 +476,7 @@ jobs:
           RELEASE_TAG: ${{ needs.verify-tag.outputs.tag }}
           RELEASE_COMMIT: ${{ needs.verify-tag.outputs.commit }}
         run: python3 scripts/issue51-image-release.py metadata --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT" --github-output "$GITHUB_OUTPUT"
-      - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
       - uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
