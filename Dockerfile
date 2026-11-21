@@ -9,7 +9,7 @@ COPY dashboards ./dashboards
 RUN mvn -B -q verify
 
 # Build the patched runtime packages and native ClamdTop against the same ABI.
-FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474 AS clamdtop-extract
+FROM eclipse-temurin:24-jre-alpine-3.22@sha256:4044b6c87cb088885bcd0220f7dc7a8a4aab76577605fa471945d2e98270741f AS clamdtop-extract
 WORKDIR /tmp/native
 RUN apk add --no-cache abuild build-base openssl
 COPY docker/ ./
@@ -58,7 +58,7 @@ RUN set -eux; \
     apk add --no-cache /runtime-apks/*.apk "$packages/clamav-1.4.7-r0.apk"; \
     test -x /usr/bin/clamdtop
 
-FROM eclipse-temurin:21-jre-alpine-3.24@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474 AS runtime-rootfs
+FROM eclipse-temurin:24-jre-alpine-3.22@sha256:4044b6c87cb088885bcd0220f7dc7a8a4aab76577605fa471945d2e98270741f AS runtime-rootfs
 WORKDIR /app
 COPY --from=clamdtop-extract --chown=0:0 --chmod=0555 /usr/bin/clamdtop /usr/bin/clamdtop
 COPY --chown=0:0 --chmod=0444 licenses/clamav-COPYING.txt /usr/share/doc/clamav/COPYING.txt
