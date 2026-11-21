@@ -2,7 +2,7 @@
 
 > **Stable release tag:** `v2.1.0`  
 > **Docker Hub image:** `kosztyk/clamav-web-client:v2.1.0`  
-> **Release date:** 20 November 2026
+> **Release date:** 21 November 2026
 >
 > v2.1.0 consolidates the fixes raised in issues #25–#57, including ClamAV 1.4.7 security remediation, PostgreSQL legacy-upgrade auto-repair before Flyway V9, persistent Direct-HTTP session-cookie configuration, hardened CI/release gates, signed/scanned release artifacts, and digest-scoped OpenVEX handling for Alpine `CVE-2026-107891`. See [v2.1.0 release notes](docs/releases/v2.1.0.md), [CHANGELOG](CHANGELOG.md), and [upgrade/release procedure](RELEASE.md).
 
