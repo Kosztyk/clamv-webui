@@ -1,7 +1,7 @@
 # ClamAV Web UI v2.1.0 — final release
 
 **Tag:** `v2.1.0`  
-**Release date:** 20 November 2026  
+**Release date:** 21 November 2026  
 **Docker Hub image:** `kosztyk/clamav-web-client:v2.1.0`
 
 This final 2.1 release consolidates the security, reliability, performance, database, CI and release-engineering work tracked in issues #25–#57. The beta sections retained below are historical implementation notes; the active release identifier is `v2.1.0`.
