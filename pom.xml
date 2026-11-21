@@ -48,7 +48,7 @@
         <jacoco.minimum.line.coverage>0.82</jacoco.minimum.line.coverage>
         <spotless.ratchet.ref>origin/main</spotless.ratchet.ref>
 		<!-- Boot 4.0.9 manages the fixes listed in docs/SECURITY_DEPENDENCY_UPDATE.md. -->
-		<postgresql.version>42.7.13</postgresql.version>
+		<postgresql.version>42.7.14</postgresql.version>
 		<!-- Override Boot's older HTTP stack: fixes CVE-2026-64607/54399/54428. -->
 		<httpclient5.version>5.6.5</httpclient5.version>
 		<httpcore5.version>5.4.4</httpcore5.version>
