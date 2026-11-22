@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           git cat-file -e "${TARGET_SHA}^{commit}"
-          test "$(git rev-parse "${TARGET_SHA}^{tree}")" = "$(git rev-parse HEAD^1^{tree})" || {
+          test "$(git rev-parse "${TARGET_SHA}^{tree}")" = "$(git rev-parse 'HEAD^1^{tree}')" || {
             echo "Target finalized tree no longer matches the pre-publisher main tree" >&2
             exit 1
           }
