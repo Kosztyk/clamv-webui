@@ -29,6 +29,9 @@ def check():
     release=yaml.load((r/'.github/workflows/release.yml').read_text(),Loader=yaml.BaseLoader)
     quality='\n'.join(str(step.get('run','')) for step in ci['jobs']['java-quality']['steps'])
     must('issue58-coverage-ratchet.py --baseline' in quality,'Coverage regression check absent')
+    must('Detect coverage-affecting Java/application changes' in quality and
+         "steps.coverage-scope.outputs.changed == 'true'" in str(ci['jobs']['java-quality']['steps']),
+         'Coverage ratchet is not scoped to coverage-affecting source changes')
     must('-Pci-quality verify' in quality and '-DskipTests -Djacoco.skip=true verify' not in quality,'Coverage runs with tests disabled')
     must('spotless:check' in quality,'Formatter enforcement removed')
     chooser=(r/'scripts/issue58-resolve-predecessor.py').read_text()
