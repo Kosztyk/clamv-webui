@@ -25,12 +25,14 @@ def check():
          'No concurrency and restart tests for scan shutdown')
     must('app.scan.queue-capacity=${APP_SCAN_QUEUE_CAPACITY:256}' in (r/'src/main/resources/application.properties').read_text(),'No capacity control')
     must((r/'src/test/java/info/trizub/clamav/webclient/service/ScanExecutionQueueCapacityTest.java').is_file(),'No Java overload test')
-    ci=yaml.load((r/'.github/workflows/ci.yml').read_text(),Loader=yaml.BaseLoader)
+    ci_text=(r/'.github/workflows/ci.yml').read_text()
+    ci=yaml.load(ci_text,Loader=yaml.BaseLoader)
     release=yaml.load((r/'.github/workflows/release.yml').read_text(),Loader=yaml.BaseLoader)
     quality='\n'.join(str(step.get('run','')) for step in ci['jobs']['java-quality']['steps'])
     must('issue58-coverage-ratchet.py --baseline' in quality,'Coverage regression check absent')
-    must('Detect coverage-affecting Java/application changes' in quality and
-         "steps.coverage-scope.outputs.changed == 'true'" in str(ci['jobs']['java-quality']['steps']),
+    must('Detect coverage-affecting Java/application changes' in ci_text and
+         "steps.coverage-scope.outputs.changed == 'true'" in ci_text and
+         "steps.coverage-scope.outputs.changed != 'true'" in ci_text,
          'Coverage ratchet is not scoped to coverage-affecting source changes')
     must('-Pci-quality verify' in quality and '-DskipTests -Djacoco.skip=true verify' not in quality,'Coverage runs with tests disabled')
     must('spotless:check' in quality,'Formatter enforcement removed')
