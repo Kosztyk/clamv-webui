@@ -1,5 +1,7 @@
 name: CI
 
+# v2.1.0 full release verification: touching this critical control intentionally forces every CI scope.
+
 # No event-level path filters: the stable `gate` check reports on every PR.
 on:
   pull_request:
