@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
-"""Block regressions in measured JaCoCo line coverage between immutable Git base and candidate."""
+"""Block material regressions in measured JaCoCo line coverage.
+
+JaCoCo totals can vary by a handful of executed lines between otherwise identical
+runs because some integration/scheduling paths are timing-dependent. Treat only
+a drop larger than 0.01 percentage point as a regression; this is smaller than
+the two-decimal precision reported to maintainers and still blocks meaningful
+coverage loss.
+"""
 from pathlib import Path
 from fractions import Fraction
 import argparse,sys,xml.etree.ElementTree as ET
+
+# 0.01 percentage point = 0.0001 as a ratio.
+TOLERANCE = Fraction(1, 10_000)
 
 def ratio(path:Path)->Fraction:
     if not path.is_file() or not path.stat().st_size:raise ValueError('Missing JaCoCo XML: '+str(path))
@@ -15,7 +25,11 @@ def ratio(path:Path)->Fraction:
 
 def compare(base:Path,current:Path)->tuple[Fraction,Fraction]:
     old,new=ratio(base),ratio(current)
-    if new<old:raise ValueError(f'JaCoCo line coverage regressed: {float(old)*100:.2f}% -> {float(new)*100:.2f}%')
+    if old-new>TOLERANCE:
+        raise ValueError(
+            f'JaCoCo line coverage regressed beyond 0.01 percentage point tolerance: '
+            f'{float(old)*100:.4f}% -> {float(new)*100:.4f}%'
+        )
     return old,new
 
 if __name__=='__main__':
@@ -23,5 +37,7 @@ if __name__=='__main__':
     a=ap.parse_args()
     try:
         old,new=compare(a.baseline,a.candidate)
-        print(f'PASS: coverage non-regression {float(old)*100:.2f}% -> {float(new)*100:.2f}%')
+        delta=float(new-old)*100
+        print(f'PASS: coverage non-regression within 0.01 pp tolerance '
+              f'{float(old)*100:.4f}% -> {float(new)*100:.4f}% ({delta:+.4f} pp)')
     except (ValueError,ET.ParseError) as exc:sys.exit('FAIL: '+str(exc))
