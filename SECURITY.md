@@ -4,14 +4,19 @@
 
 | Release line | Security support |
 | --- | --- |
-| Current `2.1.0` prerelease candidates | Active development; fixes evaluated on the current branch |
-| `2.0.x` | Legacy release; backports are not guaranteed; migrate when supported |
+| `2.1.0` | Current stable release; security fixes evaluated against the maintained `2.1.x` line |
+| `2.0.x` | Legacy release; backports are not guaranteed; migrate to 2.1.x |
 | `1.x` | No active security maintenance |
 
-The release status of an individual tag is shown under
-[GitHub Releases](https://github.com/Kosztyk/clamv-webui/releases). A source
-archive or a draft release is **not** a security-patched production image.
-Do not infer security support solely from a version label.
+The current stable release is **ClamAV Web UI v2.1.0**. Release status, signed
+artifacts and checksums are published under
+[GitHub Releases](https://github.com/Kosztyk/clamv-webui/releases). Historical
+beta and release-candidate documents remain in the repository as validation
+records; they do not change the active release version.
+
+A source archive or a draft release is **not** a security-patched production
+image by itself. Verify the published tag, release assets, image digest,
+signatures and checksums before deployment.
 
 ## Report vulnerabilities **privately**
 
