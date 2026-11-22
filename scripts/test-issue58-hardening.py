@@ -18,7 +18,13 @@ def main():
         def write(file,covered,missed):file.write_text(f'<report><counter type="LINE" covered="{covered}" missed="{missed}" /></report>')
         write(a,35,65);write(b,39,61)
         assert cov.compare(a,b)==(Fraction(35,100),Fraction(39,100))
-        write(b,30,70);must_reject(lambda:cov.compare(a,b),'coverage regression')
+        # Tiny nondeterministic variance below 0.01 percentage point is accepted.
+        write(a,8364,1636);write(b,836399,163601)
+        old,new=cov.compare(a,b)
+        assert old-new <= cov.TOLERANCE
+        # A real regression beyond the explicit tolerance remains blocking.
+        write(a,8364,1636);write(b,8362,1638)
+        must_reject(lambda:cov.compare(a,b),'coverage regression beyond tolerance')
         b.write_text('<report />');must_reject(lambda:cov.compare(a,b),'missing JaCoCo line total')
         b.unlink();must_reject(lambda:cov.compare(a,b),'missing coverage artifact')
     with tempfile.TemporaryDirectory() as td:
