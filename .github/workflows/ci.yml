@@ -1,5 +1,7 @@
 name: CI
 
+# Full v2.1.0 post-release verification: this CI-control change intentionally exercises every scope.
+
 # No event-level path filters: the stable `gate` check reports on every PR.
 on:
   pull_request:
