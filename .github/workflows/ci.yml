@@ -345,11 +345,27 @@ jobs:
       - name: Test vendor Flyway migrations with Testcontainers
         env:
           DB_VENDOR: ${{ matrix.vendor }}
-        run: >-
-          mvn -B -ntp -Pdb-integration
-          -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false
-          -Dit.test=Phase2DatabaseIT
-          -Dclamav.db.vendor="$DB_VENDOR" -Djacoco.skip=true verify
+        shell: bash
+        run: |
+          set -o pipefail
+          log="$(mktemp)"
+          for attempt in 1 2 3 4; do
+            : > "$log"
+            if mvn -B -ntp -Pdb-integration               -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false               -Dit.test=Phase2DatabaseIT               -Dclamav.db.vendor="$DB_VENDOR" -Djacoco.skip=true verify 2>&1 | tee "$log"; then
+              exit 0
+            fi
+
+            # Retry only transient repository/network failures. Real compilation,
+            # test, migration and assertion failures remain immediately blocking.
+            if ! grep -Eqi               'HTTP Status: (429|5[0-9][0-9])|Connection reset|Read timed out|Connect timed out|Temporary failure in name resolution|Could not transfer artifact'               "$log"; then
+              exit 1
+            fi
+            if [ "$attempt" -eq 4 ]; then
+              echo "Transient Maven dependency resolution still failing after $attempt attempts" >&2
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
       - name: Upload Surefire/Failsafe reports
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
