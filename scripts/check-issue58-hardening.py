@@ -25,16 +25,21 @@ def check():
          'No concurrency and restart tests for scan shutdown')
     must('app.scan.queue-capacity=${APP_SCAN_QUEUE_CAPACITY:256}' in (r/'src/main/resources/application.properties').read_text(),'No capacity control')
     must((r/'src/test/java/info/trizub/clamav/webclient/service/ScanExecutionQueueCapacityTest.java').is_file(),'No Java overload test')
-    ci_text=(r/'.github/workflows/ci.yml').read_text()
-    ci=yaml.load(ci_text,Loader=yaml.BaseLoader)
+    ci=yaml.load((r/'.github/workflows/ci.yml').read_text(),Loader=yaml.BaseLoader)
     release=yaml.load((r/'.github/workflows/release.yml').read_text(),Loader=yaml.BaseLoader)
-    quality='\n'.join(str(step.get('run','')) for step in ci['jobs']['java-quality']['steps'])
-    must('issue58-coverage-ratchet.py --baseline' in quality,'Coverage regression check absent')
-    must('Detect coverage-affecting Java/application changes' in ci_text and
-         "steps.coverage-scope.outputs.changed == 'true'" in ci_text and
-         "steps.coverage-scope.outputs.changed != 'true'" in ci_text,
-         'Coverage ratchet is not scoped to coverage-affecting source changes')
-    must('-Pci-quality verify' in quality and '-DskipTests -Djacoco.skip=true verify' not in quality,'Coverage runs with tests disabled')
+    quality_steps = ci['jobs']['java-quality']['steps']
+    quality = '\n'.join(step.get('run', '') for step in quality_steps)
+    ratchet = [step for step in quality_steps if 'issue58-coverage-ratchet.py --baseline' in step.get('run', '')]
+    must(len(ratchet) == 1 and ratchet[0].get('if') == "${{ steps.coverage-scope.outputs.changed == 'true' }}",
+         'The coverage ratchet must run when coverage-affecting paths change')
+    builds = [step for step in quality_steps if '-Pci-quality' in step.get('run', '') and ' verify' in step['run']]
+    must(len(builds) == 2 and all('if' not in step and 'continue-on-error' not in step for step in builds)
+         and not any(flag in step['run'] for step in builds
+                     for flag in ('-DskipTests', '-Dmaven.test.skip', '-Djacoco.skip')),
+         'Candidate and baseline builds must run tests and the JaCoCo floor unconditionally')
+    static_comparison = [step for step in quality_steps if 'issue53-compare-quality.py' in step.get('run', '')]
+    must(len(static_comparison) == 1 and 'if' not in static_comparison[0] and 'continue-on-error' not in static_comparison[0],
+         'The static analysis comparison must always block new findings')
     must('spotless:check' in quality,'Formatter enforcement removed')
     chooser=(r/'scripts/issue58-resolve-predecessor.py').read_text()
     must('merge-base' in chooser and 'published_at' in chooser and 'fetch_releases' in chooser,'Predecessor selection unsafe')

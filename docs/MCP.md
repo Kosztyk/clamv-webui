@@ -1,10 +1,10 @@
 # ClamAV Web UI MCP server
 
-An HTTPS reverse proxy or Kubernetes Ingress that forwards HTTP to the Web UI
-works with the packaged `framework` default; no helper flag is required. Restrict
-backend access to that trusted proxy. See [proxy TLS setup](REVERSE_PROXY_TLS.md)
-if MCP requests return `403 tls_required`. Keep the public HTTPS URL in the
-MCP/`clamctl` configuration.
+When an HTTPS reverse proxy or Kubernetes Ingress forwards HTTP to the Web UI,
+enable `native` forwarded-header handling and allowlist the proxy addresses.
+The Web UI defaults to `none` for direct access. Use the public HTTPS URL in
+the MCP/`clamctl` configuration. See [proxy TLS setup](REVERSE_PROXY_TLS.md)
+for the settings and `403 tls_required` troubleshooting.
 
 The official MCP server is included in `clamctl` v2.1.0. It bridges the Web UI's
 `/api/v1` REST API using the official Go MCP SDK, pinned to v1.8.0. No Python,
@@ -14,8 +14,8 @@ normalized database timestamp.
 
 ## Start a local stdio server
 
-Install the executable for your platform from `cli/dist`, then configure its
-server and credentials as described in `cli/README.md`. A scoped API token is
+Build or install the executable for your platform using [the CLI instructions](../cli/README.md).
+Then configure its server and credentials. A scoped API token is
 recommended for agents; Basic authentication is also supported.
 
 ```bash

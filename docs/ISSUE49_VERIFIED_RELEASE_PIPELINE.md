@@ -32,7 +32,9 @@ single required `gate` check from issue #48 are retained unchanged.
    succeed. Its write token is scoped to the draft job. It checks that the
    remote tag has not moved, downloads the immutable CI artifacts, and
    assembles the versioned application JAR, six CLI executables, the full
-   tracked-source ZIP, and **four signed-image evidence files** (OCI index, two CycloneDX SBOMs and immutable image reference); `SHA256SUMS` covers all twelve files.
+   tracked-source ZIP, five image evidence files (OCI index, two CycloneDX SBOMs,
+   immutable image reference, and OpenVEX), and the signed CLI checksum
+   manifest with its Sigstore bundle. `SHA256SUMS` covers all fifteen files.
    The checksums are independently verified before `gh release create` is
    allowed to create a **draft** release with automatically generated notes.
    Existing releases are never overwritten. Prerelease tags produce prereleases.

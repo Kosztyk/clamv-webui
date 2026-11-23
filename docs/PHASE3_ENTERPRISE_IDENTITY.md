@@ -86,7 +86,8 @@ services:
       CLAMAV_IDENTITY_OIDC_GROUPS_ADMIN: "ClamAV Administrators"
       CLAMAV_IDENTITY_OIDC_BUTTON_LABEL: "Sign in with Authentik"
       CLAMAV_IDENTITY_OIDC_LOGOUT_MODE: "local"
-      SERVER_FORWARD_HEADERS_STRATEGY: "framework"
+      SERVER_FORWARD_HEADERS_STRATEGY: "native"
+      SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "${CLAMAV_TRUSTED_PROXY_CIDRS:?Set the proxy peer addresses}"
       SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
     secrets: [oidc_client_secret]
 secrets:

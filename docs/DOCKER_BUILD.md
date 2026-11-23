@@ -12,14 +12,12 @@ Extract the full source archive and run from the directory containing
 docker build --pull -t clamav-web-client:2.1.0-local .
 ```
 
-The non-root and proxy fixes are part of this normal build: the Dockerfile declares
-`USER 10001:10001` (issue #10), and the JAR packages
-`server.forward-headers-strategy=${SERVER_FORWARD_HEADERS_STRATEGY:framework}`
-(issue #11). No `build-and-start.sh` command or `--trusted-proxy` flag is
-required. HTTPS forwarded by a trusted TLS-terminating proxy is recognized
-automatically; the proxy must replace incoming forwarding headers and be the
-only path to the backend. Remove an old `SERVER_FORWARD_HEADERS_STRATEGY=none`
-override if you want the new default. See [proxy TLS](REVERSE_PROXY_TLS.md).
+The Dockerfile runs the application as `10001:10001` (issue #10). The JAR
+defaults to `server.forward-headers-strategy=none` for direct access. When a
+proxy terminates HTTPS, configure `SERVER_FORWARD_HEADERS_STRATEGY=native`
+and allowlist the proxy addresses. The proxy must replace incoming forwarding
+headers and be the only path to the backend.
+See [proxy TLS configuration](REVERSE_PROXY_TLS.md) for issues #11 and #13.
 
 Issue #12 is also built into the source: asynchronous, bounded webhook delivery,
 finite timeouts and private-address filtering. See [webhook configuration](WEBHOOK_RESILIENCE.md)
