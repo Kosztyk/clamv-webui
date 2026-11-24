@@ -3,6 +3,8 @@
 from pathlib import Path
 from fractions import Fraction
 import importlib.util,subprocess,tempfile
+import os
+import yaml
 ROOT=Path(__file__).resolve().parents[1]
 def load(path,name):
     spec=importlib.util.spec_from_file_location(name,ROOT/'scripts'/path);obj=importlib.util.module_from_spec(spec);spec.loader.exec_module(obj);return obj
@@ -11,7 +13,67 @@ def must_reject(fn,reason):
     except (ValueError,AssertionError):print('PASS: rejected '+reason);return
     raise AssertionError('Did not reject '+reason)
 
+def test_coverage_scope():
+    workflow = yaml.load((ROOT / '.github/workflows/ci.yml').read_text(), Loader=yaml.BaseLoader)
+    quality_steps = workflow['jobs']['java-quality']['steps']
+    scope = next(step for step in quality_steps if step.get('id') == 'coverage-scope')
+
+    with tempfile.TemporaryDirectory() as directory:
+        repo = Path(directory)
+        output = repo / 'step-output'
+
+        def git(*args):
+            return subprocess.check_output(['git', *args], cwd=repo, text=True).strip()
+
+        git('init', '-q')
+        git('config', 'user.email', 'ci@example.invalid')
+        git('config', 'user.name', 'CI')
+        git('commit', '-qm', 'base', '--allow-empty')
+        base = git('rev-parse', 'HEAD')
+
+        for paths, expected in (
+            (('README.md', '.github/workflows/ci.yml'), 'false'),
+            (('pom.xml',), 'true'),
+            (('.mvn/jvm.config',), 'true'),
+            (('mvnw',), 'true'),
+            (('src/main/java/Sample.java',), 'true'),
+            (('src/main/resources/application.properties',), 'true'),
+            (('src/test/java/SampleTest.java',), 'true'),
+            (('src/test/resources/fixture.txt',), 'true'),
+        ):
+            git('checkout', '--quiet', '--detach', base)
+            for path in paths:
+                file = repo / path
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_text('changed\n')
+            git('add', '--', *paths)
+            git('commit', '-qm', 'change')
+            subprocess.run(
+                ['bash', '-c', scope['run']], cwd=repo, check=True,
+                env={**os.environ, 'BASE_SHA': base, 'GITHUB_OUTPUT': str(output)},
+            )
+            assert output.read_text() == f'changed={expected}\n', paths
+            output.unlink()
+
+        git('rm', '--quiet', '--', 'src/test/resources/fixture.txt')
+        parent = git('rev-parse', 'HEAD')
+        git('commit', '-qm', 'remove resource')
+        subprocess.run(
+            ['bash', '-c', scope['run']], cwd=repo, check=True,
+            env={**os.environ, 'BASE_SHA': parent, 'GITHUB_OUTPUT': str(output)},
+        )
+        assert output.read_text() == 'changed=true\n'
+        output.unlink()
+
+        result = subprocess.run(
+            ['bash', '-c', scope['run']], cwd=repo, capture_output=True,
+            env={**os.environ, 'BASE_SHA': 'missing-base', 'GITHUB_OUTPUT': str(output)},
+        )
+        assert result.returncode != 0 and not output.exists()
+    print('PASS: coverage comparison scope handles CI-only changes, application changes, deletions and invalid bases')
+
 def main():
+    test_coverage_scope()
     cov=load('issue58-coverage-ratchet.py','cov58');up=load('issue58-resolve-predecessor.py','upgrade58')
     with tempfile.TemporaryDirectory() as td:
         p=Path(td);a=p/'before.xml';b=p/'after.xml'
@@ -22,6 +84,9 @@ def main():
         write(a,8364,1636);write(b,836399,163601)
         old,new=cov.compare(a,b)
         assert old-new <= cov.TOLERANCE
+        write(b,8363,1637)
+        old,new=cov.compare(a,b)
+        assert old-new == cov.TOLERANCE
         # A real regression beyond the explicit tolerance remains blocking.
         write(a,8364,1636);write(b,8362,1638)
         must_reject(lambda:cov.compare(a,b),'coverage regression beyond tolerance')

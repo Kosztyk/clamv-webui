@@ -12,7 +12,9 @@ services:
       # Enable and configure either provider ONLY after the local login test.
       # CLAMAV_IDENTITY_LDAP_MANAGER_PASSWORD_FILE: /run/secrets/ldap_bind_password
       # CLAMAV_IDENTITY_OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc_client_secret
-      # SERVER_FORWARD_HEADERS_STRATEGY: framework  # application default; restrict backend to trusted proxy
+      # For proxy TLS termination, uncomment both settings and set the actual proxy peer addresses.
+      # SERVER_FORWARD_HEADERS_STRATEGY: native
+      # SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "${CLAMAV_TRUSTED_PROXY_CIDRS:?Set the proxy peer addresses}"
     # secrets: [ldap_bind_password, oidc_client_secret]
 # secrets:
 #   ldap_bind_password: {file: ./.secrets/ldap_bind_password}

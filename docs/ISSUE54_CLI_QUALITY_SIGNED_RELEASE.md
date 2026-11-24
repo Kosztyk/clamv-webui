@@ -1,6 +1,6 @@
 # Issue #54 — Go CLI security, reproducibility and signed checksums
 
-**Status:** implemented in the full-source candidate; real CI and signing need execution on GitHub. Built on issue #53, retaining issues #36–#53.
+The full PR CI run passed the CLI platform, build and integration jobs. The tag workflow handles release signing. [Full CI run](https://github.com/Kosztyk/clamv-webui/actions/runs/45055371545)
 
 ## Unified CI gate
 
@@ -32,7 +32,7 @@ cosign sign-blob --yes --new-bundle-format \
 
 Cosign uses GitHub OIDC keyless signing; no repository signing key or private-key secret is required. The signing identity is restricted to the **exact tag-triggered** `.github/workflows/release.yml` path and the GitHub OIDC issuer. The draft and approved publication jobs reverify **the signature, signer identity and SHA-256 data**, not just the existence of the bundle. The image-signing and digest-smoke workflow from issue #51 remains required.
 
-Each GitHub release includes all six CLI executables, `clamctl-SHA256SUMS`, `clamctl-SHA256SUMS.sigstore.json`, and the pre-existing release-wide `SHA256SUMS`. All files are cross-checked by `scripts/release-assets.py`; the release-wide checksum list includes the signed CLI inventory and its bundle, avoiding a circular self-hash.
+The automated release workflow includes all six CLI executables, `clamctl-SHA256SUMS`, `clamctl-SHA256SUMS.sigstore.json`, and the release-wide `SHA256SUMS`. The checks in `scripts/release-assets.py` cover the signed CLI inventory and its bundle. Check the GitHub release's assets for signed binaries and their verification files. [Release notes](releases/v2.1.0.md)
 
 ### Verification by users
 

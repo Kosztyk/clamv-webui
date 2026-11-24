@@ -250,8 +250,26 @@ jobs:
           echo "QUALITY_BASELINE=$baseline" >> "$GITHUB_ENV"
           python3 scripts/issue53-prepare-baseline.py --baseline "$baseline/pom.xml"
           mvn -B -ntp -f "$baseline/pom.xml" -Pci-quality -Denforcer.skip=true verify
+      - name: Detect coverage-affecting Java/application changes
+        id: coverage-scope
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          set -euo pipefail
+          changed_paths="$(git diff --name-only "$BASE_SHA" HEAD -- pom.xml .mvn mvnw mvnw.cmd src)"
+          if [[ -n "$changed_paths" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Block decreases in actual JaCoCo line coverage
+        if: ${{ steps.coverage-scope.outputs.changed == 'true' }}
         run: python3 scripts/issue58-coverage-ratchet.py --baseline "$QUALITY_BASELINE/target/site/jacoco/jacoco.xml" --candidate target/site/jacoco/jacoco.xml
+      - name: Record non-applicable relative coverage comparison
+        if: ${{ steps.coverage-scope.outputs.changed == 'false' }}
+        run: |
+          echo "Relative JaCoCo ratchet skipped because no coverage-affecting Java/application source changed."
+          echo "Both Maven test runs and their JaCoCo minimums remain required."
       - name: Fail on new static analysis findings, not pre-existing debt
         run: |
           python3 scripts/issue53-compare-quality.py --baseline "$QUALITY_BASELINE/target" \

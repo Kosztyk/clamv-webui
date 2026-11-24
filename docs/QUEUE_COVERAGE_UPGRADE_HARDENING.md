@@ -14,13 +14,11 @@ The total shutdown budget must be shorter than `spring.lifecycle.timeout-per-shu
 
 ## 2. Measured Java quality non-regression
 
-The Java quality CI now executes Maven tests for both the candidate and its immutable Git base, uses matching JaCoCo instrumentation (injected into older temporary baseline POMs if needed), and compares their **actual line-coverage ratios** with `scripts/issue58-coverage-ratchet.py`. The ratchet allows at most **0.01 percentage point** of run-to-run variance to avoid false failures from timing-dependent integration coverage; any larger decrease remains blocking. The original Maven 5% absolute minimum remains enforced. SpotBugs/FindSecBugs and PMD continue blocking additional findings relative to the base.
-
-**Historical debt remains:** There is no trustworthy coverage measurement available in this environment to justify increasing the 5% absolute floor; it would be incorrect to claim the entire historical Java codebase has been reformatted. The `scripts/issue58-java-modernize.sh` script performs an opt-in whole-project `spotless:apply` with the pinned formatter in a **clean Git checkout** with JDK 21 / Maven 3.9+, exporting a reviewable patch. Commit that as a separate formatting-only PR, run the full Maven suite, then replace incremental `ratchetFrom` enforcement with whole-tree formatting. Raise the JaCoCo floor only once the actual report has been examined.
+The Java quality job runs Maven tests for the candidate and its immutable Git base. Full candidate builds enforce the **82% minimum** in `pom.xml`. The relative line-coverage comparison runs when the diff includes `src/`, `pom.xml`, `.mvn/`, `mvnw` or `mvnw.cmd`. It fails when coverage drops by more than **0.01 percentage point**. On a forced full run with no changes to those paths, both Maven test builds, Spotless, SpotBugs/FindSecBugs and PMD still run. The workflow records that the relative comparison is inapplicable. This keeps timing differences in integration tests from failing a CI-only change. Application changes still use measured coverage and can show run-to-run variance.
 
 ## 3. Dynamic release upgrade baseline
 
-`issue58-resolve-predecessor.py` queries **published GitHub releases** and selects the newest published tag whose peeled commit is a strict ancestor of the candidate's immutable Git commit, excluding drafts, the candidate tag and unrelated branches. Both H2/PostgreSQL CI and release jobs run it with a read-only GitHub token and full Git history. It writes `artifacts/upgrade-predecessor.json`, and the upgrade runner re-resolves the tag before building the predecessor, refusing a moved tag. Both pre- and post-upgrade Flyway versions are computed dynamically, including Java and SQL migrations. The release remains blocked if a real previous database fails to migrate or retain its users, tokens, jobs or encrypted settings.
+`issue58-resolve-predecessor.py` selects the most recently published eligible GitHub release with a version earlier than the candidate. This includes earlier releases from a separate release branch. The resolver excludes drafts and the candidate tag and records the selected tag's commit. Both H2 and PostgreSQL jobs use that commit. The upgrade runner checks the tag again before building the predecessor and rejects a moved tag. Expected Flyway versions come from the SQL and Java migrations in each build. Upgrade failures block automated release publication.
 
 `config/upgrade-baseline.json` now documents only the **frozen synthetic fixture provenance**, originally `v2.1beta1`, not a floating previous-release choice. If the latest predecessor's schema cannot accept the frozen fixture, the gate fails closed; maintainers must refresh the fixture after reviewing the schema. It does not silently test a fresh database.
 
@@ -34,4 +32,4 @@ python3 scripts/test-issue57-upgrade-path.py
 mvn -B -ntp clean verify
 ```
 
-The live upgrade requires a GitHub Actions checkout with Docker and network access to GitHub, Maven repositories and image registries. Full formatter execution and Maven/JUnit/JaCoCo tests were not possible in the offline source-review environment. These conditions must pass in CI before production adoption.
+The live upgrade requires a Git checkout with Docker and access to GitHub, Maven repositories and image registries.

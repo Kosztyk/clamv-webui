@@ -22,7 +22,7 @@ placeholder semantics are in [LDAP configuration compatibility](LDAP_CONFIGURATI
 * Each provider is independent. Saving a disabled provider retains its settings but hides that provider's login option.
 * Providers are registered with Spring Security at startup without connecting to them. LDAP's authentication provider is built only on login; OIDC issuer discovery is lazy. Settings changes increment a revision and replace registrations for **new** sign-ins without restart. Existing sessions retain their authorities until they log in again.
 * This is **single-replica configuration**. Multiple replicas require a shared key and coordinated settings refresh before HA can be claimed.
-* The fixed OIDC registration ID is `clamav` and callback is `https://YOUR-WEBUI-DOMAIN/login/oauth2/code/clamav`. The provider issuer must be HTTPS and trusted by the JVM. The application defaults to `framework` forwarding; use a trusted reverse proxy that strips and rewrites user-supplied forwarding headers and blocks direct backend access. Use `SERVER_SERVLET_SESSION_COOKIE_SECURE=true` for TLS access.
+* The fixed OIDC registration ID is `clamav` and callback is `https://YOUR-WEBUI-DOMAIN/login/oauth2/code/clamav`. The provider issuer must be HTTPS and trusted by the JVM. The application defaults to `none` for direct access. For TLS termination, configure `native` mode and an allowlist for the proxy that rewrites forwarding headers. Keep `SERVER_SERVLET_SESSION_COOKIE_SECURE=true` for TLS access. [Proxy TLS configuration](REVERSE_PROXY_TLS.md)
 
 ## Credentials and rotation
 

@@ -1,5 +1,10 @@
 # Issue #53 — Validation report (2026-11-13)
 
+This report records the initial offline review. The current Java builds enforce
+an 82% coverage floor. Both Maven builds and the static-analysis comparison
+passed in the [full CI run for PR #81](https://github.com/Kosztyk/clamv-webui/actions/runs/45055371545).
+See the [current Java quality guide](docs/ISSUE53_JAVA_QUALITY_GATES.md).
+
 **Baseline:** `clamav-webui-v2.1.0beta2-issue52-security-scanning-gates-full-source.zip` (complete source, 1,316 files). **Target:** Java code-quality and CI gate changes only.
 
 ## Executed in the offline build workspace

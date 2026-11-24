@@ -17,9 +17,9 @@ Java 17 is **not** a compatible build target in this branch: `pom.xml` sets `jav
 
 ## JaCoCo coverage policy
 
-JaCoCo enforces an 82% application line-coverage floor. The rebuilt source measured 83.37% on Java 21. CI also compares the actual coverage report with the PR or push base using the same JaCoCo configuration. The Mockito Java agent remains enabled in test forks.
+JaCoCo enforces an 82% application line-coverage floor. CI compares the actual coverage report with the PR or push base when application or Maven inputs change. A drop greater than 0.01 percentage point fails the relative check. The Mockito Java agent remains enabled in test forks.
 
-Some narrowly scoped DB migration profile runs intentionally set `-Djacoco.skip=true` because they execute only Failsafe IT subsets. Full `java-tests` and release `mvn clean verify` retain mandatory coverage enforcement; the quality report-only invocation skips unit tests and coverage to avoid misleading results.
+The DB migration jobs set `-Djacoco.skip=true` for their Failsafe integration-test subsets. Coverage remains mandatory in the full Java test jobs, both Maven builds in `java-quality`, and release validation.
 
 ## Existing static-analysis debt and formatting
 
@@ -37,7 +37,7 @@ mvn -B -ntp clean verify
 
 # Static report generation, convergence and changed-file format enforcement.
 git fetch origin main
-mvn -B -ntp -Pci-quality -DskipTests -Djacoco.skip=true verify spotless:check
+mvn -B -ntp -Pci-quality verify spotless:check
 
 # Deterministic offline wiring, negative tests and baseline comparator checks.
 python3 scripts/check-issue53-java-quality.py
@@ -48,7 +48,7 @@ To compare the new SpotBugs/PMD findings against a historical commit, `java-qual
 
 1. Determines the immutable PR base or previous main commit SHA, then creates a detached temporary Git worktree.
 2. Injects the **candidate** `ci-quality` Maven profile into the baseline POM to keep scanner versions and rules identical, without changing the historical commit.
-3. Builds each revision with `-Pci-quality -DskipTests -Djacoco.skip=true`; baseline enforcement is skipped only for dependency-convergence checks, which are applied strictly to the candidate.
+3. Builds each revision with `-Pci-quality verify` and tests enabled. Maven Enforcer runs on the candidate, and the baseline build uses `-Denforcer.skip=true` to allow historical dependencies. JaCoCo continues to enforce the Maven floor in both builds.
 4. Requires valid `spotbugs.xml` and `pmd.xml` reports from both revisions; rejects any new findings. Uploads candidate reports even on failure.
 
 ## CI acceptance checks and limitations

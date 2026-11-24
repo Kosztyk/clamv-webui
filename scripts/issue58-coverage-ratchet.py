@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Block material regressions in measured JaCoCo line coverage.
 
-JaCoCo totals can vary by a handful of executed lines between otherwise identical
-runs because some integration/scheduling paths are timing-dependent. Treat only
-a drop larger than 0.01 percentage point as a regression; this is smaller than
-the two-decimal precision reported to maintainers and still blocks meaningful
-coverage loss.
+CI compares coverage when application or Maven inputs change. A measured drop
+greater than 0.01 percentage point fails the comparison. The Maven coverage floor
+also applies to full builds that do not run this comparison.
 """
 from pathlib import Path
 from fractions import Fraction

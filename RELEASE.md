@@ -79,6 +79,11 @@ A tag pushed to another branch, an unapproved commit, or a version different
 from the POM **fails before any image or release publication**. If the tag
 already exists, do not move/reuse it: publish a new version instead.
 
+An audited source refresh for an existing version can be attached as a
+separately named ZIP to the published release after the exact source commit
+passes the main-push gate. List that commit and the ZIP's SHA-256 in the release
+notes. GitHub's automatic source downloads refer to the original tag.
+
 For a no-publication diagnostic of an **existing tag**, the release workflow
 has `workflow_dispatch`; manual runs **cannot** write the image/release:
 

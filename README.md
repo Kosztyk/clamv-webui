@@ -2,9 +2,9 @@
 
 > **Stable release tag:** `v2.1.0`  
 > **Docker Hub image:** `kosztyk/clamav-web-client:v2.1.0`  
-> **Release date:** 21 November 2026
+> **GitHub publication date:** 22 November 2026
 >
-> v2.1.0 consolidates the fixes raised in issues #25–#57, including ClamAV 1.4.7 security remediation, PostgreSQL legacy-upgrade auto-repair before Flyway V9, persistent Direct-HTTP session-cookie configuration, hardened CI/release gates, signed/scanned release artifacts, and digest-scoped OpenVEX handling for Alpine `CVE-2026-107891`. See [v2.1.0 release notes](docs/releases/v2.1.0.md), [CHANGELOG](CHANGELOG.md), and [upgrade/release procedure](RELEASE.md).
+> v2.1.0 consolidates the fixes raised in issues #25–#57, including ClamAV 1.4.7, automatic PostgreSQL compatibility repair before Flyway V9, persistent Direct HTTP session-cookie configuration, and digest-scoped OpenVEX for Alpine `CVE-2026-107891`. The audited source refresh covers all 57 closed issues and includes PR #81's JaCoCo gate fix. [GitHub release and downloads](https://github.com/Kosztyk/clamv-webui/releases/tag/v2.1.0) · [Release notes](docs/releases/v2.1.0.md) · [Changelog](CHANGELOG.md) · [Release procedure](RELEASE.md)
 
 ### Issue #55 — API v1 contract compatibility gate (included in v2.1.0)
 
@@ -19,6 +19,8 @@ The unified CI `gate` now includes separate **`cli-test`**, **`cli-build`** and 
 The unified GitHub `gate` now includes a JDK **21/25** test matrix with JaCoCo coverage enforcement (82% minimum), and a `java-quality` job with **Spotless formatting, SpotBugs/FindSecBugs, PMD and Maven Enforcer** dependency convergence. New static-analysis findings are compared against the exact PR/push base; existing reports and coverage evidence are uploaded. The application targets Java 21, so JDK 17 is intentionally not claimed as supported. The tag-triggered release repeats quality validation. The local build measured 83.37% line coverage; see [issue #53 quality guide](docs/ISSUE53_JAVA_QUALITY_GATES.md) and [validation report](ISSUE53_VALIDATION_RESULTS.md).
 
 > **Current application and CLI version:** Defined only by the top-level `pom.xml` project version. Maven filters this value into the running application, setup/login/footer and OpenAPI; the CLI builder reads the same POM. Local Compose tags are intentionally version-neutral (`local`). Release tags use `v` plus the exact POM version. Historical beta/issue headings below are documentation, not active version declarations. Run `python3 scripts/check-versions.py` to verify all active references.
+
+The [closed-issue audit](docs/CLOSED_ISSUE_AUDIT.md) maps all 57 issues to their implementation and verification evidence, including the JaCoCo changes from PR #81.
 
 ### Issue #41: CSV spreadsheet safety without data loss
 
@@ -490,7 +492,7 @@ security settings; a maintainer must turn on private vulnerability reporting.
 
 ### Upgrade-path release protection (issue #57)
 
-The unified CI and tag-triggered release workflow now test upgrades of the **latest published ancestor release** (originally `v2.1beta1`) to the candidate against persisted H2 and PostgreSQL state, including retained local users/roles, API tokens, endpoints, scan jobs, LDAP/OIDC ciphertext and `conf/` encryption keys. The release will not publish its GHCR image tags or draft GitHub artifacts when either upgrade fails. A separate frozen V4 H2 fixture exercises the Flyway V5–V8 path during fast Java tests. See [the documented migration gate](docs/ISSUE57_UPGRADE_PATH_GATE.md) and [release runbook](RELEASE.md). No private network addresses or credentials are embedded in these fixtures.
+The unified CI and tag-triggered release workflow upgrade the **most recently published eligible earlier version** (initially `v2.1beta1`) to the candidate against persisted H2 and PostgreSQL state. The tests verify retained users, roles, API tokens, endpoints, scan jobs, LDAP/OIDC ciphertext, and `conf/` encryption keys. Both upgrade jobs must pass before automated GHCR promotion or draft creation. A frozen V4 H2 fixture also checks the candidate's Flyway migrations in the Java suite. See [the database upgrade gate](docs/ISSUE57_UPGRADE_PATH_GATE.md) and [release runbook](RELEASE.md).
 
 
 ### Full-source review (November 2026)
@@ -502,6 +504,6 @@ The audit regression checks run in the required CI gate and the release gate.
 
 ### Post-audit reliability safeguards
 
-Scan dispatch now uses a bounded queue (default `APP_SCAN_QUEUE_CAPACITY=256`); overflow leaves a committed scan `QUEUED` for scheduled DB retry and increments `clamav.scan.dispatch.deferred`. Java CI rejects drops in measured JaCoCo line coverage relative to the Git baseline. Upgrade gates resolve the latest published ancestor release instead of manually pinning a predecessor. See [post-audit hardening](docs/QUEUE_COVERAGE_UPGRADE_HARDENING.md). Historical Java formatting cleanup and a measured increase of the provisional 5% JaCoCo floor remain explicit follow-up work.
+Scan dispatch now uses a bounded queue (default `APP_SCAN_QUEUE_CAPACITY=256`). Overflow leaves a committed scan `QUEUED` for scheduled database retry and increments `clamav.scan.dispatch.deferred`. Full Java builds enforce an 82% JaCoCo line-coverage minimum. The relative comparison runs when application or Maven inputs change. Upgrade gates resolve the published predecessor from GitHub release history. See [the scan, coverage, and upgrade gates](docs/QUEUE_COVERAGE_UPGRADE_HARDENING.md).
 
 **Scan shutdown/restart:** On SIGTERM, the scan executor stops accepting new dispatches, leaves unstarted tasks `QUEUED`, and allows active scans 20 seconds to finish. It then interrupts active workers and waits up to 5 more seconds, without writing an `ERROR` verdict for shutdown cancellation. Persisted `RUNNING` jobs are requeued on the next single-instance startup; this retries an interrupted scan from the beginning. Configure `APP_SCAN_SHUTDOWN_GRACE_SECONDS` (0–300) and `APP_SCAN_SHUTDOWN_FORCE_SECONDS` (0–60), keeping their combined value below Spring's shutdown-phase timeout and the container's stop grace. An uninterruptible ClamAV socket can survive both waits: daemon worker threads prevent indefinite JVM shutdown, and restart recovery handles the outstanding job. See [queue hardening](docs/QUEUE_COVERAGE_UPGRADE_HARDENING.md).

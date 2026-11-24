@@ -11,7 +11,13 @@ The entries below describe released source when a dated version heading is prese
 
 _No unreleased user-visible changes yet._
 
-## [2.1.0] - 2026-11-21
+## [2.1.0] - 2026-11-22
+
+### Audited source refresh
+
+- Skip the relative JaCoCo comparison on full CI runs with no changes to application or Maven inputs. Full Java builds still enforce the 82% floor.
+- Correct proxy TLS examples for CLI, MCP, and identity-provider setup.
+- Document the audit of all 57 closed issues and refresh the SHA-256 source manifest.
 
 - Direct-HTTP setup/recovery now persists only `server.servlet.session.cookie.secure=false` when explicitly enabled on a trusted HTTP network; forwarded-header trust is not silently changed.
 - PostgreSQL startup now detects the legacy `processed_files.idx_processed_path` UNIQUE constraint shape and safely normalizes it before Flyway V9, while leaving the V9 migration checksum unchanged.
