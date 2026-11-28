@@ -1,6 +1,6 @@
 # Native path scanning needs the same numeric owner as the Web UI's private uploads.
 # Retain the official entrypoint/configuration and its unprivileged clamav daemon account.
-FROM clamav/clamav:1.4.7@sha256:b7357e2c1c59480628839df301b0d27923561389b36cf341911e1dd9e02cdd05
+FROM clamav/clamav:1.5.5@sha256:64e30c0bf976198024deb3dc6d5cfe2485fb969c0f73549ba0fdb364b9469614
 USER root
 RUN set -eu; \
     awk -F: '$3 == 10001 && $1 != "clamav" { exit 1 }' /etc/passwd; \
