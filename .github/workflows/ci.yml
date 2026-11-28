@@ -875,7 +875,7 @@ jobs:
         working-directory: cli
         run: go build ./...
       - name: Analyze selected language
-        uses: github/codeql-action/analyze@2d92b76c45b91eb80fc44c74ce3fce0ee94e8f9d # v3.30.0
+        uses: github/codeql-action/analyze@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
         with:
           category: /language:${{ matrix.language }}
 
