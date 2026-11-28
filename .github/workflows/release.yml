@@ -425,7 +425,7 @@ jobs:
         with:
           name: release-clamctl
           path: artifacts/cli
-      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
         with:
           cosign-release: v2.5.3
       - name: Derive independent checksums of all six tested release binaries
@@ -571,7 +571,7 @@ jobs:
           exit-code: true
           registry-user: ${{ github.actor }}
           registry-password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
         with:
           cosign-release: v2.5.3
       - name: Keyless-sign OCI digest and attest both CycloneDX SBOMs
@@ -707,7 +707,7 @@ jobs:
         with:
           name: release-cli-signed-checksums
           path: artifacts/cli-sign
-      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
         with:
           cosign-release: v2.5.3
       - uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
@@ -795,7 +795,7 @@ jobs:
           gh release download "$RELEASE_TAG" --dir artifacts/approval
           python3 scripts/release-assets.py --out artifacts/approval --verify-only --require-image-evidence --require-cli-signature
           (cd artifacts/approval && sha256sum -c SHA256SUMS)
-      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
         with:
           cosign-release: v2.5.3
       - uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
