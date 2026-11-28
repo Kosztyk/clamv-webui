@@ -862,7 +862,7 @@ jobs:
           cache: true
           cache-dependency-path: cli/go.sum
       - name: Initialize CodeQL with security-extended queries
-        uses: github/codeql-action/init@2d92b76c45b91eb80fc44c74ce3fce0ee94e8f9d # v3.30.0
+        uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.mode }}
