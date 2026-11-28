@@ -740,19 +740,19 @@ jobs:
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
           "$(go env GOPATH)/bin/actionlint" -oneline
       - name: hadolint - web application Dockerfile
-        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
         with:
           dockerfile: Dockerfile
           failure-threshold: error
           no-fail: 'false'
       - name: hadolint - ClamAV Dockerfile
-        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
         with:
           dockerfile: Dockerfile.clamd
           failure-threshold: error
           no-fail: 'false'
       - name: hadolint - UID-adjusted ClamAV Dockerfile
-        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
         with:
           dockerfile: Dockerfile.clamd-uid
           failure-threshold: error
